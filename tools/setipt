@@ -1,4 +1,5 @@
 #!/bin/bash
+# set iptables
 
 [ -r $INTCP/cmd/my.conf ] && . $INTCP/cmd/my.conf
 iptables -t mangle -F

@@ -1,4 +1,6 @@
 #!/bin/bash
+# set iptables (failed version)
+
 iptables -t mangle -F
 iptables -t mangle -N DIVERT #在nat表上新建名为DIVERT自定义链
 iptables -t mangle -A PREROUTING -p tcp -m socket --transparent -j DIVERT #已建立的socket且被tproxy标记过的数据包执行DIVERT

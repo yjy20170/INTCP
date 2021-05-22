@@ -1,4 +1,5 @@
 #!/bin/bash
+# watch the realtime throughput of network interface
 
 watch -n 1 "ifconfig $1-eth$2"
 

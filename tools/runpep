@@ -1,6 +1,7 @@
 #!/bin/bash
+# set iptables and start pepsal with hybla
 
-echo "修改iptables..."
+echo "setting iptables..."
 ./setipt
-echo "启动pepsal..."
+echo "starting pepsal..."
 $INTCP/pepsal/src/pepsal -v -C hybla

@@ -1,4 +1,5 @@
 #!/bin/bash
+# auto generate binary file "src/pepsal"
 
 cd $INTCP/pepsal
 ./autogen.sh

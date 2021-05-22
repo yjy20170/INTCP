@@ -6,4 +6,4 @@ killall -9 xterm >/dev/null 2>&1
 
 # 运行pep.py
 echo "按方向键 ↑ ↑ ↑ 回车"
-sudo python $INTCP/net_topo/net$1.py
+sudo python $INTCP/nets/net_wrapper.py $*
