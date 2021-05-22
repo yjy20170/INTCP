@@ -43,7 +43,6 @@ if __name__ == "__main__":
     h2.cmd("route add default gw 10.0.2.90")
     pep.cmd("sysctl net.ipv4.ip_forward=1")
     
-    # https://www.runoob.com/python3/python3-multithreading.html
     def linkupdown():
        while 1:
           time.sleep(8)
