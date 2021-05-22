@@ -1,0 +1,6 @@
+#!/bin/bash
+
+echo "修改iptables..."
+./setipt
+echo "启动pepsal..."
+$INTCP/pepsal/src/pepsal -v -C hybla

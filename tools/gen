@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cd $INTCP/pepsal
+./autogen.sh
+make
+make install
+echo "finished."
+ls src/pepsal -l
