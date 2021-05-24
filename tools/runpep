@@ -4,4 +4,4 @@
 echo "setting iptables..."
 ./setipt
 echo "starting pepsal..."
-$INTCP/pepsal/src/pepsal -v -C hybla
+../pepsal/src/pepsal -v -C hybla

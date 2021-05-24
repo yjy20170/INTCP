@@ -10,7 +10,7 @@ def setTopo(topo,args={}):
     topo.addLink(h1,s1,cls=TCLink,  bw=10, delay=  "0ms")
     topo.addLink(s1,pep,cls=TCLink, bw=10, delay=  "12.4ms")
     topo.addLink(pep,s2,cls=TCLink, bw=1000, delay="0ms")
-    topo.addLink(s2,h2,cls=TCLink,  bw=10, delay="287.5ms",loss=0.5)
+    topo.addLink(s2,h2,cls=TCLink,  bw=10, delay="287.5ms",loss=0)
 
 def execCmd(mn,args={}):
     pep = mn.getNodeByName("pep")

@@ -1,7 +1,9 @@
+#coding=utf-8
 import thread
 import time
 import argparse
 import importlib
+import os
 
 from mininet.topo import Topo
 from mininet.net import Mininet
@@ -27,6 +29,9 @@ def createNet(setTopo,execCmd):
     mn.interact()
     
 if __name__=="__main__":
+    # clear
+    os.system('echo "press key ↑ ↑ ↑ Enter"')
+
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-net',type=str,default='0')

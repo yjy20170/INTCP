@@ -1,7 +1,7 @@
 #!/bin/bash
 # auto generate binary file "src/pepsal"
 
-cd $INTCP/pepsal
+cd ../pepsal
 ./autogen.sh
 make
 make install

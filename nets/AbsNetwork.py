@@ -14,16 +14,19 @@ class AbsNetwork:
     linkInfos=[]
     mn=None
     args=None
-    def __init__(self,hostsN=[],links=[]):
-        self.nodes=nodes
+
+    def __init__(self,hosts=[],switches=[],links=[]):
+        self.hosts=hosts
+        self.switches=switches
         self.links=links
+
         
     def loadArgs(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('-net',type=str,default='0')
         parser.add_argument('-bw',type=int,default=-1)
         parser.add_argument('--itm', action='store_const', const=True, default=False, help='add intermittent')
-        args = parser.parse_args()
+        self.args = parser.parse_args()
         
     def startMN(self):
         # clear
@@ -31,16 +34,16 @@ class AbsNetwork:
         os.system('killall -9 xterm >/dev/null 2>&1')
         
         topo=Topo()
-        # set topo
-        for node in self.nodes:
-            if node[0]=='h':
-                
+        # # set topo
+        # for node in self.nodes:
+        #     if node[0]=='h':
+
         h1 = topo.addHost("h1",ip='10.0.1.1/24')
         s1 = topo.addSwitch("s1")
         pep = topo.addHost("pep",ip='10.0.1.90/24')
         s2 = topo.addSwitch("s2")
         h2 = topo.addHost("h2",ip='10.0.2.1/24')
-        
+
         topo.addLink(h1,s1,cls=TCLink,  bw=10, delay=  "0ms")
         topo.addLink(s1,pep,cls=TCLink, bw=10, delay=  "12.4ms")
         topo.addLink(pep,s2,cls=TCLink, bw=1000, delay="0ms")
