@@ -5,7 +5,7 @@
 
 [ -r ./my.conf ] && . ./my.conf
 if [ -n "$2" ] ;then
-  iperf -c 10.0.$1 -p 5001 -i 1 -t $2 -w ${IPERF_WIN} -l 1000K
+  iperf -c 10.0.$1 -p 5001 -i 1 -t $2 -w ${IPERF_WIN} # -l 1000K
 else
   iperf -c 10.0.$1 -p 5001 -i 1 -t 10
 fi

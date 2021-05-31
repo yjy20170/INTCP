@@ -3,4 +3,4 @@
 mn -c >/dev/null 2>&1
 killall -9 xterm >/dev/null 2>&1
 
-sudo python ../nets/net_loader.py $*
+sudo python ../nets/loader.py $*
