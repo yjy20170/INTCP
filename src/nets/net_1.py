@@ -1,6 +1,9 @@
+from mininet.topo import Topo
 from mininet.link import TCLink
+from mininet.net import Mininet
 
-def setTopo(topo,args={}):
+def createNet(args):
+    topo=Topo()
 
     h1 = topo.addHost("h1",ip='10.0.1.1/24')
     pep1 = topo.addHost("pep1",ip='10.0.1.90/24')
@@ -20,8 +23,10 @@ def setTopo(topo,args={}):
     topo.addLink(s4,pep2)
     topo.addLink(pep2,s2)
     topo.addLink(s2,h2)
+    
+    return Mininet(topo)
         
-def execCmd(mn,args={}):
+def onNetCreated(mn,args):
     pep1 = mn.getNodeByName("pep1")
     pep2 = mn.getNodeByName("pep2")
     h1 = mn.getNodeByName("h1")
