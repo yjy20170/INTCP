@@ -6,8 +6,8 @@ def setTopo(topo, args={}):
     s1 = topo.addSwitch("s1")
     h2 = topo.addHost("h2", ip='10.0.1.2/24')
 
-    topo.addLink(h1, s1, cls=TCLink, bw=10, delay="100ms", loss=1)
-    topo.addLink(s1, h2, cls=TCLink, bw=10, delay="100ms", loss=1)
+    topo.addLink(h1, s1, cls=TCLink, bw=10, delay="10ms", loss=1)
+    topo.addLink(s1, h2, cls=TCLink, bw=10, delay="10ms", loss=1)
 
 
 def execCmd(mn, args={}):

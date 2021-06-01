@@ -1,6 +1,4 @@
 #!/bin/bash
 # start mininet
-mn -c >/dev/null 2>&1
-killall -9 xterm >/dev/null 2>&1
 
-sudo python ../nets/loader.py $*
+python ../src/nets/net_$1.py $*

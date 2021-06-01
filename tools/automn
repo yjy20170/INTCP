@@ -1,0 +1,42 @@
+#!/usr/bin/python
+
+import sys
+sys.path.append("../src")
+from NetHelper import *
+
+def itmScript(endpA,endpB,totalLen,itmLen):
+   while 1:
+      time.sleep(totalLen-itmLen)
+      mn.configLinkStatus(endpA,endpB,'down')
+      time.sleep(itmLen)
+      mn.configLinkStatus(endpA,endpB,'up')
+      
+def ipfThread(mn,args):
+    mn.getNodeByName("pep").sendCmd('./runpep')
+    mn.getNodeByName("h2").sendCmd('iperf -s -p 5001 > ../logs/log_'+args.confName+'.txt')
+    for i in range(1):
+        # ipfc = lambda : mn.getNodeByName("h1").sendCmd('./ipfc 2.1 10')
+        # thread.start_new_thread(ipfc, () )
+        mn.getNodeByName("h1").cmd('./ipfc 2.1 '+str(args.testLen))
+        time.sleep(10)#args.testLen)
+    
+    os.system("killall -9 controller >/dev/null 2>&1")
+    #mn.stop()
+    clear()
+    assert 0
+
+
+argsSet = [
+    Args(confName='1',testLen=3,threads=[ipfThread],net="0",bw=10,rtt=10,loss=0,pepcc="hybla"),
+    
+    Args(confName='2',testLen=3,threads=[ipfThread],net="0",bw=50,rtt=10,loss=0,pepcc="hybla")
+]#,prdTotal:20,prdItm:5
+
+    
+    
+if __name__=="__main__":
+    for args in argsSet:
+        try:
+            importNet(args.net).run(args)
+        except:
+            print('end',args)
