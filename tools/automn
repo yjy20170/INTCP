@@ -27,10 +27,10 @@ def ipfThread(mn,args,threadLock):
     
     threadLock.release()
 
-basicArgs = Args(netname="0",testLen=60,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,prdTotal=20,prdItm=0)
+basicArgs = Args(netname="0",confName='basic_conf',testLen=60,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,prdTotal=20,prdItm=0)
 argsSet = [
-    Args(basicArgs,confName='bw_10_rtt_25_loss_0_itm_0_pepcc_none',pepcc="none"),
-    Args(basicArgs,confName='bw_10_rtt_25_loss_0_itm_0_pepcc_hybla',pepcc="hybla")
+    Args(basicArgs,pepcc="none"),
+    Args(basicArgs,pepcc="hybla")
 ]
     
 
