@@ -1,9 +1,8 @@
-import NetHelper
 from mininet.topo import Topo
 from mininet.link import TCLink
 from mininet.net import Mininet
 
-def createNet(args={}):
+def createNet(args):
     topo=Topo()
     h1 = topo.addHost("h1",ip='10.0.1.1/24')
     s1 = topo.addSwitch("s1")
@@ -18,7 +17,7 @@ def createNet(args={}):
     
     return Mininet(topo)
 
-def onNetCreated(mn,args={}):
+def onNetCreated(mn,args):
     pep = mn.getNodeByName("pep")
     h1 = mn.getNodeByName("h1")
     h2 = mn.getNodeByName("h2")
@@ -29,10 +28,4 @@ def onNetCreated(mn,args={}):
 
 
 
-def run(args):
-    NetHelper.clear()
-    mn = createNet(args)
-    return NetHelper.start(mn, onNetCreated, args)
-if __name__=="__main__":
-    # get args from shell input instead of function input
-    args = NetHelper.parseArgs()
+

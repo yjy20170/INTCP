@@ -1,42 +1,43 @@
 #!/usr/bin/python
+#coding=utf-8
 
 import sys
 sys.path.append("../src")
 from NetHelper import *
 
-def itmScript(endpA,endpB,totalLen,itmLen):
-   while 1:
-      time.sleep(totalLen-itmLen)
-      mn.configLinkStatus(endpA,endpB,'down')
-      time.sleep(itmLen)
-      mn.configLinkStatus(endpA,endpB,'up')
+
+def itmThread(mn,args,threadLock):
+    if args.prdItm>0:
+        while threadLock.locked():
+            time.sleep(args.prdTotal-args.prdItm)
+            mn.configLinkStatus('s2','h2','down')
+            time.sleep(args.prdItm)
+            mn.configLinkStatus('s2','h2','up')
+    else:
+        return
       
-def ipfThread(mn,args):
-    mn.getNodeByName("pep").sendCmd('./runpep')
+def ipfThread(mn,args,threadLock):
+    if args.pepcc!='none':
+        mn.getNodeByName("pep").sendCmd('./runpep '+args.pepcc)
     mn.getNodeByName("h2").sendCmd('iperf -s -p 5001 > ../logs/log_'+args.confName+'.txt')
-    for i in range(1):
-        # ipfc = lambda : mn.getNodeByName("h1").sendCmd('./ipfc 2.1 10')
-        # thread.start_new_thread(ipfc, () )
+    
+    for i in range(5):
         mn.getNodeByName("h1").cmd('./ipfc 2.1 '+str(args.testLen))
-        time.sleep(10)#args.testLen)
+        time.sleep(args.testLen)
     
-    os.system("killall -9 controller >/dev/null 2>&1")
-    #mn.stop()
-    clear()
-    assert 0
+    threadLock.release()
 
-
+basicArgs = Args(netname="0",testLen=60,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,prdTotal=20,prdItm=0)
 argsSet = [
-    Args(confName='1',testLen=3,threads=[ipfThread],net="0",bw=10,rtt=10,loss=0,pepcc="hybla"),
+    Args(basicArgs,confName='bw_10_rtt_25_loss_0_itm_0_pepcc_none',pepcc="none"),
+    Args(basicArgs,confName='bw_10_rtt_25_loss_0_itm_0_pepcc_hybla',pepcc="hybla")
+]
     
-    Args(confName='2',testLen=3,threads=[ipfThread],net="0",bw=50,rtt=10,loss=0,pepcc="hybla")
-]#,prdTotal:20,prdItm:5
 
-    
-    
 if __name__=="__main__":
+
     for args in argsSet:
-        try:
-            importNet(args.net).run(args)
-        except:
-            print('end',args)
+       mngo(args)
+       
+    
+    os.system("killall -9 automn >/dev/null 2>&1")
