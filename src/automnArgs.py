@@ -23,8 +23,8 @@ def ipfThread(mn,args,threadLock):
     threadLock.release()
 
 basicArgs = NetHelper.Args(netname="0",confName='basic_conf',testLen=120,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,prdTotal=20,prdItm=0)
-argsSet = []
-def add_args(argsSet):
+def createArgs(basicArgs):
+    argsSet = []
     rtt_range = [25,175,375,575]
     bw_range = [10,100]
     loss_range = [0,0.5,1]
@@ -37,5 +37,8 @@ def add_args(argsSet):
     for itm in itm_range:
         argsSet.append(NetHelper.Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="none"))
         argsSet.append(NetHelper.Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla"))
-        
-add_args(argsSet)
+    return argsSet
+
+# argsSet = createArgs(basicArgs)
+
+argsSet = [NetHelper.Args(netname="0",confName='test_conf',testLen=40,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,pepcc='none',prdTotal=20,prdItm=5)]

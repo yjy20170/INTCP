@@ -36,4 +36,5 @@ if __name__=="__main__":
         print('')
     print(results)
     with open('../logs/summary-'+timestamp()+'.txt','w') as f:
+        #TODO 截断
         f.write('\r\n'.join(results))
