@@ -18,7 +18,7 @@ class Args:
             self.confName = self.getConfName()
             
     def getConfName(self):
-        return 'bw_'+str(self.bw)+'_rtt_'+str(self.rtt)+'_loss_'+str(self.loss)+'_itm_'+str(self.prdItm)+'_pepcc_'+self.pepcc
+        return str(self.bw)+'m_'+str(self.rtt)+'ms_'+str(self.loss)+'%_'+str(self.prdItm)+'s_'+self.e2ecc+'_'+self.pepcc
     
     @classmethod
     def getArgsFromCli(cls):

@@ -20,26 +20,26 @@ def itmThread(mn,args,threadLock):
         return
         
 def ipfThread(mn,args,threadLock):
-    mn.getNodeByName("h2").xterm()
-    mn.getNodeByName("pep").xterm()
-    mn.getNodeByName("h1").xterm()
-    if args.pepcc != 'none':
+    if args.pepcc != 'nopep':
         mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' &')
-# mn.getNodeByName("h2").cmd('iperf -s -p 5001 -i 1 > ../logs/log_'+args.confName+'.txt &')
-    thread.start_new_thread(mn.getNodeByName("h2").cmd, ('iperf -s -p 5001 -i 1',))
+        
+    mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/log_'+args.confName+'.txt &')
     
-    for i in range(5):
-        mn.getNodeByName("h1").cmd('../bash/ipfc 2.1 '+str(args.testLen))
+    # thread.start_new_thread(mn.getNodeByName("h2").cmd, ('iperf -s -p 5001 -i 1',))
+    
+    for i in range(3):
+        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+'-t '+str(args.testLen))
         time.sleep(args.testLen)
-    
+        
     threadLock.release()
     
     
     
-argsSet = [Args(netname="0",confName='test_conf',testLen=40,threads=[ipfThread,itmThread],bw=10,rtt=575,loss=1,pepcc='hybla',prdTotal=20,prdItm=7)]
+argsSet = [Args(netname="0",testLen=40,threads=[ipfThread,itmThread],bw=10,rtt=575,loss=0.5,e2ecc='cubic',pepcc='nopep',prdTotal=20,prdItm=0),
+Args(netname="0",testLen=40,threads=[ipfThread,itmThread],bw=10,rtt=575,loss=1,e2ecc='hybla',pepcc='nopep',prdTotal=20,prdItm=0)]
 
 
-basicArgs = Args(netname="0",confName='basic_conf',testLen=120,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,prdTotal=20,prdItm=0)
+basicArgs = Args(netname="0",confName='basic_conf',testLen=120,threads=[ipfThread,itmThread],bw=10,rtt=25,loss=0,e2ecc='hybla',prdTotal=20,prdItm=0)
 def createArgs(basicArgs):
     argsSet = []
     rtt_range = [25,175,375,575]
@@ -48,11 +48,11 @@ def createArgs(basicArgs):
     itm_range = [(2*i+1) for i in range(4)]
     for r in rtt_range:
         for l in loss_range:
-            argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="none"))
+            argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="nopep"))
             argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="none"))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep"))
         argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla"))
     return argsSet
 

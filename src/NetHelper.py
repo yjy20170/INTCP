@@ -20,7 +20,7 @@ def importNet(name):
     return importlib.import_module( 'nets.net_'+ name)
     
     
-def mngo(args):
+def mngo(args,isAuto):
     print("start experiment with network: "+args.getConfName())
     clear()
     # import specified net topo as a module
@@ -31,7 +31,7 @@ def mngo(args):
     mn.start()
     # execute commands to further configure the network
     myModule.onNetCreated(mn,args)
-    if 0:
+    if not isAuto:
         CLI(mn)
         return
     # start the threads we want to run
