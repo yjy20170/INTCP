@@ -3,7 +3,7 @@
 
 import NetHelper
 import automnArgs
-from tqdm import tqdm
+#from tqdm import tqdm
 import os
 
 if __name__=="__main__":
