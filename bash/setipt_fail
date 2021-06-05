@@ -1,4 +1,5 @@
 #!/bin/bash
+cd `dirname $0`
 # set iptables (failed version)
 
 iptables -t mangle -F

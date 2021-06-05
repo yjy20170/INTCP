@@ -1,4 +1,5 @@
 #!/bin/bash
+cd `dirname $0`
 # set iptables and start pepsal with hybla
 
 echo "setting iptables..."

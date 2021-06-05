@@ -1,4 +1,5 @@
 #!/bin/bash
+cd `dirname $0`
 # start mininet
 
 python ../src/nets/net_$1.py $*

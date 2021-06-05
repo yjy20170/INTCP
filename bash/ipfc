@@ -1,4 +1,5 @@
 #!/bin/bash
+cd `dirname $0`
 # start iperf client
 # server is at 10.0.$1
 # sending duration is $2
