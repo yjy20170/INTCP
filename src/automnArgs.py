@@ -29,7 +29,7 @@ def ipfThread(mn,args,threadLock):
     #mn.getNodeByName("h2").xterm()
     #mn.getNodeByName("pep").xterm()
     #mn.getNodeByName("h1").xterm()
-    #print("ipfThread starting...")
+    print("ipfThread starting...")
     if args.pepcc != 'nopep':
         mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' &')
     mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/log_'+args.confName+'.txt &')
