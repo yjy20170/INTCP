@@ -10,22 +10,30 @@ def timestamp():
 
 if __name__=="__main__":
 
-    DETAIL = True
+    DETAIL = False
 
     results = []
     for args in automnArgs.argsSet:
         name = args.argsName
         print(name)
-        logpath = '../logs/'+name+'.txt'
+        logpath = '../logs/log_'+name+'.txt'
         thrps = []
         try:
             with open(logpath,"r") as f:
                 lines = f.readlines()
                 for line in lines:
-                    if '/sec' in line:
-                        numString = line[-20:].split(' ')[-2]
-                        print(numString)
-                        thrps.append(float(numString))
+                    if 'receiver' in line:
+                        #print(line[:-27].split(' '))
+                        #print(line.split(' '))
+                        numString = line[:-27].split(' ')[-2]
+                        unit = line[:-27].split(' ')[-1]
+                        #print(numString,unit)
+                        if unit[0]=='K':
+                            num = float(numString)/1000
+                        else:
+                            num = float(numString)
+                        thrps.append(num)
+                        print(num)
             if DETAIL:
                 results.append('\n'.join([name]+[str(thrp) for thrp in thrps])+'\n\n')
             else:

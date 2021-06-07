@@ -53,19 +53,23 @@ def itmThread(mn,args,threadLock):
         
 ### thread for iperf experiments with/without PEP
 def ipfThread(mn,args,threadLock):
-    #print("ipfThread starting...")
+    #mn.getNodeByName("h2").xterm()
+    #mn.getNodeByName("pep").xterm()
+    #mn.getNodeByName("h1").xterm()
+    print("ipfThread starting...")
+
     if args.pepcc != 'nopep':
         mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' &')
 
-    mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
-    
+    #mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
+    mn.getNodeByName("h2").cmd('iperf3 -s -i 30 --logfile ../logs/log_'+args.argsName+'.txt &')
     for i in range(5):
         mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen))
-        
         # time.sleep(args.testLen)
         # no need to sleep too long under iperf3
         time.sleep(10)
         
+
     threadLock.release()
     
     
@@ -99,15 +103,17 @@ def createArgs(basicArgs):
     bw_range = [10,100]
     loss_range = [0,0.5,1]
     itm_range = [(2*i+1) for i in range(4)]
-    for r in rtt_range:
-        for l in loss_range:
-            argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="nopep"))
-            argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
+    if 0:
+        for r in rtt_range:
+            for l in loss_range:
+                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="nopep"))
+                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
         argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep"))
         argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla"))
     return argsSet
 
-# argsSet = createArgs(basicArgs)
+
+argsSet = createArgs(basicArgs)
 
