@@ -21,7 +21,7 @@ def importNet(name):
     
     
 def mngo(args,isAuto):
-    print("start experiment with network: "+args.getConfName())
+    print("start experiment with network: "+args.getArgsName())
     clear()
     # import specified net topo as a module
     myModule = importNet(args.netname)
