@@ -6,16 +6,18 @@ import math
 
 
 ### thread for dynamic link args control
-def adjust_bandwidth(node,new_bw):
+def adjust_bandwidth(node,new_bw,args):
     for intf in node.intfList():
         if intf.link: # get link that connects to interface(if any)
             intfs = [ intf.link.intf1, intf.link.intf2 ] #intfs[0] is source of link and intfs[1] is dst of link
-            intfs[0].config(bw=new_bw) 
-            intfs[1].config(bw=new_bw)  
+            intfs[0].config(bw=new_bw,rtt=args.rtt,loss=args.loss) 
+            intfs[1].config(bw=new_bw,rtt=args.rtt,loss=args.loss)  
              
 def generate_bw(meanbw,varbw,prd,policy):
     if policy=="random":
-        return random.uniform(meanbw-varbw,meanbw+varbw)
+        new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
+        print(new_bw)
+        return new_bw
     else:
         cur_time = time.time()
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
@@ -23,11 +25,11 @@ def generate_bw(meanbw,varbw,prd,policy):
 def linkUpdateThread(mn,args,threadLock):
     print("linkUpdatethread starting...")
     if args.varbw>0:
-        interval = 1
+        interval = 5
         while threadLock.locked():
             time.sleep(interval)
             new_bw = generate_bw(args.bw,args.varbw,1,"random")
-            adjust_bandwidth(mn.getNodeByName("s2"),new_bw)
+            adjust_bandwidth(mn.getNodeByName("s2"),new_bw,args)
     else:
         return
       
@@ -110,8 +112,8 @@ def createArgs(basicArgs):
                 argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=0,pepcc="nopep",varbw=3))
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=0,pepcc="hybla",varbw=3))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=1,pepcc="nopep",varbw=3))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=1,pepcc="hybla",varbw=3))
     return argsSet
 
 
