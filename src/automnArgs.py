@@ -22,8 +22,8 @@ def generate_bw(meanbw,varbw,prd,policy):
         
 def linkUpdateThread(mn,args,threadLock):
     #print("linkUpdatethread starting...")
-    interval = 0.2
     if args.varbw>0:
+        interval = 0.2
         while threadLock.locked():
             time.sleep(interval)
             new_bw = generate_bw(args.bw,4,1,"random")
@@ -34,7 +34,6 @@ def linkUpdateThread(mn,args,threadLock):
       
 ### thread for dynamic link up/down control
 def itmThread(mn,args,threadLock):
-    #print("itmThread starting...")
     if args.prdItm>0:
         while threadLock.locked():
             time.sleep(args.prdTotal-args.prdItm)
@@ -57,22 +56,43 @@ def ipfThread(mn,args,threadLock):
     #print("ipfThread starting...")
     if args.pepcc != 'nopep':
         mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' &')
-    mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/log_'+args.confName+'.txt &')
-    #thread.start_new_thread(mn.getNodeByName("h2").cmd, ('iperf -s -p 5001 -i 1',))
+
+    mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
     
     for i in range(5):
-        #print("1334")
-        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+'-t '+str(args.testLen))
-        time.sleep(args.testLen)
+        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen))
+        
+        # time.sleep(args.testLen)
+        # no need to sleep too long under iperf3
+        time.sleep(10)
+        
     threadLock.release()
     
     
-      
-### specified args to test someting
-argsSet = [Args(argsName='test',netname="0",bw=10,rtt=575,loss=0.5,
-    testLen=40,prdTotal=20,prdItm=0,threads=[ipfThread,itmThread,linkUpdateThread],e2ecc='cubic',pepcc='nopep',varbw=0)]
 
-basicArgs = Args(netname="0",argsName='basic',testLen=120,threads=[ipfThread,itmThread,linkUpdateThread],bw=10,rtt=25,loss=0,e2ecc='hybla',prdTotal=20,prdItm=0,varbw=0)
+basicArgs = Args(
+
+    testLen=120,
+    
+    e2ecc='hybla', pepcc='nopep',
+    bw=10, rtt=575, loss=0,
+    prdTotal=20, prdItm=0,
+    varbw=0,
+    
+    argsName='basic',
+    netname="0",
+    threads=[ipfThread,itmThread,linkUpdateThread]
+)
+
+  
+### specified args to test someting
+argsSet = [Args(basicArgs=basicArgs,
+    argsName='test',
+    testLen=20,
+    pepcc='hybla',
+    loss=0.5,prdItm=4)]
+
+### regular experiments args
 def createArgs(basicArgs):
     argsSet = []
     rtt_range = [25,175,375,575]
@@ -89,5 +109,5 @@ def createArgs(basicArgs):
         argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla"))
     return argsSet
 
-argsSet = createArgs(basicArgs)
+# argsSet = createArgs(basicArgs)
 
