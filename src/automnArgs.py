@@ -94,7 +94,7 @@ argsSet = [Args(basicArgs=basicArgs,
     argsName='test',
     testLen=20,
     pepcc='hybla',
-    loss=0.5,prdItm=4)]
+    loss=0.5,prdItm=2)]
 
 ### regular experiments args
 def createArgs(basicArgs):
