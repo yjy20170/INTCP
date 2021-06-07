@@ -21,12 +21,12 @@ def generate_bw(meanbw,varbw,prd,policy):
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
         
 def linkUpdateThread(mn,args,threadLock):
-    #print("linkUpdatethread starting...")
+    print("linkUpdatethread starting...")
     if args.varbw>0:
-        interval = 0.2
+        interval = 1
         while threadLock.locked():
             time.sleep(interval)
-            new_bw = generate_bw(args.bw,4,1,"random")
+            new_bw = generate_bw(args.bw,args.varbw,1,"random")
             adjust_bandwidth(mn.getNodeByName("s2"),new_bw)
     else:
         return
@@ -110,8 +110,8 @@ def createArgs(basicArgs):
                 argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep"))
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla"))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=0,pepcc="nopep",varbw=3))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=0,pepcc="hybla",varbw=3))
     return argsSet
 
 
