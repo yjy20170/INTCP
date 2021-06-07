@@ -18,7 +18,7 @@ class Args:
             self.argsName = self.getArgsName()
             
     def getArgsName(self):
-        return str(self.bw)+'m_'+str(self.rtt)+'ms_'+str(self.loss)+'%_'+str(self.prdItm)+'s_'+self.e2ecc+'_'+self.pepcc
+        return str(self.bw)+'m_'+str(self.rtt)+'ms_'+str(self.loss)+'%_i_'+str(self.prdItm)+'s_v_'+str(self.varbw)+'m_'+self.e2ecc+'_'+self.pepcc
     
     @classmethod
     def getArgsFromCli(cls):
