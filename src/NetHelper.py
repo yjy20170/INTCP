@@ -31,15 +31,18 @@ def mngo(args,isAuto):
     mn.start()
     # execute commands to further configure the network
     myModule.onNetCreated(mn,args)
-    if not isAuto:
-        CLI(mn)
-        return
     # start the threads we want to run
     threadLock = threading.Lock()
     threadLock.acquire()
     for th in args.threads:
+        if not isAuto and th.__name__=="ipfThread":
+            continue
         thread.start_new_thread( th, (mn,args,threadLock,) )
     
+    if not isAuto:
+        CLI(mn)
+        return
+        
     print('main thread waiting...')
     # wait until any thread release the lock
     threadLock.acquire()
