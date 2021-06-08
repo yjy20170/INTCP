@@ -28,9 +28,8 @@ def generate_bw(meanbw,varbw,prd,policy):
 def linkUpdateThread(mn,args,mainLock,atomicLock):
     print("linkUpdatethread starting...")
     if args.varbw>0:
-        interval = 5
+        interval = 2
         while mainLock.locked():
-            time.sleep(interval)
             
             new_bw = generate_bw(args.bw,args.varbw,1,"random")
             node = mn.getNodeByName("s2")
@@ -47,7 +46,6 @@ def linkUpdateThread(mn,args,mainLock,atomicLock):
                     intfs[1].config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=link_loss)
                     link_no +=1
                     atomicLock.release()
-
     else:
         return
       
@@ -89,7 +87,8 @@ def ipfThread(mn,args,mainLock,atomicLock):
 
     #mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
     atomicLock.acquire()
-    mn.getNodeByName("h2").cmd('iperf3 -s -i 30 --logfile ../logs/log_'+args.argsName+'.txt &')
+    mn.getNodeByName("h2").cmd('iperf3 -s -f k -i 1 &')
+    #mn.getNodeByName("h2").cmd('iperf3 -s -i 30 --logfile ../logs/log_'+args.argsName+'.txt &')
     atomicLock.release()
     for i in range(5):
         atomicLock.acquire()
@@ -123,10 +122,11 @@ basicArgs = Args(
 ### specified args to test someting
 argsSet = [Args(basicArgs=basicArgs,
     argsName='test',
-    testLen=120,
+    testLen=200,
     pepcc='hybla',
     varbw=1,
-    loss=0.5,prdItm=2)]
+    loss=0.5,prdItm=0,
+    threads=[ipfThread,itmThread,linkUpdateThread])]
 
 ### regular experiments args
 def createArgs(basicArgs):
@@ -147,5 +147,5 @@ def createArgs(basicArgs):
     return argsSet
 
 
-argsSet = createArgs(basicArgs)
+#argsSet = createArgs(basicArgs)
 

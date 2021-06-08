@@ -26,12 +26,7 @@ if __name__=="__main__":
                         #print(line[:-27].split(' '))
                         #print(line.split(' '))
                         numString = line[:-27].split(' ')[-2]
-                        unit = line[:-27].split(' ')[-1]
-                        #print(numString,unit)
-                        if unit[0]=='K':
-                            num = float(numString)/1000
-                        else:
-                            num = float(numString)
+                        num = float(numString)/1000
                         thrps.append(num)
                         print(num)
             if DETAIL:
