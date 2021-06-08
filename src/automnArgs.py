@@ -7,14 +7,6 @@ import math
 
 ### thread for dynamic link args control
 
-def adjust_bandwidth(node,new_bw,args):
-    for intf in node.intfList():
-        if intf.link: # get link that connects to interface(if any)
-            intfs = [ intf.link.intf1, intf.link.intf2 ] #intfs[0] is source of link and intfs[1] is dst of link
-            intfs[0].config(bw=new_bw,rtt=args.rtt,loss=args.loss) 
-            intfs[1].config(bw=new_bw,rtt=args.rtt,loss=args.loss)  
-
-             
 def generate_bw(meanbw,varbw,prd,policy):
     if policy=="random":
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -26,31 +18,31 @@ def generate_bw(meanbw,varbw,prd,policy):
         
 
 def linkUpdateThread(mn,args,mainLock,atomicLock):
-    print("linkUpdatethread starting...")
-    if args.varbw>0:
+    print("linkUpdateThread starting...")
+    if args.varBw>0:
         interval = 2
         while mainLock.locked():
             
-            new_bw = generate_bw(args.bw,args.varbw,1,"random")
-            node = mn.getNodeByName("s2")
-            link_no = 0
-            for intf in node.intfList():
-                if intf.link: # get link that connects to interface(if any)
-                    intfs = [ intf.link.intf1, intf.link.intf2 ] #intfs[0] is source of link and intfs[1] is dst of link
-                    atomicLock.acquire()
-                    if link_no==1:
-                        link_loss = args.loss
-                    else:
-                        link_loss = 0
-                    intfs[0].config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=link_loss) 
-                    intfs[1].config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=link_loss)
-                    link_no +=1
-                    atomicLock.release()
+            new_bw = generate_bw(args.bw,args.varBw,1,"random")
+            
+            pep = mn.getNodeByName("pep")
+            s2 = mn.getNodeByName("s2")
+            h2 = mn.getNodeByName("h2")
+            
+            atomicLock.acquire()
+            conn1 = s2.connectionsTo(pep)[0]
+            for intf in conn1:
+                intf.config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=0)
+            conn2 = s2.connectionsTo(h2)[0]
+            for intf in conn2:
+                intf.config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=args.loss)
+            atomicLock.release()
     else:
         return
       
       
 ### thread for dynamic link up/down control
+
 def itmThread(mn,args,mainLock,atomicLock):
     if args.prdItm>0:
         while mainLock.locked():
@@ -85,15 +77,13 @@ def ipfThread(mn,args,mainLock,atomicLock):
         mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' > ../logs/pep.txt &')
         atomicLock.release()
 
-    #mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
     atomicLock.acquire()
-    mn.getNodeByName("h2").cmd('iperf3 -s -f k -i 1 &')
-    #mn.getNodeByName("h2").cmd('iperf3 -s -i 30 --logfile ../logs/log_'+args.argsName+'.txt &')
+    mn.getNodeByName("h2").cmd('iperf3 -s -f k -i 30 --logfile ../logs/log_'+args.getArgsName()+'.txt &')
     atomicLock.release()
     for i in range(5):
         atomicLock.acquire()
         print("iperfc loop %d starting,testlen = %d..." %(i,args.testLen))
-        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen)+' &')
+        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -f k -C '+args.e2ecc+' -t '+str(args.testLen)+' &')
         atomicLock.release()
         time.sleep(args.testLen)
         # no need to sleep too long under iperf3
@@ -106,25 +96,22 @@ def ipfThread(mn,args,mainLock,atomicLock):
 
 basicArgs = Args(
 
-    testLen=120,
+    netname="0",testLen=120,
     
     e2ecc='hybla', pepcc='nopep',
     bw=10, rtt=575, loss=0,
     prdTotal=20, prdItm=0,
-    varbw=0,
+    varBw=0,
     
-    argsName='basic',
-    netname="0",
     threads=[ipfThread,itmThread,linkUpdateThread]
 )
 
   
-### specified args to test someting
+### special args for test
 argsSet = [Args(basicArgs=basicArgs,
-    argsName='test',
-    testLen=200,
+    testLen=10,
     pepcc='hybla',
-    varbw=1,
+    varBw=1,
     loss=0.5,prdItm=0,
     threads=[ipfThread,itmThread,linkUpdateThread])]
 
@@ -135,6 +122,7 @@ def createArgs(basicArgs):
     bw_range = [10,100]
     loss_range = [0,0.5,1]
     itm_range = [(2*i+1) for i in range(4)]
+    vs = [0,3]
     if 0:
         for r in rtt_range:
             for l in loss_range:
@@ -142,10 +130,11 @@ def createArgs(basicArgs):
                 argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep",varbw=3))
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla",varbw=3))
+        for v in vs:
+            argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep",varBw=v))
+            argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla",varBw=v))
     return argsSet
 
 
-#argsSet = createArgs(basicArgs)
+# argsSet = createArgs(basicArgs)
 
