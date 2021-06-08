@@ -18,7 +18,7 @@ def adjust_bandwidth(node,new_bw,args):
 def generate_bw(meanbw,varbw,prd,policy):
     if policy=="random":
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
-        print(new_bw)
+        #print(new_bw)
         return new_bw
     else:
         cur_time = time.time()
@@ -34,13 +34,18 @@ def linkUpdateThread(mn,args,mainLock,atomicLock):
             
             new_bw = generate_bw(args.bw,args.varbw,1,"random")
             node = mn.getNodeByName("s2")
+            link_no = 0
             for intf in node.intfList():
                 if intf.link: # get link that connects to interface(if any)
                     intfs = [ intf.link.intf1, intf.link.intf2 ] #intfs[0] is source of link and intfs[1] is dst of link
                     atomicLock.acquire()
-                    #print(args.rtt)
-                    intfs[0].config(bw=new_bw,rtt=args.rtt/4,loss=args.loss) 
-                    intfs[1].config(bw=new_bw,rtt=args.rtt/4,loss=args.loss)
+                    if link_no==1:
+                        link_loss = args.loss
+                    else:
+                        link_loss = 0
+                    intfs[0].config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=link_loss) 
+                    intfs[1].config(bw=new_bw,delay=str(args.rtt/4)+"ms",loss=link_loss)
+                    link_no +=1
                     atomicLock.release()
 
     else:
@@ -79,7 +84,7 @@ def ipfThread(mn,args,mainLock,atomicLock):
 
     if args.pepcc != 'nopep':
         atomicLock.acquire()
-        mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' &')
+        mn.getNodeByName("pep").cmd('../bash/runpep '+args.pepcc+' > ../logs/pep.txt &')
         atomicLock.release()
 
     #mn.getNodeByName("h2").cmd('iperf3 -s -i 1 > ../logs/'+args.argsName+'.txt &')
@@ -88,13 +93,14 @@ def ipfThread(mn,args,mainLock,atomicLock):
     atomicLock.release()
     for i in range(5):
         atomicLock.acquire()
-        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen))
+        print("iperfc loop %d starting,testlen = %d..." %(i,args.testLen))
+        mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen)+' &')
         atomicLock.release()
-        # time.sleep(args.testLen)
+        time.sleep(args.testLen)
         # no need to sleep too long under iperf3
-        time.sleep(10)
+        #time.sleep(10)
         
-
+    print("ipf release lock")
     mainLock.release()
     
     
@@ -117,7 +123,7 @@ basicArgs = Args(
 ### specified args to test someting
 argsSet = [Args(basicArgs=basicArgs,
     argsName='test',
-    testLen=20,
+    testLen=120,
     pepcc='hybla',
     varbw=1,
     loss=0.5,prdItm=2)]
@@ -136,8 +142,8 @@ def createArgs(basicArgs):
                 argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
 
     for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=1,pepcc="nopep",varbw=3))
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=1,pepcc="hybla",varbw=3))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep",varbw=3))
+        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla",varbw=3))
     return argsSet
 
 
