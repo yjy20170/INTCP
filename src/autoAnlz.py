@@ -1,20 +1,18 @@
 #!/usr/bin/python
-#coding=utf-8
-
-import automnArgs
-from Args import Args
 
 import time
 import matplotlib.pyplot as plt
 
+import NetParam
+
 def timestamp():
     return time.strftime("%m-%d-%H-%M", time.localtime()) 
     
-def loadLog(argsSet,isDetail=False):
+def loadLog(netParams,isDetail=False):
     result = {}
-    for args in argsSet:
-        print(args.getArgsName())
-        logpath = '../logs/log_'+args.getArgsName()+'.txt'
+    for netParam in netParams:
+        print(netParam.toString())
+        logpath = '../logs/log_'+netParam.toString()+'.txt'
         thrps = []
         try:
             with open(logpath,"r") as f:
@@ -28,7 +26,7 @@ def loadLog(argsSet,isDetail=False):
                         thrps.append(num)
                         print(num)
             if isDetail:
-                results[args] = thrps
+                results[netParam] = thrps
             else:
                 if len(thrps)<=2:
                     print('ERROR: the amount of data is too small.')
@@ -37,71 +35,72 @@ def loadLog(argsSet,isDetail=False):
                     del thrps[thrps.index(min(thrps))]
                     mid = sum(thrps)/len(thrps)
                     print("Average after removing max and min: "+str(mid))
-                    result[args] = mid
+                    result[netParam] = mid
         except:
             print('ERROR: log doesn\'t exists.')
         
     return result
     
-def plotSeq(result,xarg,xlabel,groups,title=None,legends=[]):
+def plotSeq(result,segX,xlabel,groups,title=None,legends=[]):
     plt.figure(figsize=(10,10),dpi=100)
     plt.ylim((0,12))
     if len(groups)==1:
         group = groups[0]
-        plt.plot([args.__dict__[xarg] for args in group],[result[args] for args in group])
+        plt.plot([netParam.__dict__[segX] for netParam in group],
+            [result[netParam] for netParam in group])
     else:
         for i,group in enumerate(groups):
-            plt.plot([args.__dict__[xarg] for args in group],
-                [result[args] for args in group],label=legends[i])
+            plt.plot([netParam.__dict__[segX] for netParam in group],
+                [result[netParam] for netParam in group],label=legends[i])
         plt.legend()
-    plt.xlabel(xlabel)#(xarg.title()+'('+xunit+')')
+    plt.xlabel(xlabel)#(segX.title()+'('+xunit+')')
     plt.ylabel('Bandwidth(Mbps)')
     if title:
         plt.title(title)
     plt.savefig('../result/'+timestamp()+('_'+title if title else '')+'.png')
     return
     
-def plotByGroup(result,xarg,xlabel):
-    groups = [[result.keys()[0]]]
-    for args in result.keys()[1:]:
+def plotByGroup(result,segX,xlabel):
+    groups = []
+    for netParam in result:
         found = False
         for group in groups:
-            if args.compare(group[0],mask=xarg):
+            if netParam.compare(group[0],mask=segX):
                 found = True
-                group.append(args)
+                group.append(netParam)
                 break
         if not found:
-            groups.append([args])
+            groups.append([netParam])
     filtGroups = []
     for group in groups:
         if len(group)>=3:
             # sort
-            group = sorted(group,cmp=lambda a1,a2: a1.__dict__[xarg]-a2.__dict__[xarg])
+            group = sorted(group,cmp=lambda a1,a2: a1.__dict__[segX]-a2.__dict__[segX])
             filtGroups.append(group)
             
     # find the difference between these groups
     if len(filtGroups)>1:
-        diffArgSet = []
-        for arg in Args.ArgKey:
-            if arg==xarg:
+        diffSegs = []
+        for seg in NetParam.Key:
+            if seg==segX:
                 continue
-            argval = filtGroups[0][0].__dict__[arg]
+            segval = filtGroups[0][0].__dict__[seg]
             for group in filtGroups[1:]:
-                if group[0].__dict__[arg] != argval:
-                    diffArgSet.append(arg)
+                if group[0].__dict__[seg] != segval:
+                    diffSegs.append(seg)
                     break
         legends = []
         for group in filtGroups:
-            legends.append(' '.join([group[0].getArgString(arg) for arg in diffArgSet]))
-        title = xarg+'-bw under different '+','.join(diffArgSet)
-        plotSeq(result,xarg,xlabel,filtGroups,title=title,legends=legends)
+            legends.append(' '.join([group[0].segToString(seg) for seg in diffSegs]))
+        title = segX+'-bw under different '+','.join(diffSegs)
+        plotSeq(result,segX,xlabel,filtGroups,title=title,legends=legends)
     else:
-        title = xarg+'-bw'
-        plotSeq(result,xarg,xlabel,filtGroups,title=title)
+        title = segX+'-bw'
+        plotSeq(result,segX,xlabel,filtGroups,title=title)
             
 if __name__=="__main__":
-    argsSet = automnArgs.argsSet
-    result = loadLog(argsSet)
+    netParams = NetParam.netParams
+    result = loadLog(netParams)
         
     # make plot
     plotByGroup(result,'prdItm','intermittent(s)')
