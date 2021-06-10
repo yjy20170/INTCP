@@ -81,7 +81,7 @@ def plotByGroup(result,segX,xlabel):
     # find the difference between these groups
     if len(filtGroups)>1:
         diffSegs = []
-        for seg in NetParam.Key:
+        for seg in NetParam.NetParam.Key:
             if seg==segX:
                 continue
             segval = filtGroups[0][0].__dict__[seg]
@@ -103,7 +103,7 @@ if __name__=="__main__":
     result = loadLog(netParams)
         
     # make plot
-    plotByGroup(result,'prdItm','intermittent(s)')
+    plotByGroup(result,'rtt','(%)')
     
             
     with open('../result/summary-'+timestamp()+'.txt','w') as f:

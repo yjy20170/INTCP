@@ -42,7 +42,7 @@ class NetParam:
   
 ### special NetParam for test
 netParams = [NetParam(
-    sendTime=10,
+    sendTime=30,
     pepCC='nopep',
     varBw=3,
     loss=0,prdItm=0
@@ -73,4 +73,4 @@ def makeNetParams():
             
     return netParams
 
-netParams = makeNetParams()
+#netParams = makeNetParams()
