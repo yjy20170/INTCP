@@ -96,7 +96,7 @@ def ipfThread(mn,args,mainLock,atomicLock):
         print("iperfc loop %d starting,testlen = %d..." %(i,args.testLen))
         mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -C '+args.e2ecc+' -t '+str(args.testLen)+' &')
         atomicLock.release()
-        time.sleep(args.testLen)
+        time.sleep(args.testLen+30)
         # no need to sleep too long under iperf3
         #time.sleep(10)
         
@@ -133,19 +133,20 @@ def createArgs(basicArgs):
     argsSet = []
     rtt_range = [25,175,375,575]
     bw_range = [10,100]
-    loss_range = [0,0.5,1]
+    #loss_range = [0,0.5,1]
+    loss_range = [0.5]
     itm_range = [(2*i+1) for i in range(4)]
-    if 0:
+    if 1:
         for r in rtt_range:
             for l in loss_range:
-                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="nopep"))
-                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla"))
-
-    for itm in itm_range:
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep",varbw=3))
-        argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla",varbw=3))
+                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="nopep",varbw=3))
+                argsSet.append(Args(basicArgs,rtt=r,loss=l,pepcc="hybla",varbw=3))
+    if 0:
+        for itm in itm_range:
+            argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="nopep",varbw=3))
+            argsSet.append(Args(basicArgs,loss=1,rtt=575,prdItm=itm,pepcc="hybla",varbw=3))
     return argsSet
 
-
+#argsSet = [Args(basicArgs,rtt=25,loss=1,pepcc="hybla",varbw=3)]
 argsSet = createArgs(basicArgs)
 

@@ -10,7 +10,7 @@ def timestamp():
 
 if __name__=="__main__":
 
-    DETAIL = False
+    DETAIL = True
 
     results = []
     for args in automnArgs.argsSet:
@@ -37,7 +37,7 @@ if __name__=="__main__":
             if DETAIL:
                 results.append('\n'.join([name]+[str(thrp) for thrp in thrps])+'\n\n')
             else:
-                if len(cnthrps)<=2:
+                if len(thrps)<=2:
                     print('ERROR: the amount of data is too small.')
                 else:
                     del thrps[thrps.index(max(thrps))]
