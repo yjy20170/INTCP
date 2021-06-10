@@ -6,16 +6,16 @@ import matplotlib.pyplot as plt
 import NetParam
 
 def timestamp():
-    return time.strftime("%m-%d-%H-%M", time.localtime()) 
+    return time.strftime('%m-%d-%H-%M', time.localtime()) 
     
 def loadLog(netParams,isDetail=False):
     result = {}
     for netParam in netParams:
-        print(netParam.toString())
-        logpath = '../logs/log_'+netParam.toString()+'.txt'
+        print(netParam)
+        logpath = '../logs/log_%s.txt'%netParam
         thrps = []
         try:
-            with open(logpath,"r") as f:
+            with open(logpath,'r') as f:
                 lines = f.readlines()
                 for line in lines:
                     if 'receiver' in line:
@@ -34,7 +34,7 @@ def loadLog(netParams,isDetail=False):
                     del thrps[thrps.index(max(thrps))]
                     del thrps[thrps.index(min(thrps))]
                     mid = sum(thrps)/len(thrps)
-                    print("Average after removing max and min: "+str(mid))
+                    print('Average after removing max and min: %.3f'%mid)
                     result[netParam] = mid
         except:
             print('ERROR: log doesn\'t exists.')
@@ -57,7 +57,7 @@ def plotSeq(result,segX,xlabel,groups,title=None,legends=[]):
     plt.ylabel('Bandwidth(Mbps)')
     if title:
         plt.title(title)
-    plt.savefig('../result/'+timestamp()+('_'+title if title else '')+'.png')
+    plt.savefig( '../result/%s%s.png'%(timestamp(),'_'+title if title else '') )
     return
     
 def plotByGroup(result,segX,xlabel):
@@ -91,21 +91,21 @@ def plotByGroup(result,segX,xlabel):
                     break
         legends = []
         for group in filtGroups:
-            legends.append(' '.join([group[0].segToString(seg) for seg in diffSegs]))
-        title = segX+'-bw under different '+','.join(diffSegs)
+            legends.append(' '.join([group[0].segStr(seg) for seg in diffSegs]))
+        title = '%s-bw under different %s'%(segX,','.join(diffSegs))
         plotSeq(result,segX,xlabel,filtGroups,title=title,legends=legends)
     else:
-        title = segX+'-bw'
+        title = '%s-bw'%segX
         plotSeq(result,segX,xlabel,filtGroups,title=title)
             
-if __name__=="__main__":
+if __name__=='__main__':
     netParams = NetParam.netParams
     result = loadLog(netParams)
-        
+    
     # make plot
     plotByGroup(result,'rtt','(%)')
     
-            
-    with open('../result/summary-'+timestamp()+'.txt','w') as f:
+    
+    with open('../result/summary-%s.txt'%timestamp(),'w') as f:
         #TODO concat
-        f.write(str(result))
+        f.write('\n'.join(['%s   \t%.3f'%(key,result[key]) for key in result]))

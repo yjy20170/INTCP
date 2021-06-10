@@ -14,10 +14,10 @@ def threadEvent(func):
 
 ### thread for dynamic link params control
 def generate_bw(meanbw,varbw,prd,policy):
-    if policy=="random":
+    if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
         return new_bw
-    elif policy=="sin":
+    elif policy=='sin':
         cur_time = time.time()
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
 
@@ -25,9 +25,9 @@ def generate_bw(meanbw,varbw,prd,policy):
 def funcLinkUpdate(mn,netParam):
     if netParam.varBw <= 0:
         return
-    s2 = mn.getNodeByName("s2")
-    pep = mn.getNodeByName("pep")
-    h2 = mn.getNodeByName("h2")
+    s2 = mn.getNodeByName('s2')
+    pep = mn.getNodeByName('pep')
+    h2 = mn.getNodeByName('h2')
     
     def config(intf,bw,loss=None,delay=None,rtt=None):
         cmds = []
@@ -44,7 +44,7 @@ def funcLinkUpdate(mn,netParam):
         
     while not Thread.stopped():
         time.sleep(2)
-        new_bw = generate_bw(netParam.bw,netParam.varBw,1,"random")
+        new_bw = generate_bw(netParam.bw,netParam.varBw,1,'random')
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
             config(intf,bw=new_bw)
 
@@ -60,24 +60,24 @@ def funcMakeItm(mn,netParam):
         atomic(mn.configLinkStatus)('s2','pep','up')
 
         # if changing s2 - h2
-        # mn.getNodeByName("h2").cmd("route add default gw 10.0.2.90 &")
+        # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')
 
 ### thread for iperf experiments with/without PEP
 @threadEvent
 def funcIperfPep(mn,netParam):
     if netParam.pepCC != 'nopep':
-        atomic(mn.getNodeByName("pep").cmd)('../bash/runpep '+netParam.pepCC+' &')
+        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
     try:
-        os.remove('../logs/log_'+netParam.toString()+'.txt')
+        os.remove('../logs/log_%s.txt'%netParam)
     except:
         pass
-    atomic(mn.getNodeByName("h2").cmd)('iperf3 -s -f k -i 10 --logfile ../logs/log_'+netParam.toString()+'.txt &')
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile ../logs/log_%s.txt &'%netParam)
     
-    print("sendTime = %ds" %(netParam.sendTime))
+    print('sendTime = %ds'%netParam.sendTime)
     for i in range(5):
-        print("iperfc loop %d starting" %(i))
-        atomic(mn.getNodeByName("h1").cmd)('iperf3 -c 10.0.2.1 -f k -C '+netParam.e2eCC+' -t '+str(netParam.sendTime)+' &')
+        print('iperfc loop %d starting' %i)
+        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netParam.e2eCC,netParam.sendTime) )
         #time.sleep(netParam.sendTime + 20)
         #DEBUG
-        #mn.getNodeByName("h1").cmd('iperf3 -c 10.0.2.1 -f k -C '+netParam.e2eCC+' -t '+str(netParam.sendTime))
+        #mn.getNodeByName('h1').cmd('iperf3 -c 10.0.2.1 -f k -C %s -t %d'%(netParam.e2eCC,netParam.sendTime))
         time.sleep(netParam.sendTime + 20)
