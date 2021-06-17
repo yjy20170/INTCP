@@ -20,7 +20,7 @@ class Thread (threading.Thread):
         return cls.Stopped
 atomicLock = threading.Lock()
 def atomic(func):
-    def wrapper(*args, **kw):
+    def wrapper(*args, **kwargs):
         #cur=time.time()
         atomicLock.acquire()
         #print(time.time()-cur)

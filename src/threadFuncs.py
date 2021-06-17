@@ -1,6 +1,7 @@
 import time
 import random
 import os
+import math
 
 from MultiThread import Thread, atomic
 
@@ -13,7 +14,7 @@ def threadEvent(func):
     return wrapper
 
 ### thread for dynamic link params control
-def generate_bw(meanbw,varbw,prd,policy):
+def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
         return new_bw
@@ -29,34 +30,34 @@ def funcLinkUpdate(mn,netParam):
     pep = mn.getNodeByName('pep')
     h2 = mn.getNodeByName('h2')
     
-    def config(intf,bw,loss=None,delay=None,rtt=None):
+    def config(intf,bw=None,rtt=None,loss=None):
         cmds = []
         if bw:
-            bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=new_bw)
+            bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
             cmds += bwcmds
         #TODO
-        if delay:
-            pass
         if rtt:
+            pass
+        if loss:
             pass
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
         
     while not Thread.stopped():
-        time.sleep(2)
-        new_bw = generate_bw(netParam.bw,netParam.varBw,1,'random')
+        time.sleep(netParam.varIntv)
+        newBw = generateBw('random',netParam.bw,netParam.varBw)
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
-            config(intf,bw=new_bw)
+            config(intf,bw=newBw)
 
 ### thread for dynamic link up/down control
 @threadEvent
 def funcMakeItm(mn,netParam):
-    if netParam.prdItm <= 0:
+    if netParam.itmDown <= 0:
         return
     while not Thread.stopped():
-        time.sleep(netParam.prdTotal-netParam.prdItm)
+        time.sleep(netParam.itmTotal-netParam.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','down')
-        time.sleep(netParam.prdItm)
+        time.sleep(netParam.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','up')
 
         # if changing s2 - h2
@@ -67,11 +68,14 @@ def funcMakeItm(mn,netParam):
 def funcIperfPep(mn,netParam):
     if netParam.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
+    logDir = '../logs'
+    if not os.path.exists(logDir):
+        os.makedirs(logDir, mode=0o0777)
     try:
-        os.remove('../logs/log_%s.txt'%netParam)
+        os.remove('%s/log_%s.txt'%(logDir,netParam))
     except:
         pass
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile ../logs/log_%s.txt &'%netParam)
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile %s/log_%s.txt &'%(logDir,netParam))
     
     print('sendTime = %ds'%netParam.sendTime)
     for i in range(5):

@@ -1,4 +1,3 @@
-import thread
 import time
 import argparse
 
