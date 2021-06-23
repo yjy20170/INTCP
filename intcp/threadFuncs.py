@@ -23,7 +23,7 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
 
 @threadEvent
-def funcLinkUpdate(mn,netParam):
+def funcLinkUpdate(mn,netParam, logPath):
     if netParam.varBw <= 0:
         return
     s2 = mn.getNodeByName('s2')
@@ -51,7 +51,7 @@ def funcLinkUpdate(mn,netParam):
 
 ### thread for dynamic link up/down control
 @threadEvent
-def funcMakeItm(mn,netParam):
+def funcMakeItm(mn,netParam, logPath):
     if netParam.itmDown <= 0:
         return
     while not Thread.stopped():
@@ -65,17 +65,11 @@ def funcMakeItm(mn,netParam):
 
 ### thread for iperf experiments with/without PEP
 @threadEvent
-def funcIperfPep(mn,netParam):
+def funcIperfPep(mn,netParam, logPath):
     if netParam.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
-    logDir = '../logs'
-    if not os.path.exists(logDir):
-        os.makedirs(logDir, mode=0o0777)
-    try:
-        os.remove('%s/log_%s.txt'%(logDir,netParam))
-    except:
-        pass
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile %s/log_%s.txt &'%(logDir,netParam))
+
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile %s/%s.txt &'%(logPath,netParam.str()))
     
     print('sendTime = %ds'%netParam.sendTime)
     for i in range(5):

@@ -19,8 +19,8 @@ def getArgsFromCli():
     args = parser.parse_args()
     return args
     
-def mngo(netParam,isManual):
-    print('initialize network: %s'%netParam)
+def mngo(netParam,isManual, logPath):
+    print('initialize network: %s'%netParam.str())
 
     os.system('mn -c >/dev/null 2>&1')
     os.system('killall -9 xterm >/dev/null 2>&1')
@@ -28,25 +28,24 @@ def mngo(netParam,isManual):
 
     # import specified net topo as a module
     myModule = importlib.import_module( 'nets.net_%s'%netParam.netName)
-
     # create a new Mininet object
     mn = myModule.createNet(netParam)
     # start it
     mn.start()
 
     # execute commands to further configure the network
-    myModule.onNetCreated(mn,netParam)
+    # myModule.onNetCreated(mn,netParam)
 
     # start the threads we want to run
     threads = []
     for func in netParam.funcs:
-        threads.append(Thread(func, (mn,netParam,)))
+        threads.append(Thread(func, (mn,netParam,logPath,)))
         threads[-1].start()
     if isManual:
         # enter command line interface...
         CLI(mn)
     else:
-        releaserThread = Thread(netParam.releaserFunc, (mn,netParam,))
+        releaserThread = Thread(netParam.releaserFunc, (mn,netParam,logPath,))
         releaserThread.start()
         # main thread waits releaserThread until it ends
         releaserThread.waitToStop()
@@ -57,16 +56,28 @@ def mngo(netParam,isManual):
         return
     
 if __name__=='__main__':
+    npsetName = 'expr'
+    #npsetName = '06.22.09'#'6.18.14'
+    netParams = NetParam.getNetParams(npsetName)
+    print(sys.path)
     os.chdir(sys.path[0])
-    
+    print(sys.path)
+    logRootPath = '../logs'
+    if not os.path.exists(logRootPath):
+        os.makedirs(logRootPath, mode=0o0777)
+    logPath = '%s/%s' % (logRootPath,npsetName)
+    if not os.path.exists(logPath):
+        os.makedirs(logPath, mode=0o0777)
+
     isManual = getArgsFromCli().m
-    
-    netParams = NetParam.getNetParams('6.17')
     if isManual:
         netParams = netParams[0:1]
     for i,netParam in enumerate(netParams):
         print('Start NetParam %d/%d' % (i+1,len(netParams)))
-        mngo(netParam, isManual)
+        mngo(netParam, isManual, logPath)
         
     print('all experiments finished')
+
+    import autoAnlz
+    autoAnlz.anlz(npsetName)
     os.system('killall -9 run.py >/dev/null 2>&1')

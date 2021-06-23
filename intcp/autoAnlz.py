@@ -11,14 +11,14 @@ import sys
 def timestamp():
     return time.strftime('%m-%d-%H-%M-%S', time.localtime())
     
-def loadLog(netParams,isDetail=False):
+def loadLog(logPath, netParams,isDetail=False):
     result = {}
     for netParam in netParams:
-        print(netParam)
-        logpath = '../logs/log_%s.txt'%netParam
+        print(netParam.str())
         thrps = []
         try:
-            with open(logpath,'r') as f:
+            with open('%s/%s.txt'%(logPath,netParam.str()),'r') as f:
+            # with open('%s/log_%s.txt'%(logPath,netParam.str('old')),'r') as f:
                 lines = f.readlines()
                 for line in lines:
                     if 'receiver' in line:
@@ -31,6 +31,7 @@ def loadLog(netParams,isDetail=False):
             if isDetail:
                 result[netParam] = thrps
             else:
+                #TODO observe their variance
                 if len(thrps)<=2:
                     print('ERROR: the amount of data is too small.')
                 else:
@@ -44,7 +45,7 @@ def loadLog(netParams,isDetail=False):
         
     return result
     
-def plotSeq(result, segX, groups, title, legends=[]):
+def plotSeq(resultPath, result, segX, groups, title, legends=[]):
     plt.figure(figsize=(10,10),dpi=100)
     plt.ylim((0,12))
     if len(groups)==1:
@@ -59,10 +60,10 @@ def plotSeq(result, segX, groups, title, legends=[]):
     plt.xlabel('%s(%s)' % (segX, NetParam.NetParam.Unit[segX])) #(segX.title()+'('+xunit+')')
     plt.ylabel('Bandwidth(Mbps)')
     plt.title(title)
-    plt.savefig('%s/%s.png' % (resultDir,title))
+    plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
-def plotByGroup(npToResultDict,segX,curveDiffSegs=[]):
+def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
     pointGroups = []
     for netParam in npToResultDict:
         found = False
@@ -80,6 +81,7 @@ def plotByGroup(npToResultDict,segX,curveDiffSegs=[]):
             group = sorted(group,key=functools.cmp_to_key(lambda a1,a2: a1.__dict__[segX]-a2.__dict__[segX]))
             curves.append(group)
 
+    #TODO automatically
     '''    
     # find the difference between these pointGroups
     if len(curves)>1:
@@ -127,25 +129,34 @@ def plotByGroup(npToResultDict,segX,curveDiffSegs=[]):
 
         legends = []
         for curve in curveGroup:
-            legends.append(' '.join([curve[0].segStr(seg) for seg in diffSegs]))
+            string = ' '.join([curve[0].segStr(seg) for seg in diffSegs])
+            string = string.replace(' pepCC=nopep', '')
+            legends.append(string)
         # title = '%s-bw under different %s' % (segX, ','.join(diffSegs))
         title = curve[0].groupTitle(segX, diffSegs)
-        plotSeq(npToResultDict, segX, curveGroup, title=title, legends=legends)
+        plotSeq(resultPath, npToResultDict, segX, curveGroup, title=title, legends=legends)
 
+def anlz(npsetName):
+    netParams = NetParam.getNetParams(npsetName)
+    logPath = '%s/%s' % ('../logs', npsetName)
+    npToResultDict = loadLog(logPath, netParams)
+
+    os.chdir(sys.path[0])
+    resultRootPath = '../result'
+    if not os.path.exists(resultRootPath):
+        os.makedirs(resultRootPath, mode=0o0777)
+    resultPath = '%s/%s' % (resultRootPath,npsetName)
+    if not os.path.exists(resultPath):
+        os.makedirs(resultPath, mode=0o0777)
+    # make plot
+    # plotByGroup(resultPath, npToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
+    # plotByGroup(resultPath, npToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
+    # plotByGroup(resultPath, npToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
+    plotByGroup(resultPath, npToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
+
+    with open('%s/summary.txt'%(resultPath),'w') as f:
+        f.write('\n'.join(['%s   \t%.3f'%(key.str(),npToResultDict[key]) for key in npToResultDict]))
 
 if __name__=='__main__':
-    os.chdir(sys.path[0])
-
-    netParams = NetParam.getNetParams('?')
-    npToResultDict = loadLog(netParams)
-
-    resultDir = '../result/%s' % timestamp()
-    if not os.path.exists(resultDir):
-        os.makedirs(resultDir, mode=0o0777)
-
-    # make plot
-    plotByGroup(npToResultDict,'rtt',curveDiffSegs=['e2eCC','pepCC'])
-    plotByGroup(npToResultDict,'loss',curveDiffSegs=['e2eCC','pepCC'])
-
-    with open('%s/summary.txt'%(resultDir),'w') as f:
-        f.write('\n'.join(['%s   \t%.3f'%(key,npToResultDict[key]) for key in npToResultDict]))
+    npsetName = '06.22.09'
+    anlz(npsetName)

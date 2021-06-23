@@ -11,11 +11,10 @@ def createNet(args):
     s2 = topo.addSwitch("s2")
     h2 = topo.addHost("h2",ip='10.0.2.1/24')
 
-    #DEBUG 100 -> 200-args.rtt
-    topo.addLink(h1,s1,cls=TCLink,  bw=args.bw, delay= str(200-args.rtt/4)+"ms",loss=0)
-    topo.addLink(s1,pep,cls=TCLink, bw=args.bw, delay= str(200-args.rtt/4)+"ms",loss=0)
-    topo.addLink(pep,s2,cls=TCLink, bw=args.bw, delay= str(args.rtt/4)+"ms",loss=0)
-    topo.addLink(s2,h2,cls=TCLink,  bw=args.bw, delay= str(args.rtt/4)+"ms",loss=args.loss)
+    topo.addLink(h1,s1,cls=TCLink,  bw=args.bw, delay= str((args.rttTotal-args.rttSat)/4)+"ms",loss=0)
+    topo.addLink(s1,pep,cls=TCLink, bw=args.bw, delay= str((args.rttTotal-args.rttSat)/4)+"ms",loss=0)
+    topo.addLink(pep,s2,cls=TCLink, bw=args.bw, delay= str(args.rttSat/4)+"ms",loss=0)
+    topo.addLink(s2,h2,cls=TCLink,  bw=args.bw, delay= str(args.rttSat/4)+"ms",loss=args.loss)
 
     return Mininet(topo)
 
@@ -27,7 +26,4 @@ def onNetCreated(mn,args):
     h1.cmd("route add default gw 10.0.1.90")
     h2.cmd("route add default gw 10.0.2.90")
     pep.cmd("sysctl net.ipv4.ip_forward=1")
-
-
-
-
+    return
