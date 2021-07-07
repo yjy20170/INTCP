@@ -81,8 +81,10 @@ def getNetParams(npsetName):
 
     # special NetParam
     if npsetName == 'expr':
+        netName = '1_'
+        print(netName)
         netParams = [NetParam(
-            netName = '0',
+            netName = netName,
             sendTime=30,
             pepCC='nopep',
             varBw=0,
@@ -105,6 +107,8 @@ def getNetParams(npsetName):
         npTemplates += [NetParam(rttSat=100, loss=value) for value in BasicRange['loss']]
     elif npsetName == '06.22.09':
         npTemplates += [NetParam(rttTotal=600,rttSat=value, loss=1) for value in [100,200,300,400,500]]
+    elif npsetName == 'mot_bwVar_1':
+        npTemplates += [NetParam(loss=0, bw=value/2,varBw=value/2,varIntv=2) for value in [5,10,15,20,25]]
     else:
         raise Exception('ERROR: Unknown NetParam set npsetName')
 

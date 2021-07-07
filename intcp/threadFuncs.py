@@ -14,6 +14,34 @@ def threadEvent(func):
     return wrapper
 
 ### thread for dynamic link params control
+def Static():
+    ### get the func object by which Static() is called.
+    from inspect import currentframe, getframeinfo
+    caller = currentframe().f_back
+    func_name = getframeinfo(caller)[2]
+    # print(func_name)
+    caller = caller.f_back
+    func = caller.f_locals.get(
+        func_name, caller.f_globals.get(
+            func_name
+        )
+    )
+
+    class StaticVars:
+        def has(self, varName):
+            return hasattr(self, varName)
+
+        def declare(self, varName, value):
+            if not self.has(varName):
+                setattr(self, varName, value)
+
+    if hasattr(func, "staticVars"):
+        return func.staticVars
+    else:
+        # add an attribute to func
+        func.staticVars = StaticVars()
+        return func.staticVars
+
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -21,6 +49,13 @@ def generateBw(policy, meanbw,varbw, prd=10):
     elif policy=='sin':
         cur_time = time.time()
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
+    elif policy == 'square':
+        Static().declare('k', 1)
+        Static().k = 0 - Static().k
+        return meanbw + varbw * Static().k
+
+    else:
+        raise Exception
 
 @threadEvent
 def funcLinkUpdate(mn,netParam, logPath):
@@ -45,7 +80,8 @@ def funcLinkUpdate(mn,netParam, logPath):
         
     while not Thread.stopped():
         time.sleep(netParam.varIntv)
-        newBw = generateBw('random',netParam.bw,netParam.varBw)
+        #newBw = generateBw('random',netParam.bw,netParam.varBw)
+        newBw = generateBw('square', netParam.bw, netParam.varBw)
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
             config(intf,bw=newBw)
 

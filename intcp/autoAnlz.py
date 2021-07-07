@@ -141,6 +141,7 @@ def anlz(npsetName):
     logPath = '%s/%s' % ('../logs', npsetName)
     npToResultDict = loadLog(logPath, netParams)
 
+    print(sys.path[0])
     os.chdir(sys.path[0])
     resultRootPath = '../result'
     if not os.path.exists(resultRootPath):
@@ -158,5 +159,5 @@ def anlz(npsetName):
         f.write('\n'.join(['%s   \t%.3f'%(key.str(),npToResultDict[key]) for key in npToResultDict]))
 
 if __name__=='__main__':
-    npsetName = '06.22.09'
+    npsetName = 'mot_bwVar_1'
     anlz(npsetName)

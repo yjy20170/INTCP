@@ -56,12 +56,10 @@ def mngo(netParam,isManual, logPath):
         return
     
 if __name__=='__main__':
-    npsetName = 'expr'
+    npsetName = 'mot_bwVar_1'
     #npsetName = '06.22.09'#'6.18.14'
     netParams = NetParam.getNetParams(npsetName)
-    print(sys.path)
     os.chdir(sys.path[0])
-    print(sys.path)
     logRootPath = '../logs'
     if not os.path.exists(logRootPath):
         os.makedirs(logRootPath, mode=0o0777)
