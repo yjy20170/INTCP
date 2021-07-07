@@ -3,7 +3,6 @@ import time
 import threading
     
 class Thread (threading.Thread):
-    Stopped = False
 
     def __init__(self, func, args=(), kwargs={}):
         threading.Thread.__init__(self)
@@ -12,12 +11,19 @@ class Thread (threading.Thread):
         self.kwargs=kwargs
     def run(self):
         self.func(*self.args, **self.kwargs)
+        
+class ReleaserThread(Thread):
+    Running = False
+    def __init__(self, func, args=(), kwargs={}):
+        super().__init__(func, args=(), kwargs={})
+        self.__class__.Running = True
     def waitToStop(self):
         self.join()
-        Thread.Stopped = True
+        self.__class__.Running = False
     @classmethod
-    def stopped(cls):
-        return cls.Stopped
+    def isRunning(cls):
+        return cls.Running
+        
 atomicLock = threading.Lock()
 def atomic(func):
     def wrapper(*args, **kwargs):

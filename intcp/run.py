@@ -8,7 +8,7 @@ import argparse
 from mininet.cli import CLI
 
 import NetParam
-from MultiThread import Thread
+from MultiThread import Thread,ReleaserThread
 
 def getArgsFromCli():
     parser = argparse.ArgumentParser()
@@ -45,7 +45,7 @@ def mngo(netParam,isManual, logPath):
         # enter command line interface...
         CLI(mn)
     else:
-        releaserThread = Thread(netParam.releaserFunc, (mn,netParam,logPath,))
+        releaserThread = ReleaserThread(netParam.releaserFunc, (mn,netParam,logPath,))
         releaserThread.start()
         # main thread waits releaserThread until it ends
         releaserThread.waitToStop()

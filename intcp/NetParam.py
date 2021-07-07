@@ -108,14 +108,15 @@ def getNetParams(npsetName):
     elif npsetName == '06.22.09':
         npTemplates += [NetParam(rttTotal=600,rttSat=value, loss=1) for value in [100,200,300,400,500]]
     elif npsetName == 'mot_bwVar_1':
-        npTemplates += [NetParam(loss=0, bw=value/2,varBw=value/2,varIntv=2) for value in [5,10,15,20,25]]
+        npTemplates += [NetParam(loss=0, bw=value,varBw=(value-1)/2,varIntv=2) for value in [5,10,15,20,25]]
     else:
         raise Exception('ERROR: Unknown NetParam set npsetName')
 
     netParams = []
     for npt in npTemplates:
-        netParams += [NetParam(npt, e2eCC='hybla', pepCC='hybla'),
-                      NetParam(npt, e2eCC='hybla', pepCC='nopep'),
-                      NetParam(npt, e2eCC='cubic', pepCC='cubic'),
-                      NetParam(npt, e2eCC='cubic', pepCC='nopep')]
+        netParams += [NetParam(npt, e2eCC='hybla', pepCC='nopep'),
+                      NetParam(npt, e2eCC='cubic', pepCC='nopep'),
+                      NetParam(npt, e2eCC='hybla', pepCC='hybla'),
+                      NetParam(npt, e2eCC='cubic', pepCC='cubic')
+                      ]
     return netParams

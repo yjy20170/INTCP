@@ -3,7 +3,7 @@ import random
 import os
 import math
 
-from MultiThread import Thread, atomic
+from MultiThread import Thread, atomic,ReleaserThread
 
 def threadEvent(func):
     def wrapper(*args, **kw):
@@ -77,11 +77,13 @@ def funcLinkUpdate(mn,netParam, logPath):
             pass
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
-        
-    while not Thread.stopped():
+
+    while ReleaserThread.isRunning():
         time.sleep(netParam.varIntv)
         #newBw = generateBw('random',netParam.bw,netParam.varBw)
-        newBw = generateBw('square', netParam.bw, netParam.varBw)
+        newBw = generateBw('square', (netParam.bw+1)/2, netParam.varBw)
+        print("changing bw to %d"%(newBw))
+        #newBw = 1
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
             config(intf,bw=newBw)
 
@@ -90,7 +92,7 @@ def funcLinkUpdate(mn,netParam, logPath):
 def funcMakeItm(mn,netParam, logPath):
     if netParam.itmDown <= 0:
         return
-    while not Thread.stopped():
+    while ReleaserThread.isRunning():
         time.sleep(netParam.itmTotal-netParam.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','down')
         time.sleep(netParam.itmDown)
@@ -108,7 +110,7 @@ def funcIperfPep(mn,netParam, logPath):
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile %s/%s.txt &'%(logPath,netParam.str()))
     
     print('sendTime = %ds'%netParam.sendTime)
-    for i in range(5):
+    for i in range(1):
         print('iperfc loop %d starting' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netParam.e2eCC,netParam.sendTime) )
         #time.sleep(netParam.sendTime + 20)
