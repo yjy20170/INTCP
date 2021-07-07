@@ -25,11 +25,12 @@ class NetParam:
         for key in NetParam.Key:
             assert self.__dict__.has_key(key)
         
-    def segToString(self,seg):
-        return seg+'='+str(self.__dict__[seg])+NetParam.Unit[seg]
+    def segStr(self,seg):
+        return seg+'='+str(self.__dict__[seg])+(NetParam.Unit[seg] if seg in NetParam.Unit else '')
         
-    def toString(self):
-        return str(self.bw)+'m_'+str(self.rtt)+'ms_'+str(self.loss)+'%_i_'+str(self.prdItm)+'s_v_'+str(self.varBw)+'m_'+self.e2eCC+'_'+self.pepCC
+    def __str__(self):
+        return '%03dm_%03dms_%1.1f_i_%02ds_v_%02dm_%s_%s'
+            %(self.bw,self.rtt,self.loss,self.prdItm,self.varBw,self.e2eCC,self.pepCC)
     
     def compare(self,netParam,mask=None):
         for key in NetParam.Key:
@@ -42,7 +43,7 @@ class NetParam:
   
 ### special NetParam for test
 netParams = [NetParam(
-    sendTime=10,
+    sendTime=30,
     pepCC='nopep',
     varBw=3,
     loss=0,prdItm=0
@@ -50,7 +51,7 @@ netParams = [NetParam(
 
 ### regular experiment NetParams
 def makeNetParams():
-    print("Using regular experiment NetParams")
+    print('Using regular experiment NetParams')
     netParams = []
     rtt_range = [25,175,375,575]
     bw_range = [10,100]
@@ -60,16 +61,16 @@ def makeNetParams():
     if 0:
         for r in rtt_range:
             for l in loss_range:
-                netParams.append(NetParam(rtt=r,loss=l,pepCC="nopep"))
-                netParams.append(NetParam(rtt=r,loss=l,pepCC="hybla"))
+                netParams.append(NetParam(rtt=r,loss=l,pepCC='nopep'))
+                netParams.append(NetParam(rtt=r,loss=l,pepCC='hybla'))
     
     asm = [[575,loss] for loss in loss_range] + [[rtt,0.5] for rtt in rtt_range]
     for rtt,loss in asm:
         for v,itm in [[0,0],[3,0],[0,3]]:
-            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='cubic',pepCC="nopep",varBw=v))
-            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='cubic',pepCC="cubic",varBw=v))
-            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='hybla',pepCC="nopep",varBw=v))
-            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='hybla',pepCC="hybla",varBw=v))
+            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='cubic',pepCC='nopep',varBw=v))
+            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='cubic',pepCC='cubic',varBw=v))
+            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='hybla',pepCC='nopep',varBw=v))
+            netParams.append(NetParam(loss=loss,rtt=rtt,prdItm=itm,e2eCC='hybla',pepCC='hybla',varBw=v))
             
     return netParams
 

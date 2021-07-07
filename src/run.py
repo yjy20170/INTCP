@@ -19,14 +19,14 @@ def getArgsFromCli():
     return args
     
 def mngo(netParam,isManual):
-    print("initialize network: "+netParam.toString())
+    print('initialize network: %s'%netParam)
     
-    os.system("mn -c >/dev/null 2>&1")
-    os.system("killall -9 xterm >/dev/null 2>&1")
-    # os.system("killall -9 runmn >/dev/null 2>&1")
+    os.system('mn -c >/dev/null 2>&1')
+    os.system('killall -9 xterm >/dev/null 2>&1')
+    # os.system('killall -9 runmn >/dev/null 2>&1')
     
     # import specified net topo as a module
-    myModule = importlib.import_module( 'nets.net_'+ netParam.netName)
+    myModule = importlib.import_module( 'nets.net_%s'%netParam.netName)
     
     # create a new Mininet object
     mn = myModule.createNet(netParam)
@@ -56,7 +56,7 @@ def mngo(netParam,isManual):
         mn.stop()
         return
     
-if __name__=="__main__":
+if __name__=='__main__':
     
     isManual = getArgsFromCli().m
     
@@ -66,5 +66,5 @@ if __name__=="__main__":
     for netParam in netParams:
         mngo(netParam, isManual)
         
-    print("all experiments finished")
-    os.system("killall -9 run.py >/dev/null 2>&1")
+    print('all experiments finished')
+    os.system('killall -9 run.py >/dev/null 2>&1')
