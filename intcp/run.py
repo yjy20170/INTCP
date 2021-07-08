@@ -38,25 +38,35 @@ def mngo(netParam,isManual, logPath):
 
     # start the threads we want to run
     threads = []
-    for func in netParam.funcs:
-        threads.append(Thread(func, (mn,netParam,logPath,)))
-        threads[-1].start()
     if isManual:
+        for func in netParam.funcs:
+            threads.append(Thread(func, (mn,netParam,logPath,)))
+            threads[-1].start()
         # enter command line interface...
         CLI(mn)
     else:
         releaserThread = ReleaserThread(netParam.releaserFunc, (mn,netParam,logPath,))
         releaserThread.start()
         # main thread waits releaserThread until it ends
+        
+        #releaserThread.waitToStop()
+        
+        for func in netParam.funcs:
+            threads.append(Thread(func, (mn,netParam,logPath,)))
+            threads[-1].start()
+
         releaserThread.waitToStop()
+        
         for thread in threads:
             thread.join()
+
+        #releaserThread.waitToStop()
         # terminate
         mn.stop()
         return
     
 if __name__=='__main__':
-    npsetName = 'mot_bwVar_1'
+    npsetName = 'mot_bwVar_2'
     #npsetName = '06.22.09'#'6.18.14'
     netParams = NetParam.getNetParams(npsetName)
     os.chdir(sys.path[0])

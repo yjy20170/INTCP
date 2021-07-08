@@ -13,9 +13,11 @@ def createNet(args):
         if hindex == 1:
             delay = (args.rttTotal-args.rttSat)/4
             loss = 0
+            bw = 10
         elif hindex == 2:
             delay = args.rttSat/4
             loss = args.loss/2
+            bw = args.bw
         else:
             delay = 0
             loss = 0
@@ -25,7 +27,7 @@ def createNet(args):
         topo.addLink(switch,router,
                      intfName2 = '%s-eth%d' % (router,hindex),
                      params2 = {'ip':'10.0.%d.100/24' % hindex},
-                     cls = TCLink, bw = args.bw, delay = '%dms'%delay, loss = loss)
+                     cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss)
 
         host = 'h%d' % hindex
         topo.addNode(host, cls=MyNode.EndpointNode,
@@ -33,7 +35,7 @@ def createNet(args):
                      defaultRoute = 'via 10.0.%d.100' % hindex)
 
         topo.addLink(switch, host,
-                     cls = TCLink, bw = args.bw, delay = '%dms'%delay, loss = loss)
+                     cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss)
 
     return Mininet(topo)
 

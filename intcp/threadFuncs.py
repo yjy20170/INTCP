@@ -77,12 +77,13 @@ def funcLinkUpdate(mn,netParam, logPath):
             pass
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
-
+    if ReleaserThread.isRunning()==False:
+        print("havent start")
     while ReleaserThread.isRunning():
         time.sleep(netParam.varIntv)
         #newBw = generateBw('random',netParam.bw,netParam.varBw)
-        newBw = generateBw('square', (netParam.bw+1)/2, netParam.varBw)
-        print("changing bw to %d"%(newBw))
+        newBw = generateBw('square', netParam.bw, netParam.varBw)
+        #print("changing bw to %d"%(newBw))
         #newBw = 1
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
             config(intf,bw=newBw)
@@ -107,10 +108,10 @@ def funcIperfPep(mn,netParam, logPath):
     if netParam.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
 
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 10 --logfile %s/%s.txt &'%(logPath,netParam.str()))
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netParam.str(ver='varIntv')))
     
     print('sendTime = %ds'%netParam.sendTime)
-    for i in range(1):
+    for i in range(5):
         print('iperfc loop %d starting' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netParam.e2eCC,netParam.sendTime) )
         #time.sleep(netParam.sendTime + 20)

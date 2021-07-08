@@ -15,7 +15,7 @@ class Thread (threading.Thread):
 class ReleaserThread(Thread):
     Running = False
     def __init__(self, func, args=(), kwargs={}):
-        super().__init__(func, args=(), kwargs={})
+        super().__init__(func, args, kwargs)
         self.__class__.Running = True
     def waitToStop(self):
         self.join()

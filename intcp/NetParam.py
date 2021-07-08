@@ -34,6 +34,9 @@ class NetParam:
         if ver == 'newest':
             string = '%03dm_%03dms_%03dms_%1.1f%%_i_%02ds_v_%02dm_%s_%s'\
                      % (self.bw,self.rttTotal,self.rttSat,self.loss,self.itmDown,self.varBw,self.e2eCC,self.pepCC)
+        elif ver == 'varIntv':
+            string = '%02ds_%03dm_%03dms_%03dms_%1.1f%%_i_%02ds_v_%02dm_%s_%s'\
+                     % (self.varIntv,self.bw,self.rttTotal,self.rttSat,self.loss,self.itmDown,self.varBw,self.e2eCC,self.pepCC)
         elif ver == 'newSingleRtt':
             string = '%dm_%dms_%dms_%s%%_i_%ds_v_%dm_%s_%s'\
                      % (self.bw,self.rttTotal,self.rttSat,self.loss,self.itmDown,self.varBw,self.e2eCC,self.pepCC)
@@ -91,6 +94,9 @@ def getNetParams(npsetName):
             loss=0, itmDown=0
         )]
         return netParams
+    elif npsetName == 'mot_bwVar_2':
+        netParams = [NetParam(loss=0, bw=(25+1)/2,varBw=(25-1)/2,varIntv=value) for value in [1,2,4,8]]
+        return netParams
 
     npTemplates = []
     if npsetName == 'basic':
@@ -108,7 +114,8 @@ def getNetParams(npsetName):
     elif npsetName == '06.22.09':
         npTemplates += [NetParam(rttTotal=600,rttSat=value, loss=1) for value in [100,200,300,400,500]]
     elif npsetName == 'mot_bwVar_1':
-        npTemplates += [NetParam(loss=0, bw=value,varBw=(value-1)/2,varIntv=2) for value in [5,10,15,20,25]]
+        npTemplates += [NetParam(loss=0, bw=(value+1)/2,varBw=(value-1)/2,varIntv=2) for value in [5,10,15,20,25]]
+
     else:
         raise Exception('ERROR: Unknown NetParam set npsetName')
 
