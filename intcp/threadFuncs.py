@@ -51,7 +51,7 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
     elif policy == 'square':
         Static().declare('k', 1)
-        Static().k = 0 - Static().k
+        Static().k = -1 * Static().k
         return meanbw + varbw * Static().k
 
     else:
@@ -77,14 +77,10 @@ def funcLinkUpdate(mn,netParam, logPath):
             pass
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
-    if ReleaserThread.isRunning()==False:
-        print("havent start")
     while ReleaserThread.isRunning():
         time.sleep(netParam.varIntv)
-        #newBw = generateBw('random',netParam.bw,netParam.varBw)
+        #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
         newBw = generateBw('square', netParam.bw, netParam.varBw)
-        #print("changing bw to %d"%(newBw))
-        #newBw = 1
         for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
             config(intf,bw=newBw)
 
@@ -107,14 +103,13 @@ def funcMakeItm(mn,netParam, logPath):
 def funcIperfPep(mn,netParam, logPath):
     if netParam.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
-
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netParam.str(ver='varIntv')))
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netParam.name))
     
     print('sendTime = %ds'%netParam.sendTime)
-    for i in range(5):
+    for i in range(3):
         print('iperfc loop %d starting' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netParam.e2eCC,netParam.sendTime) )
-        #time.sleep(netParam.sendTime + 20)
+        #time.sleep(netEnv.sendTime + 20)
         #DEBUG
-        #mn.getNodeByName('h1').cmd('iperf3 -c 10.0.2.1 -f k -C %s -t %d'%(netParam.e2eCC,netParam.sendTime))
+        #mn.getNodeByName('h1').cmd('iperf3 -c 10.0.2.1 -f k -C %s -t %d'%(netEnv.e2eCC,netEnv.sendTime))
         time.sleep(netParam.sendTime + 20)

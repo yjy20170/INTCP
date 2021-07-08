@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import time
 import threading
     
 class Thread (threading.Thread):
@@ -27,9 +26,7 @@ class ReleaserThread(Thread):
 atomicLock = threading.Lock()
 def atomic(func):
     def wrapper(*args, **kwargs):
-        #cur=time.time()
         atomicLock.acquire()
-        #print(time.time()-cur)
         ret = func(*args, **kwargs)
         atomicLock.release()
         return ret
