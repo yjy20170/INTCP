@@ -63,12 +63,12 @@ def plotSeq(resultPath, result, segX, groups, title, legends=[]):
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
-def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
+def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[],ignoreDiffSegs=[]):
     pointGroups = []
     for netParam in npToResultDict:
         found = False
         for group in pointGroups:
-            if netParam.compare(group[0],mask=[segX]):
+            if netParam.compare(group[0],mask=[segX]+ignoreDiffSegs):
                 found = True
                 group.append(netParam)
                 break
@@ -108,7 +108,7 @@ def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
     for curve in curves:
         found = False
         for group in curveGroups:
-            if curve[0].compare(group[0][0],mask=curveDiffSegs+[segX]):
+            if curve[0].compare(group[0][0],mask=curveDiffSegs+[segX]+ignoreDiffSegs):#DEBUG
                 found = True
                 group.append(curve)
                 break
@@ -153,7 +153,8 @@ def anlz(npsetName):
     # plotByGroup(resultPath, npToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, npToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, npToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
-    plotByGroup(resultPath, npToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
+    # plotByGroup(resultPath, npToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
+    plotByGroup(resultPath, npToResultDict, 'bw', curveDiffSegs=['e2eCC', 'pepCC'], ignoreDiffSegs=['varBw'])
 
     with open('%s/summary.txt'%(resultPath),'w') as f:
         f.write('\n'.join(['%s   \t%.3f'%(key.str(),npToResultDict[key]) for key in npToResultDict]))
