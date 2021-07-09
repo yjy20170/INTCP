@@ -17,7 +17,7 @@ def loadLog(logPath, netParams,isDetail=False):
         print(netParam.str())
         thrps = []
         try:
-            with open('%s/%s.txt'%(logPath,netParam.str()),'r') as f:
+            with open('%s/%s.txt'%(logPath,netParam.str(ver="varIntv")),'r') as f:
             # with open('%s/log_%s.txt'%(logPath,netParam.str('old')),'r') as f:
                 lines = f.readlines()
                 for line in lines:
@@ -63,12 +63,13 @@ def plotSeq(resultPath, result, segX, groups, title, legends=[]):
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
-def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
+def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[],ignoreDiffSegs=[]):
+    print("a")
     pointGroups = []
     for netParam in npToResultDict:
         found = False
         for group in pointGroups:
-            if netParam.compare(group[0],mask=[segX]):
+            if netParam.compare(group[0],mask=[segX]+ignoreDiffSegs):
                 found = True
                 group.append(netParam)
                 break
@@ -108,7 +109,7 @@ def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
     for curve in curves:
         found = False
         for group in curveGroups:
-            if curve[0].compare(group[0][0],mask=curveDiffSegs+[segX]):
+            if curve[0].compare(group[0][0],mask=curveDiffSegs+[segX]+ignoreDiffSegs):
                 found = True
                 group.append(curve)
                 break
@@ -134,6 +135,7 @@ def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[]):
             legends.append(string)
         # title = '%s-bw under different %s' % (segX, ','.join(diffSegs))
         title = curve[0].groupTitle(segX, diffSegs)
+        print("a")
         plotSeq(resultPath, npToResultDict, segX, curveGroup, title=title, legends=legends)
 
 def anlz(npsetName):
@@ -153,11 +155,13 @@ def anlz(npsetName):
     # plotByGroup(resultPath, npToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, npToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, npToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
-    plotByGroup(resultPath, npToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
-
+    #plotByGroup(resultPath, npToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
+    
+    #plotByGroup(resultPath, npToResultDict, 'bw', curveDiffSegs=['e2eCC', 'pepCC'],ignoreDiffSegs=['varBw'])
+    plotByGroup(resultPath, npToResultDict, 'varIntv', curveDiffSegs=['e2eCC', 'pepCC'],ignoreDiffSegs=['varBw'])
     with open('%s/summary.txt'%(resultPath),'w') as f:
         f.write('\n'.join(['%s   \t%.3f'%(key.str(),npToResultDict[key]) for key in npToResultDict]))
 
 if __name__=='__main__':
-    npsetName = 'mot_bwVar_1'
+    npsetName = 'mot_bwVar_2'
     anlz(npsetName)

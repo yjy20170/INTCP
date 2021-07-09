@@ -13,7 +13,7 @@ class NetParam:
     }
 
     Keys = BasicVals.keys()
-    Unit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps',
+    Unit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps','varIntv':'s',
             'e2eCC': '', 'pepCC': ''}
     
     def __init__(self, template=None, **kwargs):
@@ -95,7 +95,7 @@ def getNetParams(npsetName):
         )]
         return netParams
     elif npsetName == 'mot_bwVar_2':
-        netParams = [NetParam(loss=0, bw=(25+1)/2,varBw=(25-1)/2,varIntv=value) for value in [1,2,4,8]]
+        netParams = [NetParam(sendTime=120,loss=0, bw=(25+1)/2,varBw=(25-1)/2,varIntv=value) for value in [1,2,4,8,20]]
         return netParams
 
     npTemplates = []
