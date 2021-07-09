@@ -13,6 +13,8 @@ def createNet(args):
         if hindex == 1:
             delay = (args.rttTotal-args.rttSat)/4
             loss = 0
+            # TODO
+            # Now the bandwidth is hardcoded. Need to change.
             bw = 10
         elif hindex == 2:
             delay = args.rttSat/4
@@ -21,6 +23,7 @@ def createNet(args):
         else:
             delay = 0
             loss = 0
+            bw = 0
 
         switch = 's%d' % hindex
         topo.addSwitch(switch)
