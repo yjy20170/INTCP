@@ -65,8 +65,8 @@ def mngo(netEnv, isManual, logPath):
         return
     
 if __name__=='__main__':
-    neSetName = 'mot_bwVar_3'
-    #nesetName = '06.22.09'#'6.18.14'
+    neSetName = 'mot_bwVar_freq2'
+
     neSet = NetEnv.getNetEnvSet(neSetName)
     os.chdir(sys.path[0])
 
@@ -76,6 +76,9 @@ if __name__=='__main__':
     logPath = '%s/%s' % (logRootPath, neSetName)
     if not os.path.exists(logPath):
         os.makedirs(logPath, mode=0o0777)
+
+    with open('%s/template.txt'%(logPath),'w') as f:
+        f.write(neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
     if isManual:

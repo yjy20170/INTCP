@@ -5,51 +5,34 @@ import threadFuncs
 #         self.value = value
 #     def str(self):
 #         return str(self.value)
+
+# seg = key : value
+# segs are defined here.
+BasicSegs = {
+    'name':'null',
+    'netName':'0', 'sendTime':120,
+    'bw':10, 'rttSat':100, 'rttTotal':200, 'loss':0.5,
+    'itmTotal':20, 'itmDown':0,
+    'varBw':0, 'varIntv':1, 'varMethod':'random',
+    'e2eCC':'hybla', 'pepCC':'nopep',
+    'releaserFunc': threadFuncs.funcIperfPep,
+    'funcs': [threadFuncs.funcMakeItm, threadFuncs.funcLinkUpdate]
+}
+Keys = BasicSegs.keys()
+SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps', 'varIntv': 's',
+        'e2eCC': '', 'pepCC': ''}
+
 class NetEnv:
-    # seg = key : value
-    # segs are defined here.
-    BasicSegs = {
-        'name':'null',
-        'netName':'0', 'sendTime':120,
-        'bw':10, 'rttSat':100, 'rttTotal':200, 'loss':0.5,
-        'itmTotal':20, 'itmDown':0,
-        'varBw':0, 'varIntv':1,
-        'e2eCC':'hybla', 'pepCC':'nopep',
-        'releaserFunc': threadFuncs.funcIperfPep,
-        'funcs': [threadFuncs.funcMakeItm, threadFuncs.funcLinkUpdate]
-    }
-
-    Keys = BasicSegs.keys()
-    SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps', 'varIntv': 's',
-            'e2eCC': '', 'pepCC': ''}
-
     def __init__(self, neTemplate=None, **kwargs):
-        for key in self.__class__.Keys:
+        for key in Keys:
             if key in kwargs:
                 self.update(key, kwargs[key])
             elif neTemplate != None and key in neTemplate.__dict__:
                 self.update(key, neTemplate.get(key))
-            elif key in self.__class__.BasicSegs:
-                self.update(key, self.__class__.BasicSegs[key])
+            elif key in BasicSegs:
+                self.update(key, BasicSegs[key])
             else:
                 raise Exception('ERROR: object attr [%s] is missed.' % key)
-        
-    def segToStr(self, key):
-        return key + '=' + str(self.get(key)) + (self.__class__.SegUnit[key] if key in self.__class__.SegUnit else '')
-
-    def groupTitle(self, segX, segsDiff=[]):
-        ### this is generated as plot title
-        segsNotCommon = [segX]+segsDiff
-        stringCommon = []
-        stringDiff = []
-        for seg in ['rttSat','loss','itmDown','varBw','e2eCC','pepCC']:
-            if seg in segsNotCommon:
-                if seg != segX:
-                    stringDiff.append(seg)
-            else:
-                stringCommon.append(self.segToStr(seg))
-
-        return '%s - bandwidth (%s)' %(segX, ' '.join(stringCommon)) # +'   DIFF  '+' '.join(stringDiff)
 
     def update(self, key, value):
         self.__dict__[key] = value
@@ -57,18 +40,39 @@ class NetEnv:
     def get(self, key):
         return self.__dict__[key]
 
-    def compare(self, netEnv, mask=[]):
-        for key in self.__class__.Keys:
-            if key in ['name']+mask:
+    def compareOnly(self, netEnv, keysCmp):
+        for key in Keys:
+            if key == 'name':
+                continue
+            if key not in keysCmp:
                 continue
             if self.get(key) != netEnv.get(key):
-                print(key,self.get(key),netEnv.get(key))
+                # print(key,self.get(key),netEnv.get(key))
                 return False
         return True
 
+    def serialize(self):
+        return '\n'.join(['%15s    %s'%(key,self.get(key)) for key in Keys])
+
+    # easy-to-read string of seg/main segs
+    def segToStr(self, key):
+        return key + '=' + str(self.get(key)) + (SegUnit[key] if key in SegUnit else '')
+    # def plotTitle(self, keyX, curveDiffSegs):
+    #     ### this is generated as plot title
+    #     segsNotCommon = [keyX] + curveDiffSegs
+    #     stringCommon = []
+    #     for seg in ['rttTotal','rttSat','loss','itmDown','varBw','e2eCC','pepCC']:
+    #         if seg not in segsNotCommon:
+    #             stringCommon.append(self.segToStr(seg))
+    #     return '%s - bandwidth\n%s' %(keyX, ' '.join(stringCommon))
+
+
 class NetEnvSet:
-    def __init__(self, neTemplate, nesetName, **segs):
+    def __init__(self, nesetName, neTemplate, keyX='keyX', keysCurveDiff=[], **segs):
         self.nesetName = nesetName
+        self.keyX = keyX
+        self.keysCurveDiff = keysCurveDiff
+
         if neTemplate == None:
             self.neTemplate = NetEnv()
         else:
@@ -76,7 +80,6 @@ class NetEnvSet:
 
         self.netEnvs = []
         self.add(**segs)
-        print(len(self.netEnvs))
 
     # sometimes two or more segs are variable, but we don't want a Cartesian Product
     # at this time we must add the netEnvs manually by this function
@@ -109,65 +112,44 @@ class NetEnvSet:
                 done = False
                 while pos[ptr] == len(segs[keys[ptr]]):
                     pos[ptr] = 0
-                    ptr += 1
-                    if ptr == len(segs):
+                    ptr -= 1
+                    if ptr == -1:
                         done = True
                         break
                     pos[ptr] += 1
                 if done:
                     break
 
-# regular experiment NetEnvs
-BasicRange = {
-    'bw': [10, 50, 100, 300],
-    'rttSat': [20,50,80,100,120,150],
-    'loss': [0, 0.3, 0.7, 1],
-    'itmDown': [0, 1, 2, 3, 4],
-    'varBw': [0, 1, 3, 5, 7],
-    'e2eCC': ['hybla', 'cubic'],
-    'pepCC': ['hybla', 'cubic', 'nopep']
-}
 
 def getNetEnvSet(nesetName):
     print('Using NetEnvSet %s' % nesetName)
+
     if nesetName == 'expr':
         # special NetEnv
-        return NetEnvSet(None, nesetName, netName = '1_test', sendTime=30, pepCC='nopep', varBw=0, loss=0, itmDown=0)
+        neSet = NetEnvSet(nesetName, None, netName = '1_test', sendTime=30, pepCC='nopep', varBw=0, loss=0, itmDown=0)
+
+    elif nesetName == 'mot_bwVar_freq2':
+        varIntv = [1,2,4,8,16,20]
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varMethod='squareFreq', e2eCC='hybla'),
+                          'varIntv', ['pepCC'],
+                          varIntv=varIntv, pepCC=['hybla','nopep'])
+
+    elif nesetName == 'mot_bwVar_freq':
+        varIntv = [1,2,4,8,16,20]
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varMethod='squareFreq', e2eCC='hybla'),
+                          'varIntv', ['pepCC'],
+                          varIntv=varIntv, pepCC=['hybla','nopep'])
+
     elif nesetName == 'mot_bwVar_3':
-        neTemplate = NetEnv(loss=0, varIntv=10, e2eCC='hybla')
-        neSet = NetEnvSet(neTemplate, nesetName)
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varIntv=10, varMethod='square', e2eCC='hybla'),
+                          'bw', ['pepCC'])
         maxBws = [6,8,10,14,18,22,26]
         minBw = 2
         for mab in maxBws:
             neSet.add(bw=(mab + minBw) / 2, varBw=(mab - minBw) / 2, pepCC=['nopep','hybla'])
-        return neSet
+
     elif nesetName == 'mot_bwVar_2':
-        neTemplate = NetEnv(loss=0, bw=(26 + 2) / 2, varBw=(26 - 2) / 2, e2eCC='hybla', pepCC='nopep')
-        return NetEnvSet(neTemplate, nesetName, varIntv=[1, 2, 4, 8])
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=(26 + 2) / 2, varBw=(26 - 2) / 2, e2eCC='hybla', pepCC='nopep'),
+                          varIntv=[1, 2, 4, 8])
 
-    # elif nesetName == 'basic':
-    #     npTemplates += [NetEnv(loss=value) for value in BasicRange['loss']]
-    #     npTemplates += [NetEnv(rttTotal=value + 25, rttSat=value) for value in [25, 75, 175, 375, 575]]
-    #     npTemplates += [NetEnv(itmDown=value) for value in BasicRange['itmDown']]
-    #     npTemplates += [NetEnv(varBw=value) for value in BasicRange['varBw']]
-    # elif nesetName == '6.17':
-    #     #DEBUG ground part rtt is set to 100ms now.
-    #     npTemplates += [NetEnv(rttSat=value, loss=0.5) for value in BasicRange['rttSat']]
-    #     npTemplates += [NetEnv(rttSat=100, itmDown=value) for value in BasicRange['itmDown']]
-    #     npTemplates += [NetEnv(rttSat=100, varBw=value) for value in BasicRange['varBw']]
-    # elif nesetName == '6.18.14':
-    #     npTemplates += [NetEnv(rttSat=100, loss=value) for value in BasicRange['loss']]
-    # elif nesetName == '06.22.09':
-    #     npTemplates += [NetEnv(rttTotal=600, rttSat=value, loss=1) for value in [100, 200, 300, 400, 500]]
-    #
-    # else:
-    #     raise Exception('ERROR: Unknown NetEnv set nesetName')
-    #
-    # netParams = []
-    # for npt in npTemplates:
-    #     netParams += [NetEnv(npt, e2eCC='hybla', pepCC='nopep'),
-    #                   NetEnv(npt, e2eCC='cubic', pepCC='nopep'),
-    #                   NetEnv(npt, e2eCC='hybla', pepCC='hybla'),
-    #                   NetEnv(npt, e2eCC='cubic', pepCC='cubic')
-    #                   ]
-
+    return neSet

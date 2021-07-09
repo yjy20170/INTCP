@@ -14,34 +14,7 @@ def threadEvent(func):
     return wrapper
 
 ### thread for dynamic link params control
-def Static():
-    ### get the func object by which Static() is called.
-    from inspect import currentframe, getframeinfo
-    caller = currentframe().f_back
-    func_name = getframeinfo(caller)[2]
-    # print(func_name)
-    caller = caller.f_back
-    func = caller.f_locals.get(
-        func_name, caller.f_globals.get(
-            func_name
-        )
-    )
-
-    class StaticVars:
-        def has(self, varName):
-            return hasattr(self, varName)
-
-        def declare(self, varName, value):
-            if not self.has(varName):
-                setattr(self, varName, value)
-
-    if hasattr(func, "staticVars"):
-        return func.staticVars
-    else:
-        # add an attribute to func
-        func.staticVars = StaticVars()
-        return func.staticVars
-
+K = 1
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -50,16 +23,16 @@ def generateBw(policy, meanbw,varbw, prd=10):
         cur_time = time.time()
         return meanbw+varbw*math.sin(2*math.pi*cur_time/prd)
     elif policy == 'square':
-        Static().declare('k', 1)
-        Static().k = -1 * Static().k
-        return meanbw + varbw * Static().k
-
+        global K
+        newBw = meanbw + varbw * K
+        K = -1*K
+        return newBw
     else:
         raise Exception
 
 @threadEvent
-def funcLinkUpdate(mn,netParam, logPath):
-    if netParam.varBw <= 0:
+def funcLinkUpdate(mn, netEnv, logPath):
+    if netEnv.varBw <= 0:
         return
     s2 = mn.getNodeByName('s2')
     pep = mn.getNodeByName('pep')
@@ -77,22 +50,38 @@ def funcLinkUpdate(mn,netParam, logPath):
             pass
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
+
+    global K
+    K = 1
     while ReleaserThread.isRunning():
-        time.sleep(netParam.varIntv)
-        #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
-        newBw = generateBw('square', netParam.bw, netParam.varBw)
-        for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
-            config(intf,bw=newBw)
+        if netEnv.varMethod != 'squareFreq':
+            #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
+                config(intf,bw=newBw)
+            time.sleep(netEnv.varIntv)
+        else:
+            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+                config(intf, bw=newBw)
+            time.sleep(2)
+
+            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+                config(intf, bw=newBw)
+            time.sleep(netEnv.varIntv)
 
 ### thread for dynamic link up/down control
 @threadEvent
-def funcMakeItm(mn,netParam, logPath):
-    if netParam.itmDown <= 0:
+def funcMakeItm(mn,netEnv, logPath):
+    if netEnv.itmDown <= 0:
         return
     while ReleaserThread.isRunning():
-        time.sleep(netParam.itmTotal-netParam.itmDown)
+        time.sleep(netEnv.itmTotal-netEnv.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','down')
-        time.sleep(netParam.itmDown)
+        time.sleep(netEnv.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','up')
 
         # if changing s2 - h2
@@ -100,16 +89,16 @@ def funcMakeItm(mn,netParam, logPath):
 
 ### thread for iperf experiments with/without PEP
 @threadEvent
-def funcIperfPep(mn,netParam, logPath):
-    if netParam.pepCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netParam.pepCC+' &')
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netParam.name))
+def funcIperfPep(mn,netEnv, logPath):
+    if netEnv.pepCC != 'nopep':
+        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netEnv.name))
     
-    print('sendTime = %ds'%netParam.sendTime)
+    print('sendTime = %ds'%netEnv.sendTime)
     for i in range(3):
         print('iperfc loop %d starting' %i)
-        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netParam.e2eCC,netParam.sendTime) )
+        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)
         #DEBUG
         #mn.getNodeByName('h1').cmd('iperf3 -c 10.0.2.1 -f k -C %s -t %d'%(netEnv.e2eCC,netEnv.sendTime))
-        time.sleep(netParam.sendTime + 20)
+        time.sleep(netEnv.sendTime + 20)
