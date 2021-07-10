@@ -123,14 +123,14 @@ class NetEnvSet:
 
 def getNetEnvSet(nesetName):
     print('Using NetEnvSet %s' % nesetName)
-
+    neSet = None
     if nesetName == 'expr':
         # special NetEnv
         neSet = NetEnvSet(nesetName, None, netName = '1_test', sendTime=30, pepCC='nopep', varBw=0, loss=0, itmDown=0)
 
     elif nesetName == 'mot_bwVar_freq2':
-        varIntv = [1,2,4,8,16,20]
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varMethod='squareFreq', e2eCC='hybla'),
+        varIntv = [2,4,8,16] #[1,2,4,8,16,20]
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=6, varBw=4, varMethod='squareFreq', e2eCC='hybla'),
                           'varIntv', ['pepCC'],
                           varIntv=varIntv, pepCC=['hybla','nopep'])
 

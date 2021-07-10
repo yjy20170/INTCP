@@ -3,10 +3,11 @@
 import time
 import matplotlib.pyplot as plt
 import os
+import sys
 import functools
 
 import NetEnv
-import sys
+from Utils import createFolder, fixOwnership, writeText
 
 def timestamp():
     return time.strftime('%m-%d-%H-%M-%S', time.localtime())
@@ -114,7 +115,6 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
         plotSeq(resultPath, npToResultDict, keyX, curveGroup, title=title, legends=legends)
 
 def anlz(npsetName):
-    # print(sys.path[0])
     os.chdir(sys.path[0])
 
     neSet = NetEnv.getNetEnvSet(npsetName)
@@ -122,11 +122,9 @@ def anlz(npsetName):
     neToResultDict = loadLog(logPath, neSet, isDetail=False)
 
     resultRootPath = '../result'
-    if not os.path.exists(resultRootPath):
-        os.makedirs(resultRootPath, mode=0o0777)
+    createFolder(resultRootPath)
     resultPath = '%s/%s' % (resultRootPath,npsetName)
-    if not os.path.exists(resultPath):
-        os.makedirs(resultPath, mode=0o0777)
+    createFolder(resultPath)
 
     # make plot
     plotByGroup(resultPath, neToResultDict, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
@@ -135,10 +133,10 @@ def anlz(npsetName):
     summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,neToResultDict[ne]) for ne in neToResultDict])
     print(summaryString)
     print('-----')
-    with open('%s/summary.txt'%(resultPath),'w') as f:
-        f.write(summaryString)
-    with open('%s/template.txt'%(resultPath),'w') as f:
-        f.write(neSet.neTemplate.serialize())
+
+    writeText('%s/summary.txt'%(resultPath), summaryString)
+    writeText('%s/template.txt'%(resultPath), neSet.neTemplate.serialize())
+    fixOwnership(resultPath)
 
 if __name__=='__main__':
     nesetName = 'mot_bwVar_freq'

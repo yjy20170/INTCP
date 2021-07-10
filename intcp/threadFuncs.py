@@ -48,8 +48,8 @@ def funcLinkUpdate(mn, netEnv, logPath):
             pass
         if loss:
             pass
-            
-        tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
+        for cmd in cmds:
+            atomic(intf.tc)(cmd)
 
     global K
     K = 1

@@ -9,7 +9,7 @@ from mininet.cli import CLI
 
 import NetEnv
 from MultiThread import Thread,ReleaserThread
-
+from Utils import createFolder, fixOwnership, writeText
 import autoAnlz
 
 def getArgsFromCli():
@@ -71,14 +71,11 @@ if __name__=='__main__':
     os.chdir(sys.path[0])
 
     logRootPath = '../logs'
-    if not os.path.exists(logRootPath):
-        os.makedirs(logRootPath, mode=0o0777)
+    createFolder(logRootPath)
     logPath = '%s/%s' % (logRootPath, neSetName)
-    if not os.path.exists(logPath):
-        os.makedirs(logPath, mode=0o0777)
+    createFolder(logPath)
 
-    with open('%s/template.txt'%(logPath),'w') as f:
-        f.write(neSet.neTemplate.serialize())
+    writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
     if isManual:
@@ -86,7 +83,7 @@ if __name__=='__main__':
     for i,netEnv in enumerate(neSet.netEnvs):
         print('Start NetEnv(%d/%d) %s' % (i+1,len(neSet.netEnvs),netEnv.name))
         mngo(netEnv, isManual, logPath)
-        
+    fixOwnership(logPath, 'r')
     print('all experiments finished.')
 
     autoAnlz.anlz(neSetName)
