@@ -116,14 +116,11 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
 
 def anlz(npsetName):
     os.chdir(sys.path[0])
-
     neSet = NetEnv.getNetEnvSet(npsetName)
     logPath = '%s/%s' % ('../logs', npsetName)
     neToResultDict = loadLog(logPath, neSet, isDetail=False)
 
-    resultRootPath = '../result'
-    createFolder(resultRootPath)
-    resultPath = '%s/%s' % (resultRootPath,npsetName)
+    resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
     # make plot

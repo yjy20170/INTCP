@@ -8,6 +8,10 @@ import threadFuncs
 
 # seg = key : value
 # segs are defined here.
+
+LatchFunc = threadFuncs.IperfPep
+NormalFuncs = [threadFuncs.MakeItm, threadFuncs.LinkUpdate]
+
 BasicSegs = {
     'name':'null',
     'netName':'0', 'sendTime':120,
@@ -15,8 +19,6 @@ BasicSegs = {
     'itmTotal':20, 'itmDown':0,
     'varBw':0, 'varIntv':1, 'varMethod':'random',
     'e2eCC':'hybla', 'pepCC':'nopep',
-    'releaserFunc': threadFuncs.funcIperfPep,
-    'funcs': [threadFuncs.funcMakeItm, threadFuncs.funcLinkUpdate]
 }
 Keys = BasicSegs.keys()
 SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps', 'varIntv': 's',

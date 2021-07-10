@@ -1,16 +1,19 @@
 import time
 import random
-import os
 import math
 
-from MultiThread import Thread, atomic,ReleaserThread
+from MultiThread import atomic, LatchThread
 
-def threadEvent(func):
+# FuncsDict = {}
+
+def threadFunc(func):
     def wrapper(*args, **kw):
         print('[ Thread start ] %s' % func.__name__)
         ret = func(*args, **kw)
         print('[ Thread  end  ] %s' % func.__name__)
         return ret
+    # global FuncsDict
+    # FuncsDict[func.__name__] = wrapper
     return wrapper
 
 ### thread for dynamic link params control
@@ -30,8 +33,8 @@ def generateBw(policy, meanbw,varbw, prd=10):
     else:
         raise Exception
 
-@threadEvent
-def funcLinkUpdate(mn, netEnv, logPath):
+@threadFunc
+def LinkUpdate(mn, netEnv, logPath):
     if netEnv.varBw <= 0:
         return
     s2 = mn.getNodeByName('s2')
@@ -53,7 +56,7 @@ def funcLinkUpdate(mn, netEnv, logPath):
 
     global K
     K = 1
-    while ReleaserThread.isRunning():
+    while LatchThread.isRunning():
         if netEnv.varMethod != 'squareFreq':
             #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
@@ -74,11 +77,11 @@ def funcLinkUpdate(mn, netEnv, logPath):
             time.sleep(netEnv.varIntv)
 
 ### thread for dynamic link up/down control
-@threadEvent
-def funcMakeItm(mn,netEnv, logPath):
+@threadFunc
+def MakeItm(mn, netEnv, logPath):
     if netEnv.itmDown <= 0:
         return
-    while ReleaserThread.isRunning():
+    while LatchThread.isRunning():
         time.sleep(netEnv.itmTotal-netEnv.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','down')
         time.sleep(netEnv.itmDown)
@@ -88,15 +91,15 @@ def funcMakeItm(mn,netEnv, logPath):
         # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')
 
 ### thread for iperf experiments with/without PEP
-@threadEvent
-def funcIperfPep(mn,netEnv, logPath):
+@threadFunc
+def IperfPep(mn, netEnv, logPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netEnv.name))
     
     print('sendTime = %ds'%netEnv.sendTime)
     for i in range(3):
-        print('iperfc loop %d starting' %i)
+        print('iperfc loop %d running' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)
         #DEBUG

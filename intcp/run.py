@@ -8,7 +8,7 @@ import argparse
 from mininet.cli import CLI
 
 import NetEnv
-from MultiThread import Thread,ReleaserThread
+from MultiThread import Thread, LatchThread
 from Utils import createFolder, fixOwnership, writeText
 import autoAnlz
 
@@ -39,42 +39,35 @@ def mngo(netEnv, isManual, logPath):
     # start the threads we want to run
     threads = []
     if isManual:
-        for func in netEnv.funcs:
-            thread = Thread(func, (mn, netEnv, logPath,))
-            thread.start()
-            threads.append(thread)
+        pass
+    else:
+        latchThread = LatchThread(NetEnv.LatchFuncs, (mn, netEnv, logPath,))
+        latchThread.start()
+        # normal threads keep running until latchThread ends
+    for func in NetEnv.NormalFuncs:
+        thread = Thread(func, (mn, netEnv, logPath,))
+        thread.start()
+        threads.append(thread)
+    if isManual:
         # enter command line interface...
         CLI(mn)
     else:
-        releaserThread = ReleaserThread(netEnv.releaserFunc, (mn, netEnv, logPath,))
-        releaserThread.start()
-        # main thread waits releaserThread until it ends
-        
-        for func in netEnv.funcs:
-            thread = Thread(func, (mn, netEnv, logPath,))
-            thread.start()
-            threads.append(thread)
-
-        releaserThread.waitToStop()
-        
+        latchThread.wait()
         for thread in threads:
+            # LatchThread.Running = False
+            # so the threads will end soon
             thread.join()
-
         # terminate
         mn.stop()
-        return
+    return
     
 if __name__=='__main__':
     neSetName = 'mot_bwVar_freq2'
-
     neSet = NetEnv.getNetEnvSet(neSetName)
+
     os.chdir(sys.path[0])
-
-    logRootPath = '../logs'
-    createFolder(logRootPath)
-    logPath = '%s/%s' % (logRootPath, neSetName)
+    logPath = '%s/%s' % ('../logs', neSetName)
     createFolder(logPath)
-
     writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
@@ -87,4 +80,5 @@ if __name__=='__main__':
     print('all experiments finished.')
 
     autoAnlz.anlz(neSetName)
+
     os.system('killall -9 run.py >/dev/null 2>&1')

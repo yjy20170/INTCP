@@ -11,12 +11,12 @@ class Thread (threading.Thread):
     def run(self):
         self.func(*self.args, **self.kwargs)
         
-class ReleaserThread(Thread):
+class LatchThread(Thread):
     Running = False
     def __init__(self, func, args=(), kwargs={}):
         super().__init__(func, args, kwargs)
         self.__class__.Running = True
-    def waitToStop(self):
+    def wait(self):
         self.join()
         self.__class__.Running = False
     @classmethod
