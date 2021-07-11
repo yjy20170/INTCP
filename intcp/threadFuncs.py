@@ -3,7 +3,7 @@ import random
 import math
 
 from MultiThread import atomic, LatchThread
-
+from Utils import delFile
 # FuncsDict = {}
 
 def threadFunc(func):
@@ -17,7 +17,7 @@ def threadFunc(func):
     return wrapper
 
 ### thread for dynamic link params control
-K = -1
+K = 0
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -55,7 +55,7 @@ def LinkUpdate(mn, netEnv, logPath):
             atomic(intf.tc)(cmd)
 
     global K
-    K = -1
+    K = 1
     while LatchThread.isRunning():
         if netEnv.varMethod in ['squareHighPulse', 'squareLowPulse']:
             # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
@@ -98,15 +98,17 @@ def MakeItm(mn, netEnv, logPath):
 
 ### thread for iperf experiments with/without PEP
 @threadFunc
-def IperfPep(mn, netEnv, logPath):
+def IperfPep(mn, netEnv, logFolderPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netEnv.name))
+    logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
+    delFile(logFilePath)
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
     
     print('sendTime = %ds'%netEnv.sendTime)
     # TODO
     # only one time
-    for i in range(3):
+    for i in range(1):
         print('iperfc loop %d running' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)

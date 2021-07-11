@@ -128,7 +128,7 @@ def getNetEnvSet(nesetName):
     neSet = None
     if nesetName == 'expr':
         # special NetEnv
-        neSet = NetEnvSet(nesetName, NetEnv(sendTime=300, bw= 60, varBw=40, varMethod='square', varIntv=20),
+        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw= 60, varBw=40, varMethod='square', varIntv=20),
                           pepCC=['hybla','nopep'])
     elif nesetName == 'expr2':
         print('which means to')

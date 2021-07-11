@@ -74,7 +74,7 @@ if __name__=='__main__':
     if isManual:
         netEnvs = [neSet.netEnvs[0]]
     for i,netEnv in enumerate(neSet.netEnvs):
-        print('Start NetEnv(%d/%d) %s' % (i+1,len(neSet.netEnvs),netEnv.name))
+        print('\nStart NetEnv(%d/%d) %s' % (i+1,len(neSet.netEnvs),netEnv.name))
         mngo(netEnv, isManual, logPath)
     fixOwnership(logPath, 'r')
     print('all experiments finished.')

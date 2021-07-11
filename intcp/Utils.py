@@ -30,3 +30,7 @@ def writeText(path, string):
     with open(path,'w') as f:
         f.write(string)
     fixOwnership(path,'r')
+
+def delFile(path):
+    if os.path.exists(path):
+        os.remove(path)
