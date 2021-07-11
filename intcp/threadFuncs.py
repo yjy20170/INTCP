@@ -106,7 +106,7 @@ def IperfPep(mn, netEnv, logPath):
     print('sendTime = %ds'%netEnv.sendTime)
     # TODO
     # only one time
-    for i in range(1):
+    for i in range(3):
         print('iperfc loop %d running' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)
