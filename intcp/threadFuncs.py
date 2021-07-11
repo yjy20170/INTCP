@@ -78,6 +78,7 @@ def funcLinkUpdate(mn,netParam, logPath):
             
         tcoutputs = [ atomic(intf.tc)(cmd) for cmd in cmds ]
     while ReleaserThread.isRunning():
+        
         time.sleep(netParam.varIntv)
         #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
         newBw = generateBw('square', netParam.bw, netParam.varBw)

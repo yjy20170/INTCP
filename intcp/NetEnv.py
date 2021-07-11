@@ -26,16 +26,16 @@ class NetEnv:
     def __init__(self, neTemplate=None, **kwargs):
         for key in self.__class__.Keys:
             if key in kwargs:
-                self.__dict__[key] = kwargs[key]
+                self.update(key, kwargs[key])
             elif neTemplate != None and key in neTemplate.__dict__:
-                self.__dict__[key] = neTemplate.__dict__[key]
+                self.update(key, neTemplate.get(key))
             elif key in self.__class__.BasicSegs:
-                self.__dict__[key] = self.__class__.BasicSegs[key]
+                self.update(key, self.__class__.BasicSegs[key])
             else:
                 raise Exception('ERROR: object attr [%s] is missed.' % key)
         
     def segToStr(self, key):
-        return key + '=' + str(self.__dict__[key]) + (self.__class__.SegUnit[key] if key in self.__class__.Keys else '')
+        return key + '=' + str(self.get(key)) + (self.__class__.SegUnit[key] if key in self.__class__.SegUnit else '')
 
     def groupTitle(self, segX, segsDiff=[]):
         ### this is generated as plot title
@@ -51,19 +51,20 @@ class NetEnv:
 
         return '%s - bandwidth (%s)' %(segX, ' '.join(stringCommon)) # +'   DIFF  '+' '.join(stringDiff)
 
-    def compare(self, netEnv, mask=[]):
-        for key in self.__class__.Keys:
-            if key in mask:
-                continue
-            if self.__dict__[key] != netEnv.__dict__[key]:
-                return False
-        return True
-
     def update(self, key, value):
         self.__dict__[key] = value
 
     def get(self, key):
         return self.__dict__[key]
+
+    def compare(self, netEnv, mask=[]):
+        for key in self.__class__.Keys:
+            if key in ['name']+mask:
+                continue
+            if self.get(key) != netEnv.get(key):
+                print(key,self.get(key),netEnv.get(key))
+                return False
+        return True
 
 class NetEnvSet:
     def __init__(self, neTemplate, nesetName, **segs):
@@ -143,7 +144,9 @@ def getNetEnvSet(nesetName):
     elif nesetName == 'mot_bwVar_2':
         neTemplate = NetEnv(loss=0, bw=(26 + 2) / 2, varBw=(26 - 2) / 2, e2eCC='hybla', pepCC='nopep')
         return NetEnvSet(neTemplate, nesetName, varIntv=[1, 2, 4, 8])
-
+    elif nesetName == 'mot_bwVar_4':
+        neTemplate = NetEnv(loss=0, sendTime=120,bw=(26 + 2) / 2, varBw=(26 - 2) / 2, e2eCC='hybla', pepCC='hybla')
+        return NetEnvSet(neTemplate, nesetName, varIntv=[1, 2, 4, 8,20])
     # elif nesetName == 'basic':
     #     npTemplates += [NetEnv(loss=value) for value in BasicRange['loss']]
     #     npTemplates += [NetEnv(rttTotal=value + 25, rttSat=value) for value in [25, 75, 175, 375, 575]]

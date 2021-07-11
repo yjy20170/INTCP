@@ -80,12 +80,14 @@ def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[],ignoreDiffSegs=
                 break
         if not found:
             pointGroups.append([netEnv])
+
     curves = []
     for group in pointGroups:
         if len(group)>=2:
             # sort
             group = sorted(group,key=functools.cmp_to_key(lambda a1,a2: a1.__dict__[segX]-a2.__dict__[segX]))
             curves.append(group)
+    print('curves',len(curves))
 
     # TODO
     # automatically find the difference between these pointGroups
@@ -103,18 +105,23 @@ def plotByGroup(resultPath, npToResultDict,segX,curveDiffSegs=[],ignoreDiffSegs=
                 break
         if not found:
             curveGroups.append([curve])
+    print('curveGroups',len(curveGroups))
 
     for curveGroup in curveGroups:
         # draw each curveGroup in one plot
         diffSegs = []
-        for seg in NetEnv.NetEnv.Keys:
-            if seg == segX:
-                continue
-            segval = curveGroup[0][0].__dict__[seg]
-            for curve in curveGroup[1:]:
-                if curve[0].__dict__[seg] != segval:
-                    diffSegs.append(seg)
-                    break
+        # for seg in NetEnv.NetEnv.Keys:
+        #     if seg == segX:
+        #         continue
+        #     segval = curveGroup[0][0].__dict__[seg]
+        #     for curve in curveGroup[1:]:
+        #         if curve[0].__dict__[seg] != segval:
+        #             diffSegs.append(seg)
+        #             break
+
+        # TODO
+        # content and impaction of diffSegs should be re-designed
+        diffSegs = curveDiffSegs
 
         legends = []
         for curve in curveGroup:
@@ -147,13 +154,18 @@ def anlz(npsetName):
     # plotByGroup(resultPath, neToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, neToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
     # plotByGroup(resultPath, neToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
-    plotByGroup(resultPath, neToResultDict, 'bw', curveDiffSegs=['e2eCC', 'pepCC'], ignoreDiffSegs=['varBw'])
+    plotByGroup(resultPath, neToResultDict, 'varIntv', curveDiffSegs=['e2eCC', 'pepCC'], ignoreDiffSegs=['varBw'])
 
+
+    print('-----')
+    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,neToResultDict[ne]) for ne in neToResultDict])
+    print(summaryString)
+    print('-----')
 
     with open('%s/summary.txt'%(resultPath),'w') as f:
-        f.write('\n'.join(['%s   \t%.3f'%(ne.name,neToResultDict[ne]) for ne in neToResultDict]))
+        f.write(summaryString)
 
 if __name__=='__main__':
-    npsetName = 'mot_bwVar_2'
+    npsetName = 'mot_bwVar_4'
     anlz(npsetName)
 
