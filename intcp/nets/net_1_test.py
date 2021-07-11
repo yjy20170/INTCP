@@ -5,6 +5,8 @@ from mininet.net import Mininet
 import MyNode
 
 def createNet(args):
+    # TODO
+    # try to remove switches
     topo = Topo()
 
     h1 = topo.addNode('h1')#, ip='10.0.0.1/24')

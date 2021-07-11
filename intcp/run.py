@@ -41,7 +41,7 @@ def mngo(netEnv, isManual, logPath):
     if isManual:
         pass
     else:
-        latchThread = LatchThread(NetEnv.LatchFuncs, (mn, netEnv, logPath,))
+        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
         latchThread.start()
         # normal threads keep running until latchThread ends
     for func in NetEnv.NormalFuncs:
@@ -62,7 +62,7 @@ def mngo(netEnv, isManual, logPath):
     return
     
 if __name__=='__main__':
-    neSetName = 'mot_bwVar_freq2'
+    neSetName = 'expr'#'mot_bwVar_freq2'
     neSet = NetEnv.getNetEnvSet(neSetName)
 
     os.chdir(sys.path[0])

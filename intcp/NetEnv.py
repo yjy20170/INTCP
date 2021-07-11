@@ -15,7 +15,7 @@ NormalFuncs = [threadFuncs.MakeItm, threadFuncs.LinkUpdate]
 BasicSegs = {
     'name':'null',
     'netName':'0', 'sendTime':120,
-    'bw':10, 'rttSat':100, 'rttTotal':200, 'loss':0.5,
+    'bw':10, 'rttSat':100, 'rttTotal':200, 'loss':0,
     'itmTotal':20, 'itmDown':0,
     'varBw':0, 'varIntv':1, 'varMethod':'random',
     'e2eCC':'hybla', 'pepCC':'nopep',
@@ -70,7 +70,7 @@ class NetEnv:
 
 
 class NetEnvSet:
-    def __init__(self, nesetName, neTemplate, keyX='keyX', keysCurveDiff=[], **segs):
+    def __init__(self, nesetName, neTemplate, keyX='null', keysCurveDiff=[], **segs):
         self.nesetName = nesetName
         self.keyX = keyX
         self.keysCurveDiff = keysCurveDiff
@@ -128,30 +128,34 @@ def getNetEnvSet(nesetName):
     neSet = None
     if nesetName == 'expr':
         # special NetEnv
-        neSet = NetEnvSet(nesetName, None, netName = '1_test', sendTime=30, pepCC='nopep', varBw=0, loss=0, itmDown=0)
+        neSet = NetEnvSet(nesetName, NetEnv(sendTime=300, bw= 60, varBw=40, varMethod='square', varIntv=20),
+                          pepCC=['hybla','nopep'])
+    elif nesetName == 'expr2':
+        print('which means to')
+        neSet = getNetEnvSet('expr')
 
-    elif nesetName == 'mot_bwVar_freq2':
+    elif nesetName == 'bwVar_freq_highPulse':
         varIntv = [2,4,8,16] #[1,2,4,8,16,20]
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=6, varBw=4, varMethod='squareFreq', e2eCC='hybla'),
+        neSet = NetEnvSet(nesetName, NetEnv(bw=10, varBw=8, varMethod='squareHighPulse', e2eCC='hybla'),
                           'varIntv', ['pepCC'],
                           varIntv=varIntv, pepCC=['hybla','nopep'])
 
-    elif nesetName == 'mot_bwVar_freq':
-        varIntv = [1,2,4,8,16,20]
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varMethod='squareFreq', e2eCC='hybla'),
+    elif nesetName == 'bwVar_freq_lowPulse':
+        varIntv = [2,4,8,16] #[1,2,4,8,16,20]
+        neSet = NetEnvSet(nesetName, NetEnv(bw=10, varBw=8, varMethod='squareLowPulse', e2eCC='hybla'),
                           'varIntv', ['pepCC'],
                           varIntv=varIntv, pepCC=['hybla','nopep'])
 
-    elif nesetName == 'mot_bwVar_3':
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0, varIntv=10, varMethod='square', e2eCC='hybla'),
+    elif nesetName == 'bwVar_freq_square':
+        neSet = NetEnvSet(nesetName, NetEnv(bw=(26 + 2) / 2, varBw=(26 - 2) / 2, varMethod='square', e2eCC='hybla', pepCC='nopep'),
+                          varIntv=[1, 2, 4, 8])
+
+    elif nesetName == 'bwVar_var':
+        neSet = NetEnvSet(nesetName, NetEnv(varIntv=10, varMethod='square', e2eCC='hybla'),
                           'bw', ['pepCC'])
         maxBws = [6,8,10,14,18,22,26]
         minBw = 2
         for mab in maxBws:
             neSet.add(bw=(mab + minBw) / 2, varBw=(mab - minBw) / 2, pepCC=['nopep','hybla'])
-
-    elif nesetName == 'mot_bwVar_2':
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=(26 + 2) / 2, varBw=(26 - 2) / 2, e2eCC='hybla', pepCC='nopep'),
-                          varIntv=[1, 2, 4, 8])
 
     return neSet

@@ -17,7 +17,7 @@ def threadFunc(func):
     return wrapper
 
 ### thread for dynamic link params control
-K = 1
+K = -1
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -55,25 +55,31 @@ def LinkUpdate(mn, netEnv, logPath):
             atomic(intf.tc)(cmd)
 
     global K
-    K = 1
+    K = -1
     while LatchThread.isRunning():
-        if netEnv.varMethod != 'squareFreq':
-            #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
-            newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
-            for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
-                config(intf,bw=newBw)
-            time.sleep(netEnv.varIntv)
-        else:
+        if netEnv.varMethod in ['squareHighPulse', 'squareLowPulse']:
             # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw('square', netEnv.bw, netEnv.varBw)
             for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
                 config(intf, bw=newBw)
-            time.sleep(2)
+            if netEnv.varMethod == 'squareHighPulse':
+                time.sleep(5)
+            else:
+                time.sleep(netEnv.varIntv)
 
             # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw('square', netEnv.bw, netEnv.varBw)
             for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
                 config(intf, bw=newBw)
+            if netEnv.varMethod == 'squareHighPulse':
+                time.sleep(netEnv.varIntv)
+            else:
+                time.sleep(5)
+        else:
+            #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
+                config(intf,bw=newBw)
             time.sleep(netEnv.varIntv)
 
 ### thread for dynamic link up/down control
@@ -98,7 +104,9 @@ def IperfPep(mn, netEnv, logPath):
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netEnv.name))
     
     print('sendTime = %ds'%netEnv.sendTime)
-    for i in range(3):
+    # TODO
+    # only one time
+    for i in range(1):
         print('iperfc loop %d running' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)

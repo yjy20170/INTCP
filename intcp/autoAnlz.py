@@ -65,11 +65,11 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
-def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs=[]):
+def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=[]):
     # plotDiffSegs is a subset of curveDiffSegs
 
     pointGroups = []
-    for netEnv in npToResultDict:
+    for netEnv in mapNeToResult:
         found = False
         for group in pointGroups:
             if netEnv.compareOnly(group[0], curveDiffSegs):
@@ -83,9 +83,9 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
     for group in pointGroups:
         if len(group)>=2:
             # sort
-            group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.__dict__[keyX] - a2.__dict__[keyX]))
+            group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.get(keyX) - a2.get(keyX)))
             curves.append(group)
-    print('curves',len(curves))
+    print('curves num:',len(curves))
 
     # TODO
     # automatically find the difference between these pointGroups
@@ -100,7 +100,7 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
                 break
         if not found:
             curveGroups.append([curve])
-    print('curveGroups',len(curveGroups))
+    print('plots num:',len(curveGroups))
 
     for curveGroup in curveGroups:
         legends = []
@@ -112,29 +112,30 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
         if plotDiffSegs != []:
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in plotDiffSegs]))
 
-        plotSeq(resultPath, npToResultDict, keyX, curveGroup, title=title, legends=legends)
+        plotSeq(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends)
 
 def anlz(npsetName):
     os.chdir(sys.path[0])
     neSet = NetEnv.getNetEnvSet(npsetName)
     logPath = '%s/%s' % ('../logs', npsetName)
-    neToResultDict = loadLog(logPath, neSet, isDetail=False)
+    mapNeToResult = loadLog(logPath, neSet, isDetail=False)
 
     resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
     # make plot
-    plotByGroup(resultPath, neToResultDict, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
+    if neSet.keyX != 'null':
+        plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
 
     print('-----')
-    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,neToResultDict[ne]) for ne in neToResultDict])
+    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
     print(summaryString)
     print('-----')
 
     writeText('%s/summary.txt'%(resultPath), summaryString)
     writeText('%s/template.txt'%(resultPath), neSet.neTemplate.serialize())
-    fixOwnership(resultPath)
+    fixOwnership(resultPath,'r')
 
 if __name__=='__main__':
-    nesetName = 'mot_bwVar_freq'
+    nesetName = 'bwVar_freq_lowPulse'
     anlz(nesetName)
