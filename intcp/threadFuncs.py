@@ -1,20 +1,23 @@
 import time
 import random
-import os
 import math
 
-from MultiThread import Thread, atomic,ReleaserThread
+from MultiThread import atomic, LatchThread
+from Utils import delFile
+# FuncsDict = {}
 
-def threadEvent(func):
+def threadFunc(func):
     def wrapper(*args, **kw):
         print('[ Thread start ] %s' % func.__name__)
         ret = func(*args, **kw)
         print('[ Thread  end  ] %s' % func.__name__)
         return ret
+    # global FuncsDict
+    # FuncsDict[func.__name__] = wrapper
     return wrapper
 
 ### thread for dynamic link params control
-K = 1
+K = 0
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
         new_bw = random.uniform(meanbw-varbw,meanbw+varbw)
@@ -29,15 +32,30 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
-
-@threadEvent
-def funcLinkUpdate(mn, netEnv, logPath):
+@threadFunc
+def initNetwork(mn,netEntv,logPath):
+    s2 = mn.getNodeByName('s2')
+    pep = mn.getNodeByName('pep')
+    h2 = mn.getNodeByName('h2')
+    #DEBUG
+    intf = pep.connectionsTo(s2)[0][0]
+    
+    
+        
+    # tc -s -d qdisc show dev pep-eth2
+    cmds, parent = atomic(intf.delayCmds)(max_queue_size=10,is_change=True,intf=intf)
+    for cmd in cmds:
+        atomic(intf.tc)(cmd)
+    
+@threadFunc
+def LinkUpdate(mn, netEnv, logPath):
     if netEnv.varBw <= 0:
         return
     s2 = mn.getNodeByName('s2')
     pep = mn.getNodeByName('pep')
     h2 = mn.getNodeByName('h2')
     
+    #TODO we should make sure thar the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
         cmds = []
         if bw:
@@ -53,34 +71,41 @@ def funcLinkUpdate(mn, netEnv, logPath):
 
     global K
     K = 1
-    while ReleaserThread.isRunning():
 
-        if netEnv.varMethod != 'squareFreq':
+    while LatchThread.isRunning():
+        if netEnv.varMethod in ['squareHighPulse', 'squareLowPulse']:
+
+            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+                config(intf, bw=newBw)
+            if netEnv.varMethod == 'squareHighPulse':
+                time.sleep(5)
+            else:
+                time.sleep(netEnv.varIntv)
+
+            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
+            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
+            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+                config(intf, bw=newBw)
+            if netEnv.varMethod == 'squareHighPulse':
+                time.sleep(netEnv.varIntv)
+            else:
+                time.sleep(5)
+        else:
             #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
             for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
                 config(intf,bw=newBw)
             time.sleep(netEnv.varIntv)
-        else:
-            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
-            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
-            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
-                config(intf, bw=newBw)
-            time.sleep(2)
-
-            # newBw = generateBw('random',netEnv.bw,netEnv.varBw)
-            newBw = generateBw('square', netEnv.bw, netEnv.varBw)
-            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
-                config(intf, bw=newBw)
-            time.sleep(netEnv.varIntv)
 
 
 ### thread for dynamic link up/down control
-@threadEvent
-def funcMakeItm(mn,netEnv, logPath):
+@threadFunc
+def MakeItm(mn, netEnv, logPath):
     if netEnv.itmDown <= 0:
         return
-    while ReleaserThread.isRunning():
+    while LatchThread.isRunning():
         time.sleep(netEnv.itmTotal-netEnv.itmDown)
         atomic(mn.configLinkStatus)('s2','pep','down')
         time.sleep(netEnv.itmDown)
@@ -90,15 +115,19 @@ def funcMakeItm(mn,netEnv, logPath):
         # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')
 
 ### thread for iperf experiments with/without PEP
-@threadEvent
-def funcIperfPep(mn,netEnv, logPath):
+@threadFunc
+def IperfPep(mn, netEnv, logFolderPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s/%s.txt &'%(logPath,netEnv.name))
+    logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
+    delFile(logFilePath)
+    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
     
     print('sendTime = %ds'%netEnv.sendTime)
-    for i in range(3):
-        print('iperfc loop %d starting' %i)
+    # TODO
+    # only one time
+    for i in range(1):
+        print('iperfc loop %d running' %i)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)
         #DEBUG

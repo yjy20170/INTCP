@@ -8,7 +8,7 @@ import argparse
 from mininet.cli import CLI
 
 import NetEnv
-from MultiThread import Thread,ReleaserThread
+from MultiThread import Thread, LatchThread
 from Utils import createFolder, fixOwnership, writeText
 import autoAnlz
 
@@ -22,6 +22,7 @@ def getArgsFromCli():
     return args
     
 def mngo(netEnv, isManual, logPath):
+    print(netEnv.serialize())
     os.system('mn -c >/dev/null 2>&1')
     os.system('killall -9 xterm >/dev/null 2>&1')
     # os.system('killall -9 runmn >/dev/null 2>&1')
@@ -39,54 +40,48 @@ def mngo(netEnv, isManual, logPath):
     # start the threads we want to run
     threads = []
     if isManual:
-        for func in netEnv.funcs:
-            thread = Thread(func, (mn, netEnv, logPath,))
-            thread.start()
-            threads.append(thread)
+        LatchThread.pretendRunning()
+    else:
+        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
+        latchThread.start()
+        # normal threads keep running until latchThread ends
+    for func in NetEnv.NormalFuncs:
+        thread = Thread(func, (mn, netEnv, logPath,))
+        thread.start()
+        threads.append(thread)
+    if isManual:
         # enter command line interface...
         CLI(mn)
     else:
-        releaserThread = ReleaserThread(netEnv.releaserFunc, (mn, netEnv, logPath,))
-        releaserThread.start()
-        # main thread waits releaserThread until it ends
-        
-        for func in netEnv.funcs:
-            thread = Thread(func, (mn, netEnv, logPath,))
-            thread.start()
-            threads.append(thread)
-
-        releaserThread.waitToStop()
-        
+        latchThread.wait()
         for thread in threads:
+            # LatchThread.Running = False
+            # so the threads will end soon
             thread.join()
-
         # terminate
         mn.stop()
-        return
+    return
     
 if __name__=='__main__':
 
-    #neSetName = 'mot_bwVar_freq2'
-    neSetName = 'mot_bwVar_6'
-
+    neSetName = "mot_rtt_3"#'mot_bwVar_freq2'
+    
     neSet = NetEnv.getNetEnvSet(neSetName)
+
     os.chdir(sys.path[0])
-
-    logRootPath = '../logs'
-    createFolder(logRootPath)
-    logPath = '%s/%s' % (logRootPath, neSetName)
+    logPath = '%s/%s' % ('../logs', neSetName)
     createFolder(logPath)
-
     writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
     if isManual:
         netEnvs = [neSet.netEnvs[0]]
     for i,netEnv in enumerate(neSet.netEnvs):
-        print('Start NetEnv(%d/%d) %s' % (i+1,len(neSet.netEnvs),netEnv.name))
+        print('\nStart NetEnv(%d/%d)' % (i+1,len(neSet.netEnvs)))
         mngo(netEnv, isManual, logPath)
     fixOwnership(logPath, 'r')
     print('all experiments finished.')
 
     autoAnlz.anlz(neSetName)
+
     os.system('killall -9 run.py >/dev/null 2>&1')

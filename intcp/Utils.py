@@ -20,6 +20,9 @@ def fixOwnership(path,recursive='n'):
 
 def createFolder(path):
     if not os.path.exists(path):
+        parent = os.path.dirname(path)
+        if os.path.exists(parent):
+            createFolder(parent)
         os.makedirs(path, mode=0o0777)
         fixOwnership(path)
 
@@ -27,3 +30,7 @@ def writeText(path, string):
     with open(path,'w') as f:
         f.write(string)
     fixOwnership(path,'r')
+
+def delFile(path):
+    if os.path.exists(path):
+        os.remove(path)

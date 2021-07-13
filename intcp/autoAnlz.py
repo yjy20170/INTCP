@@ -50,14 +50,18 @@ def loadLog(logPath, neSet, isDetail=False):
     return result
     
 def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
+    print("entering plotseq")
     plt.figure(figsize=(5,5),dpi=200)
-    plt.ylim((0,12))
+    plt.ylim((0,10))
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
                  [result[netEnv] for netEnv in group])
     else:
         for i,group in enumerate(groups):
+            print(len(group))
+            for netEnv in group:
+                print(netEnv.get(keyX),result[netEnv])
             plt.plot([netEnv.get(keyX) for netEnv in group],
                      [result[netEnv] for netEnv in group], label=legends[i])
         plt.legend()
@@ -68,12 +72,13 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
     return
     
 
-def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs=[]):
+def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=[]):
+
     # plotDiffSegs is a subset of curveDiffSegs
 
 
     pointGroups = []
-    for netEnv in npToResultDict:
+    for netEnv in mapNeToResult:
         found = False
         for group in pointGroups:
 
@@ -89,10 +94,11 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
     for group in pointGroups:
         if len(group)>=2:
             # sort
-            group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.__dict__[keyX] - a2.__dict__[keyX]))
+            group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.get(keyX) - a2.get(keyX)))
             curves.append(group)
-    print('curves',len(curves))
-
+    print('curves num:',len(curves))
+    for curve in curves:
+       print(len(curve))
     # TODO
     # automatically find the difference between these pointGroups
 
@@ -108,35 +114,35 @@ def plotByGroup(resultPath, npToResultDict, keyX, curveDiffSegs=[], plotDiffSegs
                 break
         if not found:
             curveGroups.append([curve])
-    print('curveGroups',len(curveGroups))
+    print('plots num:',len(curveGroups))
 
     for curveGroup in curveGroups:
         legends = []
         for curve in curveGroup:
+            #print("afaag")
             string = ' '.join([curve[0].segToStr(seg) for seg in curveDiffSegs])
             string = string.replace('pepCC=nopep', 'no-pep')
             legends.append(string)
 
         title = '%s - bw' % (keyX)
         if plotDiffSegs != []:
+            #print("adfafafa")
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in plotDiffSegs]))
-
-        plotSeq(resultPath, npToResultDict, keyX, curveGroup, title=title, legends=legends)
+        plotSeq(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends)
+       
 
 
 def anlz(npsetName):
     os.chdir(sys.path[0])
-
     neSet = NetEnv.getNetEnvSet(npsetName)
     logPath = '%s/%s' % ('../logs', npsetName)
-    neToResultDict = loadLog(logPath, neSet, isDetail=False)
+    mapNeToResult = loadLog(logPath, neSet, isDetail=False)
 
-    resultRootPath = '../result'
-    createFolder(resultRootPath)
-    resultPath = '%s/%s' % (resultRootPath,npsetName)
+    resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
     # make plot
+
 
 
     # plotByGroup(resultPath, neToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
@@ -149,18 +155,22 @@ def anlz(npsetName):
     #plotByGroup(resultPath, neToResultDict, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
 
 
+    if neSet.keyX != 'null':
+        plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
+
     print('-----')
-    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,neToResultDict[ne]) for ne in neToResultDict])
+    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
     print(summaryString)
     print('-----')
 
 
     writeText('%s/summary.txt'%(resultPath), summaryString)
     writeText('%s/template.txt'%(resultPath), neSet.neTemplate.serialize())
-    fixOwnership(resultPath)
+    fixOwnership(resultPath,'r')
 
 if __name__=='__main__':
-    #nesetName = 'mot_bwVar_freq'
-    nesetName = 'mot_bwVar_5'
+
+    nesetName = "mot_rtt_3"
+    #nesetName = 'mot_bwVar_6'
     anlz(nesetName)
 
