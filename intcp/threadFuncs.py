@@ -33,17 +33,19 @@ def generateBw(policy, meanbw,varbw, prd=10):
     else:
         raise Exception
 @threadFunc
-def initNetwork(mn,netEntv,logPath):
+def initNetwork(mn,netEnv,logPath):
     s2 = mn.getNodeByName('s2')
     pep = mn.getNodeByName('pep')
     h2 = mn.getNodeByName('h2')
     #DEBUG
     intf = pep.connectionsTo(s2)[0][0]
-    
+    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(netEnv.txqueuelen))
+    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(netEnv.txqueuelen))
     
         
     # tc -s -d qdisc show dev pep-eth2
-    cmds, parent = atomic(intf.delayCmds)(max_queue_size=10,is_change=True,intf=intf)
+    print(netEnv.max_queue_size)
+    cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
     for cmd in cmds:
         atomic(intf.tc)(cmd)
     

@@ -65,7 +65,7 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
             plt.plot([netEnv.get(keyX) for netEnv in group],
                      [result[netEnv] for netEnv in group], label=legends[i])
         plt.legend()
-    plt.xlabel('%s(%s)' % (keyX, NetEnv.SegUnit[keyX])) #(keyX.title()+'('+xunit+')')
+    plt.xlabel(NetEnv.NetEnv.keyToStr(keyX)) #(keyX.title()+'('+xunit+')')
     plt.ylabel('Bandwidth(Mbps)')
     plt.title(title)
     plt.savefig('%s/%s.png' % (resultPath, title))
@@ -170,7 +170,7 @@ def anlz(npsetName):
 
 if __name__=='__main__':
 
-    nesetName = "mot_rtt_3"
+    nesetName = "mot_itm_test"
     #nesetName = 'mot_bwVar_6'
     anlz(nesetName)
 
