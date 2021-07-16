@@ -44,7 +44,7 @@ def initNetwork(mn,netEnv,logPath):
     
         
     # tc -s -d qdisc show dev pep-eth2
-    print(netEnv.max_queue_size)
+    # print(netEnv.max_queue_size)
     cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
     for cmd in cmds:
         atomic(intf.tc)(cmd)
@@ -107,10 +107,17 @@ def LinkUpdate(mn, netEnv, logPath):
 def MakeItm(mn, netEnv, logPath):
     if netEnv.itmDown <= 0:
         return
+    s2 = mn.getNodeByName('s2')
+    pep = mn.getNodeByName('pep')
     while LatchThread.isRunning():
         time.sleep(netEnv.itmTotal-netEnv.itmDown)
+        atomic(s2.cmd)('echo a')
+        atomic(pep.cmd)('echo a')
         atomic(mn.configLinkStatus)('s2','pep','down')
+        
         time.sleep(netEnv.itmDown)
+        atomic(s2.cmd)('echo a')
+        atomic(pep.cmd)('echo a')
         atomic(mn.configLinkStatus)('s2','pep','up')
 
         # if changing s2 - h2
@@ -118,9 +125,11 @@ def MakeItm(mn, netEnv, logPath):
 
 ### thread for iperf experiments with/without PEP
 @threadFunc
-def IperfPep(mn, netEnv, logFolderPath):
+def PepCC(mn, netEnv, logFolderPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+@threadFunc
+def Iperf(mn, netEnv, logFolderPath):
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)

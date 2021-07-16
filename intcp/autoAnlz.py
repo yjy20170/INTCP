@@ -170,7 +170,7 @@ def anlz(npsetName):
 
 if __name__=='__main__':
 
-    nesetName = "mot_itm_test"
+    nesetName = 'mot_itm_4'
     #nesetName = 'mot_bwVar_6'
     anlz(nesetName)
 

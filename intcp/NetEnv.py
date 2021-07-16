@@ -9,8 +9,8 @@ import threadFuncs
 # seg = key : value
 # segs are defined here.
 
-LatchFunc = threadFuncs.IperfPep
-NormalFuncs = [threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.initNetwork]
+LatchFunc = threadFuncs.Iperf
+NormalFuncs = [threadFuncs.initNetwork,threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.PepCC]#
 
 BasicSegs = {
     'name':'null',
@@ -135,12 +135,12 @@ def getNetEnvSet(nesetName):
     neSet = None
     if nesetName == 'expr':
         # special NetEnv
-        neSet = NetEnvSet(nesetName, NetEnv(max_queue_size=1000,sendTime=120, bw = 10,varBw=(20 - 1) / 2,varMethod='square',varIntv=1))
-        neSet.add()
+        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw = 10,loss=10))
+        neSet.add(pepCC="nopep",rttTotal=[1000,300],rttSat=400)
                           
     elif nesetName == 'expr2':
-        print('which means to')
-        neSet = getNetEnvSet('expr')
+        neSet = NetEnvSet(nesetName, NetEnv(bw = 10,varBw=0,varMethod='square',varIntv=1))
+        neSet.add(itmTotal=10,itmDown=5,e2eCC='hybla',pepCC=['hybla','nopep']) 
 
     elif nesetName == 'bwVar_freq_highPulse':
         varIntv = [2,4,8,16] #[1,2,4,8,16,20]
@@ -166,12 +166,33 @@ def getNetEnvSet(nesetName):
         for mab in maxBws:
             neSet.add(bw=(mab + minBw) / 2, varBw=(mab - minBw) / 2, pepCC=['nopep','hybla'])
 
-
+    
     elif nesetName == 'mot_bwVar_6':
 
         neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=20/2, varBw=(20 - 1) / 2,varMethod='square', e2eCC='hybla', pepCC='nopep'),keyX="varIntv",
                           varIntv=[1,2,3,4,6,8,10,12])
-
+    
+    elif nesetName == 'mot_bwVar_7':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0,sendTime=60,varMethod='square',varIntv=4),keyX="bw",keysCurveDiff=["e2eCC","pepCC"])
+        bws = [4,6,8,10,12]
+        for bw in bws:
+            neSet.add(bw=bw,varBw=bw-2,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(bw=bw,varBw=bw-2,e2eCC="hybla",pepCC=['nopep','hybla'])
+    
+    elif nesetName == 'mot_bwVar_8':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0,bw=10,sendTime=60,varMethod='square',varIntv=8),keyX="varBw",keysCurveDiff=["e2eCC","pepCC"])
+        varBws = [0,2,4,8]
+        for varBw in varBws:
+            #neSet.add(bw=bw,varBw=bw-2,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(varBw=varBw,e2eCC="hybla",pepCC=['nopep','hybla'])
+            
+    elif nesetName == 'mot_bwVar_9':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0,bw=10,varBw=9,sendTime=60,varMethod='square'),keyX="varIntv",keysCurveDiff=["e2eCC","pepCC"])
+        varIntvs = [1,2,4,8,20]
+        for varIntv in varIntvs:
+        #neSet.add(bw=bw,varBw=bw-2,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(varIntv=varIntv,e2eCC="hybla",pepCC=['nopep','hybla'])
+                    
     elif nesetName == "mot_rtt_test":
         neSet = NetEnvSet(nesetName, NetEnv(loss=0,sendTime=30,bw=60, varBw=0,rttTotal=600),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
         rttSats = [100,200,300,400,500]
@@ -199,7 +220,13 @@ def getNetEnvSet(nesetName):
         for rttSat in rttSats:
             neSet.add(rttSat=rttSat,e2eCC="hybla",pepCC=['nopep','hybla'])
             neSet.add(rttSat=rttSat,e2eCC="reno",pepCC=['nopep','reno'])
-    
+            
+    elif nesetName == "mot_rtt_4":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0.5,sendTime=60,bw=60, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [100,200,300,400,500]
+        for rttSat in rttSats:
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+200,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+200,e2eCC="reno",pepCC=['nopep','reno'])
     
     elif nesetName == "mot_rtt_test1":
         neSet = NetEnvSet(nesetName, NetEnv(loss=0,sendTime=120,bw=60, varBw=0,rttTotal=1000),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
@@ -265,6 +292,37 @@ def getNetEnvSet(nesetName):
         itmDown = 4
         itmTotals = [10,15,20,30]
         for itmTotal in itmTotals:
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep'])
+            
+    elif nesetName == 'mot_itm_1':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=10, e2eCC='hybla', pepCC='nopep'),keyX="itmTotal",keysCurveDiff=["pepCC","e2eCC"])  
+        itmDown = 4
+        itmTotals = [10,15,20,30]
+        for itmTotal in itmTotals:
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep'])  
+            
+    elif nesetName == 'mot_itm_2':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=10,sendTime=120),keyX="itmDown",keysCurveDiff=["pepCC","e2eCC"])  
+        itmDowns = [4,6,8,10,12]
+        itmTotal = 20
+        for itmDown in itmDowns:
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep']) 
+    elif nesetName == 'mot_itm_3':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=10,sendTime=120),keyX="itmDown",keysCurveDiff=["pepCC","e2eCC"])  
+        itmDowns = [2,3,4,5,6]
+        itmTotal = 10
+        for itmDown in itmDowns:
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
+            neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep']) 
+            
+    elif nesetName == 'mot_itm_4':
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, bw=20,sendTime=120),keyX="itmDown",keysCurveDiff=["pepCC","e2eCC"])  
+        itmDowns = [4,6,8,10,12]
+        itmTotal = 20
+        for itmDown in itmDowns:
             neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
             neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep']) 
     return neSet
