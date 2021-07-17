@@ -9,8 +9,8 @@ import threadFuncs
 # seg = key : value
 # segs are defined here.
 
-LatchFunc = threadFuncs.Iperf
-NormalFuncs = [threadFuncs.initNetwork,threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.PepCC]#
+LatchFuncs = [threadFuncs.Iperf,threadFuncs.RttTest]
+NormalFuncs = [threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.PepCC]#threadFuncs.initNetwork,
 
 BasicSegs = {
     'name':'null',
@@ -19,7 +19,8 @@ BasicSegs = {
     'itmTotal':20, 'itmDown':0,
     'varBw':0, 'varIntv':1, 'varMethod':'random',
     'e2eCC':'hybla', 'pepCC':'nopep',
-    'max_queue_size':1000,'txqueuelen':1000
+    'max_queue_size':1000,'txqueuelen':1000,
+    'rttTestPacket':0
 }
 Keys = BasicSegs.keys()
 SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps', 'varIntv': 's',
@@ -135,8 +136,11 @@ def getNetEnvSet(nesetName):
     neSet = None
     if nesetName == 'expr':
         # special NetEnv
-        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw = 10,loss=10))
-        neSet.add(pepCC="nopep",rttTotal=[1000,300],rttSat=400)
+        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw = 10,loss=10,rttTotal=600,rttSat=500,rttTestPacket=500),keyX='rttSat',keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [100,300,500]
+        for rttSat in rttSats:
+            neSet.add(rttSat=rttSat,pepCC=["nopep","hybla"])
+        #neSet.add(pepCC=["nopep"])
                           
     elif nesetName == 'expr2':
         neSet = NetEnvSet(nesetName, NetEnv(bw = 10,varBw=0,varMethod='square',varIntv=1))
@@ -325,5 +329,12 @@ def getNetEnvSet(nesetName):
         for itmDown in itmDowns:
             neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='hybla',pepCC=['hybla','nopep']) 
             neSet.add(itmTotal=itmTotal,itmDown=itmDown,e2eCC='reno',pepCC=['reno','nopep']) 
+    
+    elif nesetName == 'mot_retran_1':
+        # special NetEnv
+        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw = 10,loss=20,rttTotal=600,rttSat=500,rttTestPacket=300),keyX='rttSat',keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [100,200,300,400,500]
+        for rttSat in rttSats:
+            neSet.add(rttSat=rttSat,pepCC=["nopep","hybla"])
     return neSet
 

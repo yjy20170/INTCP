@@ -18,6 +18,7 @@ def getArgsFromCli():
     #parser.add_argument('-bw',type=int,default=-1)
     #parser.add_argument('--itm', action='store_const', const=True, default=False, help='add intermittent')
     parser.add_argument('--m', action='store_const', const=True, default=False, help='enter command line interface(run auto experiment by default)')
+    parser.add_argument('--r', action='store_const', const=True, default=False, help='enter rtt test')
     args = parser.parse_args()
     return args
     
@@ -41,8 +42,11 @@ def mngo(netEnv, isManual, logPath):
     threads = []
     if isManual:
         LatchThread.pretendRunning()
+    elif isRttTest:     
+        latchThread = LatchThread(NetEnv.LatchFuncs[1], (mn, netEnv, logPath,))
+        latchThread.start()
     else:
-        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
+        latchThread = LatchThread(NetEnv.LatchFuncs[0], (mn, netEnv, logPath,))
         latchThread.start()
         # normal threads keep running until latchThread ends
     for func in NetEnv.NormalFuncs:
@@ -64,7 +68,7 @@ def mngo(netEnv, isManual, logPath):
     
 if __name__=='__main__':
 
-    neSetName = 'expr'#"mot_itm_test"
+    neSetName = 'mot_retran_1'#"mot_itm_test"
     neSet = NetEnv.getNetEnvSet(neSetName)
 
     os.chdir(sys.path[0])
@@ -73,6 +77,7 @@ if __name__=='__main__':
     writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
+    isRttTest = getArgsFromCli().r
     if isManual:
         netEnvs = [neSet.netEnvs[0]]
     for i,netEnv in enumerate(neSet.netEnvs):
@@ -81,6 +86,6 @@ if __name__=='__main__':
     fixOwnership(logPath, 'r')
     print('all experiments finished.')
 
-    autoAnlz.anlz(neSetName)
+    autoAnlz.anlz(neSetName,isRttTest)
 
     os.system('killall -9 run.py >/dev/null 2>&1')

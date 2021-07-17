@@ -1,16 +1,24 @@
 import socket
 from datetime import datetime 
 import time 
+import argparse
+
 # 1.创建socket
 
 tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-c",type=int,default=100,help="test packets numbers")
+parser.add_argument("-rt",type=int,default=200,help="rtt total")
+
+args = parser.parse_args()
 
 # 2. 链接服务器
 server_addr = ("10.0.2.1", 3000)
 tcp_socket.connect(server_addr)
 
 # 3. 发送数据
-while(1):
+for i in range(args.c):
     curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     #print(curTime)
     send_data = curTime
