@@ -4,9 +4,9 @@ cd `dirname $0`
 
 echo "setting iptables..."
 ./setipt
-echo "starting pepsal..."
 
+echo "starting pepsal..."
 #../pepsal/src/pepsal  -C $1 > ../logs/pep.txt
 #../pepsal/src/pepsal  -v -C $1
-../pepsal/src/pepsal  -v -C $1 >/dev/null 2>&1
+../pepsal/src/pepsal -C $1 >/dev/null 2>&1
 

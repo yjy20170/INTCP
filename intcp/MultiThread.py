@@ -16,7 +16,8 @@ class LatchThread(Thread):
     def __init__(self, func, args=(), kwargs={}):
         super().__init__(func, args, kwargs)
         self.__class__.Running = True
-    def wait(self):
+    def startAndWait(self):
+        self.start(self)
         self.join()
         self.__class__.Running = False
     @classmethod

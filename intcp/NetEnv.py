@@ -10,7 +10,7 @@ import threadFuncs
 # segs are defined here.
 
 LatchFunc = threadFuncs.Iperf
-NormalFuncs = [threadFuncs.initNetwork,threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.PepCC]#
+NormalFuncs = [threadFuncs.Init, threadFuncs.MakeItm, threadFuncs.LinkUpdate, threadFuncs.PepCC]
 
 BasicSegs = {
     'name':'null',
@@ -133,14 +133,20 @@ class NetEnvSet:
 def getNetEnvSet(nesetName):
     print('Using NetEnvSet %s' % nesetName)
     neSet = None
+
     if nesetName == 'expr':
         # special NetEnv
-        neSet = NetEnvSet(nesetName, NetEnv(sendTime=120, bw = 10,loss=10))
-        neSet.add(pepCC="nopep",rttTotal=[1000,300],rttSat=400)
-                          
-    elif nesetName == 'expr2':
-        neSet = NetEnvSet(nesetName, NetEnv(bw = 10,varBw=0,varMethod='square',varIntv=1))
-        neSet.add(itmTotal=10,itmDown=5,e2eCC='hybla',pepCC=['hybla','nopep']) 
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0, rttTotal=150, rttSat=100, bw=20, sendTime=180, varBw=8, varMethod='square'))
+        neSet.add(e2eCC="hybla", pepCC=["nopep",'hybla'])
+
+    elif nesetName == 'yjy_mot_itm':
+        neSet = NetEnvSet(nesetName,
+                          NetEnv(loss=0, rttTotal=150, rttSat=100, bw=40, sendTime=180,  varMethod='square'),
+                          keyX="itmDown", keysCurveDiff=["e2eCC", "pepCC"])
+        itmDown= [1, 2, 3, 4, 5, 6, 7, 8]
+        neSet.add(itmDown=itmDown, e2eCC="hybla", pepCC=['hybla', 'nopep'])
+        neSet.add(itmDown=itmDown, e2eCC="cubic", pepCC=['cubic', 'nopep'])
+
 
     elif nesetName == 'bwVar_freq_highPulse':
         varIntv = [2,4,8,16] #[1,2,4,8,16,20]

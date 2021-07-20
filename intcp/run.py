@@ -4,12 +4,13 @@ import sys
 import importlib
 import os
 import argparse
+import time
 
 from mininet.cli import CLI
 
 import NetEnv
 from MultiThread import Thread, LatchThread
-from Utils import createFolder, fixOwnership, writeText
+from FileUtils import createFolder, fixOwnership, writeText
 import autoAnlz
 
 def getArgsFromCli():
@@ -38,22 +39,22 @@ def mngo(netEnv, isManual, logPath):
     # myModule.onNetCreated(mn,netEnv)
 
     # start the threads we want to run
+    LatchThread.pretendRunning()
+
     threads = []
-    if isManual:
-        LatchThread.pretendRunning()
-    else:
-        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
-        latchThread.start()
-        # normal threads keep running until latchThread ends
     for func in NetEnv.NormalFuncs:
         thread = Thread(func, (mn, netEnv, logPath,))
         thread.start()
         threads.append(thread)
+
     if isManual:
         # enter command line interface...
         CLI(mn)
     else:
-        latchThread.wait()
+        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
+        time.sleep(1) # let some threads, like PepCC, run before it
+        latchThread.startAndWait()
+        # normal threads keep running until latchThread ends
         for thread in threads:
             # LatchThread.Running = False
             # so the threads will end soon
@@ -64,7 +65,7 @@ def mngo(netEnv, isManual, logPath):
     
 if __name__=='__main__':
 
-    neSetName = 'expr'#"mot_itm_test"
+    neSetName = 'yjy_mot_itm'#"mot_itm_test"
     neSet = NetEnv.getNetEnvSet(neSetName)
 
     os.chdir(sys.path[0])

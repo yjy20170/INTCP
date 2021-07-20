@@ -3,7 +3,7 @@ import random
 import math
 
 from MultiThread import atomic, LatchThread
-from Utils import delFile
+from FileUtils import delFile
 # FuncsDict = {}
 
 def threadFunc(func):
@@ -15,6 +15,23 @@ def threadFunc(func):
     # global FuncsDict
     # FuncsDict[func.__name__] = wrapper
     return wrapper
+
+@threadFunc
+def Init(mn, netEnv, logPath):
+    s2 = mn.getNodeByName('s2')
+    pep = mn.getNodeByName('pep')
+    h2 = mn.getNodeByName('h2')
+    #DEBUG
+    intf = pep.connectionsTo(s2)[0][0]
+    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(netEnv.txqueuelen))
+    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(netEnv.txqueuelen))
+
+
+    # tc -s -d qdisc show dev pep-eth2
+    # print(netEnv.max_queue_size)
+    cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
+    for cmd in cmds:
+        atomic(intf.tc)(cmd)
 
 ### thread for dynamic link params control
 K = 0
@@ -32,22 +49,6 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
-@threadFunc
-def initNetwork(mn,netEnv,logPath):
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
-    h2 = mn.getNodeByName('h2')
-    #DEBUG
-    intf = pep.connectionsTo(s2)[0][0]
-    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(netEnv.txqueuelen))
-    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(netEnv.txqueuelen))
-    
-        
-    # tc -s -d qdisc show dev pep-eth2
-    # print(netEnv.max_queue_size)
-    cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
-    for cmd in cmds:
-        atomic(intf.tc)(cmd)
     
 @threadFunc
 def LinkUpdate(mn, netEnv, logPath):
@@ -97,6 +98,7 @@ def LinkUpdate(mn, netEnv, logPath):
         else:
             #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
+            # print('set new bw',newBw)
             for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
                 config(intf,bw=newBw)
             time.sleep(netEnv.varIntv)
@@ -128,12 +130,14 @@ def MakeItm(mn, netEnv, logPath):
 def PepCC(mn, netEnv, logFolderPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+    return
+
 @threadFunc
 def Iperf(mn, netEnv, logFolderPath):
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
-    
+
     print('sendTime = %ds'%netEnv.sendTime)
     # TODO
     # only one time

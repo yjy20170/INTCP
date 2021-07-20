@@ -1,5 +1,4 @@
 import os
-import sys
 
 # Change the owner of the file to SUDO_UID
 def fixOwnershipSingle(path):

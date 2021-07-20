@@ -7,7 +7,7 @@ import sys
 import functools
 
 import NetEnv
-from Utils import createFolder, fixOwnership, writeText
+from FileUtils import createFolder, fixOwnership, writeText
 
 def timestamp():
     return time.strftime('%m-%d-%H-%M-%S', time.localtime())
@@ -50,9 +50,8 @@ def loadLog(logPath, neSet, isDetail=False):
     return result
     
 def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
-    print("entering plotseq")
     plt.figure(figsize=(5,5),dpi=200)
-    plt.ylim((0,10))
+    # plt.ylim((0,10))
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -98,7 +97,7 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
             curves.append(group)
     print('curves num:',len(curves))
     for curve in curves:
-       print(len(curve))
+       print('points in curve:',len(curve))
     # TODO
     # automatically find the difference between these pointGroups
 
@@ -129,35 +128,21 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
             #print("adfafafa")
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in plotDiffSegs]))
         plotSeq(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends)
-       
 
 
 def anlz(npsetName):
     os.chdir(sys.path[0])
     neSet = NetEnv.getNetEnvSet(npsetName)
     logPath = '%s/%s' % ('../logs', npsetName)
-    mapNeToResult = loadLog(logPath, neSet, isDetail=False)
-
     resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
+    mapNeToResult = loadLog(logPath, neSet, isDetail=False)
+    print('-----')
     # make plot
-
-
-
-    # plotByGroup(resultPath, neToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
-    #plotByGroup(resultPath, neToResultDict, 'varIntv', curveDiffSegs=['e2eCC', 'pepCC'], ignoreDiffSegs=['varBw'])
-
-
-    #plotByGroup(resultPath, neToResultDict, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
-
-
     if neSet.keyX != 'null':
+        print(neSet.keyX,neSet.keysCurveDiff)
         plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
-
     print('-----')
     summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
     print(summaryString)
@@ -170,7 +155,6 @@ def anlz(npsetName):
 
 if __name__=='__main__':
 
-    nesetName = 'mot_itm_4'
-    #nesetName = 'mot_bwVar_6'
+    nesetName = 'mot_bwVar_11'
     anlz(nesetName)
 
