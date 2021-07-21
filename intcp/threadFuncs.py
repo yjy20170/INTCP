@@ -98,7 +98,6 @@ def LinkUpdate(mn, netEnv, logPath):
         else:
             #newBw = generateBw('random',netEnv.bw,netEnv.varBw)
             newBw = generateBw(netEnv.varMethod, netEnv.bw, netEnv.varBw)
-            # print('set new bw',newBw)
             for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
                 config(intf,bw=newBw)
             time.sleep(netEnv.varIntv)
@@ -130,7 +129,6 @@ def MakeItm(mn, netEnv, logPath):
 def PepCC(mn, netEnv, logFolderPath):
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
-    return
 
 @threadFunc
 def Iperf(mn, netEnv, logFolderPath):
@@ -148,3 +146,19 @@ def Iperf(mn, netEnv, logFolderPath):
         #DEBUG
         #mn.getNodeByName('h1').cmd('iperf3 -c 10.0.2.1 -f k -C %s -t %d'%(netEnv.e2eCC,netEnv.sendTime))
         time.sleep(netEnv.sendTime + 20)
+
+#thread for test rtt
+@threadFunc
+def RttTest(mn, netEnv, logFolderPath):
+    print("rtt test begin...")
+    logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
+    delFile(logFilePath)
+    print(1)
+    #atomic(mn.getNodeByName('h2').cmd)('../bash/runRttTestServer >> ../logs/test.txt &')
+    print(logFilePath)
+    #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py > %s &'%(logFilePath))
+    atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
+    print(2)
+    #atomic(mn.getNodeByName('h1').cmd)('../bash/runRttTestClient >> ../logs/test.txt &')
+    atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(netEnv.rttTestPacket,netEnv.rttTotal))
+    time.sleep(netEnv.rttTestPacket*netEnv.rttTotal/1000+10)

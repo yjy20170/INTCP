@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import functools
+import argparse
 
 import NetEnv
 from FileUtils import createFolder, fixOwnership, writeText
@@ -23,7 +24,7 @@ def mean(values, method='all'):
             del values[values.index(min(values))]
             return sum(values)/len(values)
 
-def loadLog(logPath, neSet, isDetail=False):
+def loadLog(logPath, neSet,isRttTest, isDetail=False):
     result = {}
     for netEnv in neSet.netEnvs:
         print(netEnv.name)
@@ -31,14 +32,30 @@ def loadLog(logPath, neSet, isDetail=False):
         try:
 
             with open('%s/%s.txt'%(logPath,netEnv.name),'r') as f:
-
-                lines = f.readlines()
-                for line in lines:
-                    if 'receiver' in line:
-                        numString = line.split('bits')[0][-7:-2]
-                        num = float(numString)/(1 if line.split('bits')[0][-1]=='M' else 1000)
-                        thrps.append(num)
-                        print(num)
+                if not isRttTest:
+                    lines = f.readlines()
+                    for line in lines:
+                        if 'receiver' in line:
+                            numString = line.split('bits')[0][-7:-2]
+                            num = float(numString)/(1 if line.split('bits')[0][-1]=='M' else 1000)
+                            thrps.append(num)
+                            print(num)
+                else:
+                    print("load rtt log")
+                    rttTotal = netEnv.rttTotal
+                    lines = f.readlines()
+                    total_packets = 0
+                    retran_packets = 0
+                    for line in lines:
+                        total_packets += 1
+                        if "deltaTime" in line:
+                            pos = line.find("deltaTime")
+                            num = float(line[pos+10:-3])
+                            if(num>rttTotal):
+                                retran_packets += 1
+                                thrps.append(num)
+                                #print(num)
+                    #thrps.append(retran_packets/total_packets)
             if isDetail:
                 result[netEnv] = thrps
             else:
@@ -49,9 +66,10 @@ def loadLog(logPath, neSet, isDetail=False):
         
     return result
     
-def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
+def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
+    print("entering plotseq")
     plt.figure(figsize=(5,5),dpi=200)
-    # plt.ylim((0,10))
+    #plt.ylim((0,10))
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -65,13 +83,17 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[]):
                      [result[netEnv] for netEnv in group], label=legends[i])
         plt.legend()
     plt.xlabel(NetEnv.NetEnv.keyToStr(keyX)) #(keyX.title()+'('+xunit+')')
-    plt.ylabel('Bandwidth(Mbps)')
+    if isRttTest:
+        plt.ylabel('one way delay(ms)')
+        #plt.ylabel('error rate')
+    else:
+        plt.ylabel('Bandwidth(Mbps)')
     plt.title(title)
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
 
-def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=[]):
+def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=[],isRttTest=False):
 
     # plotDiffSegs is a subset of curveDiffSegs
 
@@ -127,13 +149,16 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
         if plotDiffSegs != []:
             #print("adfafafa")
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in plotDiffSegs]))
-        plotSeq(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends)
+        plotSeq(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
+       
 
 
-def anlz(npsetName):
+def anlz(npsetName,isRttTest=False):
     os.chdir(sys.path[0])
     neSet = NetEnv.getNetEnvSet(npsetName)
     logPath = '%s/%s' % ('../logs', npsetName)
+    mapNeToResult = loadLog(logPath, neSet,isRttTest,isDetail=False)
+
     resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
@@ -141,8 +166,7 @@ def anlz(npsetName):
     print('-----')
     # make plot
     if neSet.keyX != 'null':
-        print(neSet.keyX,neSet.keysCurveDiff)
-        plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
+        plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff,isRttTest=isRttTest)
     print('-----')
     summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
     print(summaryString)
@@ -155,6 +179,10 @@ def anlz(npsetName):
 
 if __name__=='__main__':
 
-    nesetName = 'mot_bwVar_11'
-    anlz(nesetName)
+    nesetName = 'mot_retran_1'
+    #nesetName = 'mot_bwVar_6'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')
+    args = parser.parse_args()
+    anlz(nesetName,args.r)
 

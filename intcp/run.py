@@ -19,10 +19,11 @@ def getArgsFromCli():
     #parser.add_argument('-bw',type=int,default=-1)
     #parser.add_argument('--itm', action='store_const', const=True, default=False, help='add intermittent')
     parser.add_argument('--m', action='store_const', const=True, default=False, help='enter command line interface(run auto experiment by default)')
+    parser.add_argument('--r', action='store_const', const=True, default=False, help='enter rtt test')
     args = parser.parse_args()
     return args
     
-def mngo(netEnv, isManual, logPath):
+def mngo(netEnv, isManual, isRttTest, logPath):
     print(netEnv.serialize())
     os.system('mn -c >/dev/null 2>&1')
     os.system('killall -9 xterm >/dev/null 2>&1')
@@ -40,8 +41,8 @@ def mngo(netEnv, isManual, logPath):
 
     # start the threads we want to run
     LatchThread.pretendRunning()
-
     threads = []
+    # normal threads keep running until latchThread ends
     for func in NetEnv.NormalFuncs:
         thread = Thread(func, (mn, netEnv, logPath,))
         thread.start()
@@ -51,7 +52,10 @@ def mngo(netEnv, isManual, logPath):
         # enter command line interface...
         CLI(mn)
     else:
-        latchThread = LatchThread(NetEnv.LatchFunc, (mn, netEnv, logPath,))
+        if isRttTest:
+            latchThread = LatchThread(NetEnv.LatchFuncs[1], (mn, netEnv, logPath,))
+        else:
+            latchThread = LatchThread(NetEnv.LatchFuncs[0], (mn, netEnv, logPath,))
         time.sleep(1) # let some threads, like PepCC, run before it
         latchThread.startAndWait()
         # normal threads keep running until latchThread ends
@@ -74,14 +78,15 @@ if __name__=='__main__':
     writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
 
     isManual = getArgsFromCli().m
+    isRttTest = getArgsFromCli().r
     if isManual:
         netEnvs = [neSet.netEnvs[0]]
     for i,netEnv in enumerate(neSet.netEnvs):
         print('\nStart NetEnv(%d/%d)' % (i+1,len(neSet.netEnvs)))
-        mngo(netEnv, isManual, logPath)
+        mngo(netEnv, isManual, isRttTest, logPath)
     fixOwnership(logPath, 'r')
     print('all experiments finished.')
 
-    autoAnlz.anlz(neSetName)
+    autoAnlz.anlz(neSetName,isRttTest)
 
     os.system('killall -9 run.py >/dev/null 2>&1')
