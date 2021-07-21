@@ -68,7 +68,7 @@ def mngo(netEnv, isManual, logPath):
     
 if __name__=='__main__':
 
-    neSetName = 'mot_retran_1'#"mot_itm_test"
+    neSetName = 'mot_itm_9'#"mot_itm_test"
     neSet = NetEnv.getNetEnvSet(neSetName)
 
     os.chdir(sys.path[0])

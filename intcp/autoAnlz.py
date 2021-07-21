@@ -20,10 +20,17 @@ def mean(values, method='all'):
         if len(values)<=2:
             raise Exception('ERROR: the amount of data is too small.')
         else:
+ 
             del values[values.index(max(values))]
             del values[values.index(min(values))]
             return sum(values)/len(values)
-
+    elif method == "median":
+        rm = int((len(values)-1)/2)
+        for i in range(rm):
+            del values[values.index(max(values))]
+            del values[values.index(min(values))]
+        return sum(values)/len(values)
+        
 def loadLog(logPath, neSet,isRttTest, isDetail=False):
     result = {}
     for netEnv in neSet.netEnvs:
@@ -54,13 +61,14 @@ def loadLog(logPath, neSet,isRttTest, isDetail=False):
                             if(num>rttTotal):
                                 retran_packets += 1
                                 thrps.append(num)
-                                #print(num)
+                                print(num)
                     #thrps.append(retran_packets/total_packets)
             if isDetail:
                 result[netEnv] = thrps
             else:
                 #TODO observe their variance
                 result[netEnv] = mean(thrps,method='all')
+                #result[netEnv] = mean(thrps,method='noMaxMin')
         except:
             print('ERROR: log doesn\'t exists.')
         
@@ -69,7 +77,7 @@ def loadLog(logPath, neSet,isRttTest, isDetail=False):
 def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
     print("entering plotseq")
     plt.figure(figsize=(5,5),dpi=200)
-    #plt.ylim((0,10))
+    plt.ylim((0,20))
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -144,8 +152,10 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
             string = ' '.join([curve[0].segToStr(seg) for seg in curveDiffSegs])
             string = string.replace('pepCC=nopep', 'no-pep')
             legends.append(string)
-
-        title = '%s - bw' % (keyX)
+        if isRttTest:
+            title = '%s - OneWayDelay' % (keyX)
+        else:
+            title = '%s - bw' % (keyX)
         if plotDiffSegs != []:
             #print("adfafafa")
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in plotDiffSegs]))
@@ -191,8 +201,8 @@ def anlz(npsetName,isRttTest=False):
 
 if __name__=='__main__':
 
-    nesetName = 'mot_retran_1'
-    #nesetName = 'mot_bwVar_6'
+    nesetName = 'mot_itm_7'
+    #nesetName = 'mot_bwVar_8'
     parser = argparse.ArgumentParser()
     parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')
     args = parser.parse_args()

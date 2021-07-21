@@ -126,20 +126,32 @@ def MakeItm(mn, netEnv, logPath):
 ### thread for iperf experiments with/without PEP
 @threadFunc
 def PepCC(mn, netEnv, logFolderPath):
-    if netEnv.pepCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+    return 
+    #if netEnv.pepCC != 'nopep':
+    #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
         
 @threadFunc
 def Iperf(mn, netEnv, logFolderPath):
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
+    
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
     
+    if netEnv.pepCC != 'nopep':
+        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+    
+    #time.sleep(5)
     print('sendTime = %ds'%netEnv.sendTime)
     # TODO
     # only one time
     for i in range(1):
         print('iperfc loop %d running' %i)
+        
+        if netEnv.itmDown>0:
+            atomic(mn.getNodeByName('s2').cmd)('echo a')
+            atomic(mn.getNodeByName('pep').cmd)('echo a')
+            atomic(mn.configLinkStatus)('s2','pep','up')
+            
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(netEnv.e2eCC,netEnv.sendTime) )
         #time.sleep(netEnv.sendTime + 20)
         #DEBUG
@@ -152,12 +164,12 @@ def RttTest(mn, netEnv, logFolderPath):
     print("rtt test begin...")
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
-    print(1)
+    #print(1)
     #atomic(mn.getNodeByName('h2').cmd)('../bash/runRttTestServer >> ../logs/test.txt &')
-    print(logFilePath)
+    #print(logFilePath)
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py > %s &'%(logFilePath))
     atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
-    print(2)
+    #print(2)
     #atomic(mn.getNodeByName('h1').cmd)('../bash/runRttTestClient >> ../logs/test.txt &')
     atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(netEnv.rttTestPacket,netEnv.rttTotal))
     time.sleep(netEnv.rttTestPacket*netEnv.rttTotal/1000+10)

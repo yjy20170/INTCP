@@ -32,13 +32,16 @@ print("rtt total:",args.rt)
 client_socket, clientAddr = tcp_server_socket.accept()
 cnt = 0
 # 接收对方发送过来的数据
-for i in range(args.c):
-    recv_data = client_socket.recv(1024)  # 接收1024个字节
+#for i in range(args.c):
+while True:
+    #recv_data = client_socket.recv(1024)  # 接收1024个字节
+    recv_data = client_socket.recv(26)  # 接收1024个字节
     recvTime = datetime.now()
     sendTime = datetime.strptime(recv_data.decode('gbk'),'%Y-%m-%d %H:%M:%S.%f')
     deltaTime = 1000*((recvTime-sendTime).total_seconds())
-    client_socket.send(recv_data)
+    #client_socket.send(recv_data)
     cnt += 1
+    print("len=",len(recv_data))
     print("packet %3d"%cnt,end="  ")
     print('recvTime:',recvTime.strftime('%Y-%m-%d %H:%M:%S.%f'),end="  ")
     print('sendTime:', recv_data.decode('gbk'),end="  ")

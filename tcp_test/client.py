@@ -18,20 +18,21 @@ server_addr = ("10.0.2.1", 3000)
 tcp_socket.connect(server_addr)
 
 # 3. 发送数据
-for i in range(args.c):
+#for i in range(args.c):
+while True:
     curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     #print(curTime)
     send_data = curTime
     tcp_socket.send(send_data.encode("gbk"))
     
-    recv_data = tcp_socket.recv(1024)
-    recvTime = datetime.now()
-    sendTime = datetime.strptime(recv_data.decode('gbk'),'%Y-%m-%d %H:%M:%S.%f')
-    deltaTime = 1000*((recvTime-sendTime).total_seconds())
+    #recv_data = tcp_socket.recv(1024)
+    #recvTime = datetime.now()
+    #sendTime = datetime.strptime(recv_data.decode('gbk'),'%Y-%m-%d %H:%M:%S.%f')
+    #deltaTime = 1000*((recvTime-sendTime).total_seconds())
     
-    print('recvTime:',recvTime.strftime('%Y-%m-%d %H:%M:%S.%f'),end="  ")
-    print('sendTime:', recv_data.decode('gbk'),end="  ")
-    print('rtt:%fms'%(deltaTime))
+    #print('recvTime:',recvTime.strftime('%Y-%m-%d %H:%M:%S.%f'),end="  ")
+    #print('sendTime:', recv_data.decode('gbk'),end="  ")
+    #print('rtt:%fms'%(deltaTime))
     #time.sleep(1)
     
 # 4. 关闭套接字
