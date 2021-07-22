@@ -17,11 +17,11 @@ def createNet(args):
             # Now the bandwidth is hardcoded. Need to change.
             # 10 -> 60
             #bw = 60
-            bw = 20
+            bw =20
         elif hindex == 2:
             delay = args.rttSat/4
             loss = args.loss/2
-            bw = args.bw
+            bw = 1000 # args.bw
         else:
             delay = 0
             loss = 0

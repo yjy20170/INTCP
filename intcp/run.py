@@ -4,12 +4,13 @@ import sys
 import importlib
 import os
 import argparse
+import time
 
 from mininet.cli import CLI
 
 import NetEnv
 from MultiThread import Thread, LatchThread
-from Utils import createFolder, fixOwnership, writeText
+from FileUtils import createFolder, fixOwnership, writeText
 import autoAnlz
 
 def getArgsFromCli():
@@ -22,7 +23,7 @@ def getArgsFromCli():
     args = parser.parse_args()
     return args
     
-def mngo(netEnv, isManual, logPath):
+def mngo(netEnv, isManual, isRttTest, logPath):
     print(netEnv.serialize())
     os.system('mn -c >/dev/null 2>&1')
     os.system('killall -9 xterm >/dev/null 2>&1')
@@ -39,25 +40,25 @@ def mngo(netEnv, isManual, logPath):
     # myModule.onNetCreated(mn,netEnv)
 
     # start the threads we want to run
+    LatchThread.pretendRunning()
     threads = []
-    if isManual:
-        LatchThread.pretendRunning()
-    elif isRttTest:     
-        latchThread = LatchThread(NetEnv.LatchFuncs[1], (mn, netEnv, logPath,))
-        latchThread.start()
-    else:
-        latchThread = LatchThread(NetEnv.LatchFuncs[0], (mn, netEnv, logPath,))
-        latchThread.start()
-        # normal threads keep running until latchThread ends
+    # normal threads keep running until latchThread ends
     for func in NetEnv.NormalFuncs:
         thread = Thread(func, (mn, netEnv, logPath,))
         thread.start()
         threads.append(thread)
+
     if isManual:
         # enter command line interface...
         CLI(mn)
     else:
-        latchThread.wait()
+        if isRttTest:
+            latchThread = LatchThread(NetEnv.LatchFuncs[1], (mn, netEnv, logPath,))
+        else:
+            latchThread = LatchThread(NetEnv.LatchFuncs[0], (mn, netEnv, logPath,))
+        time.sleep(1) # let some threads, like PepCC, run before it
+        latchThread.startAndWait()
+        # normal threads keep running until latchThread ends
         for thread in threads:
             # LatchThread.Running = False
             # so the threads will end soon
@@ -68,7 +69,9 @@ def mngo(netEnv, isManual, logPath):
     
 if __name__=='__main__':
 
-    neSetName = 'mot_itm_9'#"mot_itm_test"
+
+    neSetName = 'expr'#"mot_itm_test"
+
     neSet = NetEnv.getNetEnvSet(neSetName)
 
     os.chdir(sys.path[0])
@@ -82,7 +85,7 @@ if __name__=='__main__':
         netEnvs = [neSet.netEnvs[0]]
     for i,netEnv in enumerate(neSet.netEnvs):
         print('\nStart NetEnv(%d/%d)' % (i+1,len(neSet.netEnvs)))
-        mngo(netEnv, isManual, logPath)
+        mngo(netEnv, isManual, isRttTest, logPath)
     fixOwnership(logPath, 'r')
     print('all experiments finished.')
 

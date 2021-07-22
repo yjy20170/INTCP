@@ -3,7 +3,7 @@ import random
 import math
 
 from MultiThread import atomic, LatchThread
-from Utils import delFile
+from FileUtils import delFile
 # FuncsDict = {}
 
 def threadFunc(func):
@@ -15,6 +15,23 @@ def threadFunc(func):
     # global FuncsDict
     # FuncsDict[func.__name__] = wrapper
     return wrapper
+
+@threadFunc
+def Init(mn, netEnv, logPath):
+    s2 = mn.getNodeByName('s2')
+    pep = mn.getNodeByName('pep')
+    h2 = mn.getNodeByName('h2')
+    #DEBUG
+    intf = pep.connectionsTo(s2)[0][0]
+    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(netEnv.txqueuelen))
+    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(netEnv.txqueuelen))
+
+
+    # tc -s -d qdisc show dev pep-eth2
+    # print(netEnv.max_queue_size)
+    cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
+    for cmd in cmds:
+        atomic(intf.tc)(cmd)
 
 ### thread for dynamic link params control
 K = 0
@@ -32,22 +49,6 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
-@threadFunc
-def initNetwork(mn,netEnv,logPath):
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
-    h2 = mn.getNodeByName('h2')
-    #DEBUG
-    intf = pep.connectionsTo(s2)[0][0]
-    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(netEnv.txqueuelen))
-    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(netEnv.txqueuelen))
-    
-        
-    # tc -s -d qdisc show dev pep-eth2
-    # print(netEnv.max_queue_size)
-    cmds, parent = atomic(intf.delayCmds)(max_queue_size=netEnv.max_queue_size,is_change=True,intf=intf)
-    for cmd in cmds:
-        atomic(intf.tc)(cmd)
     
 @threadFunc
 def LinkUpdate(mn, netEnv, logPath):
@@ -126,21 +127,25 @@ def MakeItm(mn, netEnv, logPath):
 ### thread for iperf experiments with/without PEP
 @threadFunc
 def PepCC(mn, netEnv, logFolderPath):
+
     return 
     #if netEnv.pepCC != 'nopep':
     #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
         
+
 @threadFunc
 def Iperf(mn, netEnv, logFolderPath):
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
     
     atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
+
     
     if netEnv.pepCC != 'nopep':
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
     
     #time.sleep(5)
+
     print('sendTime = %ds'%netEnv.sendTime)
     # TODO
     # only one time
@@ -164,12 +169,19 @@ def RttTest(mn, netEnv, logFolderPath):
     print("rtt test begin...")
     logFilePath = '%s/%s.txt'%(logFolderPath, netEnv.name)
     delFile(logFilePath)
-    #print(1)
-    #atomic(mn.getNodeByName('h2').cmd)('../bash/runRttTestServer >> ../logs/test.txt &')
-    #print(logFilePath)
-    #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py > %s &'%(logFilePath))
-    atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
-    #print(2)
-    #atomic(mn.getNodeByName('h1').cmd)('../bash/runRttTestClient >> ../logs/test.txt &')
-    atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(netEnv.rttTestPacket,netEnv.rttTotal))
-    time.sleep(netEnv.rttTestPacket*netEnv.rttTotal/1000+10)
+    
+    if netEnv.pepCC != 'nopep':
+        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' &')
+        
+    #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
+    atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py &')
+    
+    #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(netEnv.rttTestPacket,netEnv.rttTotal))
+    if netEnv.pepCC=="nopep":
+        limit = 1.5*netEnv.rttTotal
+    else:
+        limit = netEnv.rttSat+0.5*netEnv.rttTotal
+        
+    atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -l %f > %s &'%(limit,logFilePath))
+    time.sleep(netEnv.sendTime)
+    #time.sleep(netEnv.rttTestPacket*netEnv.rttTotal/1000+10)

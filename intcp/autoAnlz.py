@@ -6,9 +6,9 @@ import os
 import sys
 import functools
 import argparse
-import NetEnv
 
-from Utils import createFolder, fixOwnership, writeText
+import NetEnv
+from FileUtils import createFolder, fixOwnership, writeText
 
 def timestamp():
     return time.strftime('%m-%d-%H-%M-%S', time.localtime())
@@ -53,15 +53,26 @@ def loadLog(logPath, neSet,isRttTest, isDetail=False):
                     lines = f.readlines()
                     total_packets = 0
                     retran_packets = 0
+                    if netEnv.pepCC=="nopep":
+                        threhold = 1.5*netEnv.rttTotal
+                    else:
+                        threhold = netEnv.rttSat+0.5*netEnv.rttTotal
                     for line in lines:
                         total_packets += 1
-                        if "deltaTime" in line:
-                            pos = line.find("deltaTime")
-                            num = float(line[pos+10:-3])
-                            if(num>rttTotal):
-                                retran_packets += 1
+                        if "owd_c2s" in line:
+                            pos1 = line.find("owd_c2s")
+                            pos2 = line.find("owd_s2c")
+                            num = float(line[pos1+8:pos2])
+                            #thrps.append(num)
+                            if num>threhold:
                                 thrps.append(num)
                                 print(num)
+                            #pos = line.find("deltaTime")
+                            #num = float(line[pos+10:-3])
+                            #if(num>rttTotal):
+                            #    retran_packets += 1
+                            #    thrps.append(num)
+                            #    print(num)
                     #thrps.append(retran_packets/total_packets)
             if isDetail:
                 result[netEnv] = thrps
@@ -87,8 +98,20 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
             print(len(group))
             for netEnv in group:
                 print(netEnv.get(keyX),result[netEnv])
+            if group[0].e2eCC == 'hybla':
+                color = 'orangered'
+            elif group[0].e2eCC == 'cubic':
+                color = 'royalblue'
+            else:
+                color = 'g'
+            if group[0].pepCC == 'nopep':
+                marker = 'x'
+                linestyle = '--'
+            else:
+                marker = 's'
+                linestyle = '-'
             plt.plot([netEnv.get(keyX) for netEnv in group],
-                     [result[netEnv] for netEnv in group], label=legends[i])
+                     [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=3,linewidth=1)
         plt.legend()
     plt.xlabel(NetEnv.NetEnv.keyToStr(keyX)) #(keyX.title()+'('+xunit+')')
     if isRttTest:
@@ -127,7 +150,7 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
             curves.append(group)
     print('curves num:',len(curves))
     for curve in curves:
-       print(len(curve))
+       print('points in curve:',len(curve))
     # TODO
     # automatically find the difference between these pointGroups
 
@@ -150,7 +173,15 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
         for curve in curveGroup:
             #print("afaag")
             string = ' '.join([curve[0].segToStr(seg) for seg in curveDiffSegs])
-            string = string.replace('pepCC=nopep', 'no-pep')
+            if 'pepCC=nopep' in string and 'e2eCC=hybla' in string:
+                string = "hybla end-to-end"
+            elif 'pepCC=nopep' in string and 'e2eCC=cubic' in string:
+                string = "cubic end-to-end"
+            elif 'pepCC=hybla' in string and 'e2eCC=hybla' in string:
+                string = "hybla split"
+            elif 'pepCC=cubic' in string and 'e2eCC=cubic' in string:
+                string = "cubic split"
+            #string = string.replace('pepCC=nopep', 'no-pep')
             legends.append(string)
         if isRttTest:
             title = '%s - OneWayDelay' % (keyX)
@@ -172,23 +203,11 @@ def anlz(npsetName,isRttTest=False):
     resultPath = '%s/%s' % ('../result', npsetName)
     createFolder(resultPath)
 
+    #mapNeToResult = loadLog(logPath, neSet, isDetail=False)
+    print('-----')
     # make plot
-
-
-
-    # plotByGroup(resultPath, neToResultDict,'rttSat',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict,'itmDown',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict,'varBw',curveDiffSegs=['e2eCC','pepCC'])
-    # plotByGroup(resultPath, neToResultDict, 'rttSat', curveDiffSegs=['e2eCC', 'pepCC'])
-    #plotByGroup(resultPath, neToResultDict, 'varIntv', curveDiffSegs=['e2eCC', 'pepCC'], ignoreDiffSegs=['varBw'])
-
-
-    #plotByGroup(resultPath, neToResultDict, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff)
-
-
     if neSet.keyX != 'null':
         plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff,isRttTest=isRttTest)
-
     print('-----')
     summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
     print(summaryString)
@@ -201,7 +220,7 @@ def anlz(npsetName,isRttTest=False):
 
 if __name__=='__main__':
 
-    nesetName = 'mot_itm_7'
+    nesetName = 'mot_itm_6'
     #nesetName = 'mot_bwVar_8'
     parser = argparse.ArgumentParser()
     parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')

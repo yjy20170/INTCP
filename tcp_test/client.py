@@ -1,39 +1,73 @@
+#!/usr/bin/python3
+
 import socket
-from datetime import datetime 
-import time 
+from threading import Thread
+import time
+
+import Utils
 import argparse
 
-# 1.创建socket
+def sendFunc(tcp_socket):
+    while 1:
+        # 8 bytes
+        strTime = Utils.getStrTime()
+        # 1024 bytes in all
+        strPadded = Utils.padStr(strTime, 1024)
+        bytesToSend = strPadded.encode('utf8')
+        Utils.sendData(tcp_socket.send, bytesToSend)
+        time.sleep(0.001)
 
-tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def recvFunc(tcp_socket,limit):
+    prev_owd_c2s = 0
+    idxPkt = 0
+    recv_data_generator = Utils.recvData(tcp_socket.recv)
+    last = time.time()
+    lastIdx = 0
+    while 1:
+        data = recv_data_generator.__next__()
+        
+        curTime = Utils.getStrTime()
+        owd_c2s = Utils.timeDelta(data[8:16], data[0:8])
+        owd_s2c = Utils.timeDelta(curTime, data[8:16])
+        rtt = Utils.timeDelta(curTime, data[0:8])
+        #if float(owd_c2s)>net_rtt and prev_owd_c2s<net_rtt:
+        #if True:
+        if float(owd_c2s)>limit and prev_owd_c2s<limit:
+        #if float(owd_c2s)>0:
+            print(data[8:16],'idx', idxPkt, 'owd_c2s', owd_c2s,'owd_s2c',owd_s2c,'rtt', rtt,flush=True)
+        if len(data) != 16:
+            print(idxPkt, data)
+            print()
+        idxPkt += 1
+        prev_owd_c2s = float(owd_c2s)
+        cur = time.time()
+        if cur-last>=1:
+            print((idxPkt-lastIdx)*8/1024,'Mbps')
+            lastIdx = idxPkt
+            last = cur
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-c",type=int,default=100,help="test packets numbers")
-parser.add_argument("-rt",type=int,default=200,help="rtt total")
-
-args = parser.parse_args()
-
-# 2. 链接服务器
-server_addr = ("10.0.2.1", 3000)
-tcp_socket.connect(server_addr)
-
-# 3. 发送数据
-#for i in range(args.c):
-while True:
-    curTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-    #print(curTime)
-    send_data = curTime
-    tcp_socket.send(send_data.encode("gbk"))
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l',type=float,default=0.0)
+    #parser.add_argument('-rs',type=float,default=100.0)
+    #parser.add_argument('-t',type=float,default=120)
+    args = parser.parse_args()
+    #print("rtt:",args.rtt,"t:",args.t)
+    print("limit:",args.l)
+    # create socket
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
     
-    #recv_data = tcp_socket.recv(1024)
-    #recvTime = datetime.now()
-    #sendTime = datetime.strptime(recv_data.decode('gbk'),'%Y-%m-%d %H:%M:%S.%f')
-    #deltaTime = 1000*((recvTime-sendTime).total_seconds())
-    
-    #print('recvTime:',recvTime.strftime('%Y-%m-%d %H:%M:%S.%f'),end="  ")
-    #print('sendTime:', recv_data.decode('gbk'),end="  ")
-    #print('rtt:%fms'%(deltaTime))
-    #time.sleep(1)
-    
-# 4. 关闭套接字
-tcp_socket.close()
+    server_addr = ("10.0.2.1", 3000)
+    #server_addr = ("127.0.0.1", 3000)
+    tcp_socket.connect(server_addr)
+
+    sendThread = Thread(target=sendFunc, args=(tcp_socket,))
+    sendThread.start()
+    recvThread = Thread(target=recvFunc, args=(tcp_socket,args.l,))
+    recvThread.start()
+
+    sendThread.join()
+    recvThread.join()
+    tcp_socket.close()
+
