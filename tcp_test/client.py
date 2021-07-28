@@ -12,10 +12,10 @@ def sendFunc(tcp_socket):
         # 8 bytes
         strTime = Utils.getStrTime()
         # 1024 bytes in all
-        strPadded = Utils.padStr(strTime, 1024)
+        strPadded = Utils.padStr(strTime, 16)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
-        time.sleep(0.001)
+        time.sleep(0.01)
 
 def recvFunc(tcp_socket,limit):
     prev_owd_c2s = 0
@@ -33,7 +33,7 @@ def recvFunc(tcp_socket,limit):
         #if float(owd_c2s)>net_rtt and prev_owd_c2s<net_rtt:
         #if True:
         if float(owd_c2s)>limit and prev_owd_c2s<limit:
-        #if float(owd_c2s)>0:
+        #if float(owd_c2s)>limit:
             print(data[8:16],'idx', idxPkt, 'owd_c2s', owd_c2s,'owd_s2c',owd_s2c,'rtt', rtt,flush=True)
         if len(data) != 16:
             print(idxPkt, data)
@@ -42,7 +42,7 @@ def recvFunc(tcp_socket,limit):
         prev_owd_c2s = float(owd_c2s)
         cur = time.time()
         if cur-last>=1:
-            print((idxPkt-lastIdx)*8/1024,'Mbps')
+            print((idxPkt-lastIdx)*8/1024,'Mbps',flush=True)
             lastIdx = idxPkt
             last = cur
 

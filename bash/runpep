@@ -8,5 +8,8 @@ cd `dirname $0`
 #echo "starting pepsal..."
 #../pepsal/src/pepsal  -C $1 > ../logs/pep.txt
 #../pepsal/src/pepsal  -v -C $1
-../pepsal/src/pepsal -C $1 >/dev/null 2>&1
-
+if [ $# -eq 1 ];then
+    ../pepsal/src/pepsal -C $1 >/dev/null 2>&1
+else
+    ../pepsal/src/pepsal -n -C $1 >/dev/null 2>&1
+fi

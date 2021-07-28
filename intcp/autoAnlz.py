@@ -6,8 +6,10 @@ import os
 import sys
 import functools
 import argparse
-
+import seaborn as sns
 import NetEnv
+import numpy as np
+from scipy.stats import scoreatpercentile
 from FileUtils import createFolder, fixOwnership, writeText
 
 def timestamp():
@@ -74,7 +76,7 @@ def loadLog(logPath, neSet,isRttTest, isDetail=False):
                             #    thrps.append(num)
                             #    print(num)
                     #thrps.append(retran_packets/total_packets)
-            if isDetail:
+            if isDetail or isRttTest:
                 result[netEnv] = thrps
             else:
                 #TODO observe their variance
@@ -84,11 +86,70 @@ def loadLog(logPath, neSet,isRttTest, isDetail=False):
             print('ERROR: log doesn\'t exists.')
         
     return result
+
+def getPlotParam(group,isRttTest=False):
+    if not isRttTest:
+        if group[0].e2eCC == 'hybla':
+            color = 'orangered'
+        elif group[0].e2eCC == 'cubic':
+            color = 'royalblue'
+        else:
+            color = 'g'
+            
+        if group[0].pepCC == 'nopep':
+            marker = 'x'
+            linestyle = '--'
+        else:
+            marker = 's'
+            linestyle = '-'
+    else:
+        if group[0].pepCC == 'nopep':
+            color = 'purple'
+        else:
+            color = 'green'
+        marker = 's'
+        linestyle = '-'
+    return color,marker,linestyle
     
+def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
+    if mode==1:
+        x=[]
+        y=[]
+        for netEnv in group:
+            cnt = len(result[netEnv])
+            x += cnt*[netEnv.get(keyX)]
+            y += result[netEnv]
+        #sns.regplot(x=x,y=y,scatter_kws={'s':10},line_kws={'linewidth':1,'label':label},ci=95,x_estimator=np.mean)
+        sns.regplot(x=x,y=y,scatter_kws={'s':2,'color':color,},line_kws={'linewidth':1,'label':label,'color':color},ci=95)    
+    
+    elif mode==2:
+        x = []
+        y_mean=[]
+        y_lower = []
+        y_upper = []
+        
+        for netEnv in group:
+            y = result[netEnv]
+            if len(y)==0:
+                continue
+            cur_x = netEnv.get(keyX)
+            cur_y_lower = scoreatpercentile(y,5)
+            cur_y_upper = scoreatpercentile(y,95)
+            x.append(netEnv.get(keyX))
+            y_mean.append(mean(y,method='all'))
+            y_lower.append(cur_y_lower)
+            y_upper.append(cur_y_upper)
+            plt.plot([cur_x,cur_x],[cur_y_lower,cur_y_upper],color=color)
+            
+        plt.plot(x,y_mean,label=label,color=color,marker=marker)
+        plt.fill_between(x,y_mean,y_lower,color=color,alpha=alpha)
+        plt.fill_between(x,y_mean,y_upper,color=color,alpha=alpha)
+        
 def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
     print("entering plotseq")
-    plt.figure(figsize=(5,5),dpi=200)
-    plt.ylim((0,20))
+    #plt.figure(figsize=(5,5),dpi=200)
+    plt.figure(dpi=200)
+    #plt.ylim((0,20))
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -98,20 +159,16 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
             print(len(group))
             for netEnv in group:
                 print(netEnv.get(keyX),result[netEnv])
-            if group[0].e2eCC == 'hybla':
-                color = 'orangered'
-            elif group[0].e2eCC == 'cubic':
-                color = 'royalblue'
+                
+            color,marker,linestyle = getPlotParam(group,isRttTest)
+                
+            if not isRttTest:
+                plt.plot([netEnv.get(keyX) for netEnv in group],
+                            [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=3,linewidth=1)
+                #plt.legend()
             else:
-                color = 'g'
-            if group[0].pepCC == 'nopep':
-                marker = 'x'
-                linestyle = '--'
-            else:
-                marker = 's'
-                linestyle = '-'
-            plt.plot([netEnv.get(keyX) for netEnv in group],
-                     [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=3,linewidth=1)
+                drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
+                #plt.legend()
         plt.legend()
     plt.xlabel(NetEnv.NetEnv.keyToStr(keyX)) #(keyX.title()+'('+xunit+')')
     if isRttTest:
@@ -209,18 +266,19 @@ def anlz(npsetName,isRttTest=False):
     if neSet.keyX != 'null':
         plotByGroup(resultPath, mapNeToResult, neSet.keyX, curveDiffSegs=neSet.keysCurveDiff,isRttTest=isRttTest)
     print('-----')
-    summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
-    print(summaryString)
-    print('-----')
+    if not isRttTest:
+        summaryString = '\n'.join(['%s   \t%.3f'%(ne.name,mapNeToResult[ne]) for ne in mapNeToResult])
+        print(summaryString)
+        print('-----')
 
 
-    writeText('%s/summary.txt'%(resultPath), summaryString)
-    writeText('%s/template.txt'%(resultPath), neSet.neTemplate.serialize())
+        writeText('%s/summary.txt'%(resultPath), summaryString)
+        writeText('%s/template.txt'%(resultPath), neSet.neTemplate.serialize())
     fixOwnership(resultPath,'r')
 
 if __name__=='__main__':
 
-    nesetName = 'mot_itm_6'
+    nesetName = 'mot_retran_4'
     #nesetName = 'mot_bwVar_8'
     parser = argparse.ArgumentParser()
     parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')

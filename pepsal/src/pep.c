@@ -72,6 +72,7 @@ static int portnum = PEP_DEFAULT_PORT;
 static int max_conns = (PEP_MIN_CONNS + PEP_MAX_CONNS) / 2;
 static char pepsal_ip_addr[20] = "0.0.0.0";
 static char out_link_cc[20] = "cubic";
+static int tcp_nodelay = 0;
 
 /*
  * The main aim of this structure is to reduce search time
@@ -587,7 +588,9 @@ void *listener_loop(void UNUSED(*unused))
     char                ipbuf[17], ipbuf1[17];
     unsigned short      r_port, c_port;
     struct syntab_key   key;
-
+    
+    //int tcp_nodelay;
+    
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
         pep_error("Failed to create listener socket!");
@@ -726,6 +729,15 @@ void *listener_loop(void UNUSED(*unused))
         if(ret<0){
             pep_error("Failed to set TCP_CONGESTION option! [RET = %d]", ret);
         }
+        
+        /***********************************************************/
+        //tcp_nodelay = 1;
+        ret = setsockopt(out_fd, IPPROTO_TCP,TCP_NODELAY,(void*)&tcp_nodelay,sizeof(tcp_nodelay));
+        if(ret<0){
+            pep_error("Failed to set TCP_NODELAY option! [RET = %d]", ret);
+        }
+        
+        /***********************************************************/
         
         ret = setsockopt(out_fd, SOL_IP, IP_TRANSPARENT,
                          &optval, sizeof(optval));
@@ -1137,7 +1149,7 @@ int main(int argc, char *argv[])
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "dvVhfp:a:C:l:g:t:c:",
+        c = getopt_long(argc, argv, "dvVnhfp:a:C:l:g:t:c:",
                         long_options, &option_index);
         if (c == -1)
             break;
@@ -1163,6 +1175,9 @@ int main(int argc, char *argv[])
                 break;
             case 'C':
                 strncpy(out_link_cc, optarg, 19);
+                break;
+            case 'n':
+                tcp_nodelay = 1;
                 break;
             case 'l':
                 logger.filename = optarg;

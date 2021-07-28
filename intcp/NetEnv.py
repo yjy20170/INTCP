@@ -136,13 +136,13 @@ def getNetEnvSet(nesetName):
     neSet = None
 
     if nesetName == "expr":
-        neSet = NetEnvSet(nesetName, NetEnv(loss=0.1,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
-        rttSats = [100,200]
-        #rttSats = [20]
+        neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        #rttSats = [20,50,100,200,300]
+        rttSats = [300]
         for rttSat in rttSats:
             
-            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
-            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['hybla','nopep'])
 
     #1.1
     elif nesetName == "mot_rtt_6":
@@ -190,9 +190,13 @@ def getNetEnvSet(nesetName):
         neSet = NetEnvSet(nesetName, NetEnv(loss=0,rttTotal=150,rttSat=100,bw=20,sendTime=180,varBw=15,varMethod='square'),keyX="varIntv",keysCurveDiff=["e2eCC","pepCC"])
         #varIntvs = [1,2,4,6,8,10]
         varIntvs = [2,4,6,8,10]
+        #varIntvs = [2,4]
+        #varIntvs = [2]
         for varIntv in varIntvs:
             neSet.add(varIntv=varIntv,e2eCC="cubic",pepCC=['nopep','cubic'])
             neSet.add(varIntv=varIntv,e2eCC="hybla",pepCC=['nopep','hybla'])
+            #neSet.add(varIntv=varIntv,e2eCC="cubic",pepCC=['cubic'])
+            #neSet.add(varIntv=varIntv,e2eCC="hybla",pepCC=['nopep'])
                    
     #3.2
     elif nesetName == 'mot_itm_6':
@@ -223,10 +227,46 @@ def getNetEnvSet(nesetName):
     elif nesetName == "mot_retran_3":
         neSet = NetEnvSet(nesetName, NetEnv(loss=0.1,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
         rttSats = [20,50,100,200,300]
-        #rttSats = [20]
+        #rttSats = [100,200]
         for rttSat in rttSats:
             
-            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
+            
+    elif nesetName == "mot_retran_4":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=360,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [20,50,100,200,300]
+        #rttSats = [100,200]
+        for rttSat in rttSats:
+            
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
+    
+    elif nesetName == "mot_retran_5":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=1,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [20,50,100,200,300]
+        #rttSats = [100,200]
+        for rttSat in rttSats:
+            
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
+    
+    elif nesetName == "mot_retran_6":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0.5,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [20,50,100,200,300]
+        #rttSats = [100,200]
+        for rttSat in rttSats:
+            
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
+    
+    elif nesetName == "mot_retran_7":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=0.1,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        rttSats = [20,50,100,200,300]
+        #rttSats = [100,200]
+        for rttSat in rttSats:
+            
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
             neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep','hybla'])
     return neSet
 
