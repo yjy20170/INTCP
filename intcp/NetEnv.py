@@ -23,7 +23,7 @@ BasicSegs = {
     'rttTestPacket':0
 }
 Keys = BasicSegs.keys()
-SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's', 'varBw': 'Mbps', 'varIntv': 's',
+SegUnit = {'bw': 'Mbps', 'rttSat': 'ms', 'rttTotal': 'ms', 'loss': '%', 'itmDown': 's','itmTotal':'s', 'varBw': 'Mbps', 'varIntv': 's',
         'e2eCC': '', 'pepCC': ''}
 
 class NetEnv:
@@ -136,13 +136,22 @@ def getNetEnvSet(nesetName):
     neSet = None
 
     if nesetName == "expr":
-        neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=30,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
         #rttSats = [20,50,100,200,300]
         rttSats = [300]
         for rttSat in rttSats:
             
             #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
-            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['hybla','nopep'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['hybla'])
+    if nesetName == "expr2":
+        neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=30,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
+        #rttSats = [20,50,100,200,300]
+        rttSats = [200]
+        for rttSat in rttSats:
+            
+            #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
+            neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep'])
+
 
     #1.1
     elif nesetName == "mot_rtt_6":

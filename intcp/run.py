@@ -70,25 +70,28 @@ def mngo(netEnv, isManual, isRttTest, logPath):
 if __name__=='__main__':
 
 
-    neSetName = 'expr'#"mot_itm_test"
-
-    neSet = NetEnv.getNetEnvSet(neSetName)
-
-    os.chdir(sys.path[0])
-    logPath = '%s/%s' % ('../logs', neSetName)
-    createFolder(logPath)
-    writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
-
+    neSetNames = ['expr','expr2']#"mot_itm_test"
     isManual = getArgsFromCli().m
     isRttTest = getArgsFromCli().r
-    if isManual:
-        netEnvs = [neSet.netEnvs[0]]
-    for i,netEnv in enumerate(neSet.netEnvs):
-        print('\nStart NetEnv(%d/%d)' % (i+1,len(neSet.netEnvs)))
-        mngo(netEnv, isManual, isRttTest, logPath)
-    fixOwnership(logPath, 'r')
+    
+    for sno,neSetName in enumerate(neSetNames):
+        print('\nStart neset %s (%d/%d)' % (neSetName,sno+1,len(neSetNames)))
+        neSet = NetEnv.getNetEnvSet(neSetName)
+
+
+        os.chdir(sys.path[0])
+        logPath = '%s/%s' % ('../logs', neSetName)
+        createFolder(logPath)
+        writeText('%s/template.txt'%(logPath), neSet.neTemplate.serialize())
+
+    
+        if isManual:
+            netEnvs = [neSet.netEnvs[0]]
+        for i,netEnv in enumerate(neSet.netEnvs):
+            print('\nStart NetEnv(%d/%d)' % (i+1,len(neSet.netEnvs)))
+            mngo(netEnv, isManual, isRttTest, logPath)
+        fixOwnership(logPath, 'r')
+        autoAnlz.anlz(neSetName,isRttTest)
+        #print()
     print('all experiments finished.')
-
-    autoAnlz.anlz(neSetName,isRttTest)
-
     os.system('killall -9 run.py >/dev/null 2>&1')

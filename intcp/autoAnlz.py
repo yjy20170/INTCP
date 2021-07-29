@@ -148,8 +148,10 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
 def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
     print("entering plotseq")
     #plt.figure(figsize=(5,5),dpi=200)
-    plt.figure(dpi=200)
-    #plt.ylim((0,20))
+    plt.figure(figsize=(8,5),dpi = 320)
+    #plt.figure(dpi=200)
+    plt.ylim((0,20))
+    legend_font = {"family" : "Times New Roman"}
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -164,19 +166,22 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
                 
             if not isRttTest:
                 plt.plot([netEnv.get(keyX) for netEnv in group],
-                            [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=3,linewidth=1)
+                            [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
                 #plt.legend()
             else:
                 drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
                 #plt.legend()
-        plt.legend()
-    plt.xlabel(NetEnv.NetEnv.keyToStr(keyX)) #(keyX.title()+'('+xunit+')')
+        plt.legend(frameon=True,prop=legend_font)
+    plt.xlabel(NetEnv.NetEnv.keyToStr(keyX),family="Times New Roman") #(keyX.title()+'('+xunit+')')
     if isRttTest:
-        plt.ylabel('one way delay(ms)')
+        plt.ylabel('one way delay(ms)'),
         #plt.ylabel('error rate')
     else:
-        plt.ylabel('Bandwidth(Mbps)')
-    plt.title(title)
+        plt.ylabel('Bandwidth(Mbps)',family="Times New Roman")
+    plt.title(title,family="Times New Roman")
+    plt.yticks(fontproperties = 'Times New Roman')
+    plt.xticks(fontproperties = 'Times New Roman')
+    #plt.tight_layout()
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
@@ -278,10 +283,13 @@ def anlz(npsetName,isRttTest=False):
 
 if __name__=='__main__':
 
-    nesetName = 'mot_retran_4'
+    #nesetName = 'mot_rtt_6'
     #nesetName = 'mot_bwVar_8'
     parser = argparse.ArgumentParser()
     parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')
     args = parser.parse_args()
-    anlz(nesetName,args.r)
+    
+    nesetNames = ['mot_rtt_6']
+    for nesetName in nesetNames:
+        anlz(nesetName,args.r)
 
