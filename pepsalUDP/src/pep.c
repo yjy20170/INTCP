@@ -37,7 +37,13 @@
 #include <getopt.h>
 #include <linux/netfilter.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
+
+//TCP
+//#include <netinet/tcp.h>
+//
+//UDP
+#include <netinet/udp.h>
+
 #include <arpa/inet.h>
 #include <net/if.h>
 
@@ -60,7 +66,11 @@
  */
 struct ipv4_packet{
     struct iphdr iph;
-    struct tcphdr tcph;
+    //TCP
+    //struct tcphdr tcph;
+    //
+    //UDP
+    struct udphdr udph;
 };
 
 static int DEBUG = 0;
@@ -497,15 +507,21 @@ static void pep_proxy_data(struct pep_endpoint *from, struct pep_endpoint *to)
     }
 }
 
-static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr)
+//TCP
+//static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr)
+//UDP
+static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr, struct sockaddr_in r_servaddr)
 {
     char *buffer;
     struct ipv4_packet *ip4;
     struct pep_proxy *proxy, *dup;
     struct syntab_key key;
     int id = 0, ret, added = 0;
-    struct sockaddr_in orig_dst;
-    int addrlen = sizeof(orig_dst);
+    //TCP
+    // struct sockaddr_in orig_dst;
+    // int addrlen = sizeof(orig_dst);
+    //UDP
+    //
 
     PEP_DEBUG("Saving new SYN...");
 
@@ -518,19 +534,29 @@ static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr)
         goto err;
     }
 
-    /* Socket is bound to original destination */
-    if(getsockname(sockfd, (struct sockaddr *) &orig_dst, &addrlen) < 0){
-        pep_warning("Failed to get original dest from socket! [%s:%d]",
-                    strerror(errno), errno);
-        ret = -1;
-        goto err;
-    }
+    //TCP
+    // /* Socket is bound to original destination */
+    // if(getsockname(sockfd, (struct sockaddr *) &orig_dst, &addrlen) < 0){
+    //     pep_warning("Failed to get original dest from socket! [%s:%d]",
+    //                 strerror(errno), errno);
+    //     ret = -1;
+    //     goto err;
+    // }
+    //
+    //UDP
+    //
 
     /* Setup source and destination endpoints */
     proxy->src.addr = ntohl(cliaddr.sin_addr.s_addr);
     proxy->src.port = ntohs(cliaddr.sin_port);
-    proxy->dst.addr = ntohl(orig_dst.sin_addr.s_addr);
-    proxy->dst.port = ntohs(orig_dst.sin_port);
+    
+    //TCP
+    // proxy->dst.addr = ntohl(orig_dst.sin_addr.s_addr);
+    // proxy->dst.port = ntohs(orig_dst.sin_port);
+    //
+    proxy->dst.addr = ntohl(r_servaddr.sin_addr.s_addr);
+    proxy->dst.port = ntohs(r_servaddr.sin_port);
+    
     proxy->syn_time = time(NULL);
     syntab_format_key(proxy, &key);
 
@@ -549,6 +575,7 @@ static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr)
     /* add to the table... */
     proxy->status = PST_PENDING;
     ret = syntab_add(proxy);
+
     SYNTAB_UNLOCK_WRITE();
     if (ret < 0) {
         pep_warning("Failed to insert pep_proxy into a hash table!");
@@ -563,6 +590,7 @@ static int save_proxy_from_socket(int sockfd, struct sockaddr_in cliaddr)
         goto err;
     }
 
+
     return ret;
 
 err:
@@ -573,6 +601,7 @@ err:
         unpin_proxy(proxy);
     }
 
+    PEP_DEBUG("save failed!!!");
     return ret;
 }
 
@@ -580,6 +609,7 @@ err:
 void *listener_loop(void UNUSED(*unused))
 {
     int                 listenfd, optval, ret, connfd, out_fd;
+    int                 dataLen;
     struct sockaddr_in  cliaddr, servaddr,
                         r_servaddr;
     socklen_t           len;
@@ -588,10 +618,13 @@ void *listener_loop(void UNUSED(*unused))
     char                ipbuf[17], ipbuf1[17];
     unsigned short      r_port, c_port;
     struct syntab_key   key;
+        
+    //TCP
+    // listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    //
+    //UDP
+    listenfd = socket(AF_INET, SOCK_DGRAM, 0);
     
-    //int tcp_nodelay;
-    
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
         pep_error("Failed to create listener socket!");
     }
@@ -615,28 +648,62 @@ void *listener_loop(void UNUSED(*unused))
                      &optval, sizeof(optval));
     if (ret < 0) {
         pep_error("Failed to set IP_TRANSPARENT option! [RET = %d]", ret);
-    }
+    } 
 
-    /* Set TCP_FASTOPEN socket option */
-    if (fastopen) {
-      optval = 5;
-      ret = setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN,
-                       &optval, sizeof(optval));
-      if (ret < 0) {
-          pep_error("Failed to set TCP_FASTOPEN option! [RET = %d]", ret);
-      }
+    //UDP START
+    /* Make the origin destination address available */
+    ret = setsockopt(listenfd, SOL_IP, IP_RECVORIGDSTADDR,
+                     &optval, sizeof(optval));
+    if (ret < 0) {
+        pep_error("Failed to set IP_RECVORIGDSTADDR option! [RET = %d]", ret);
     }
+    //END UDP
 
+    //TCP
+    // /* Set TCP_FASTOPEN socket option */
+    // if (fastopen) {
+    //     ret = 0;
+    //   optval = 5;
+    //   ret = setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN,
+    //                    &optval, sizeof(optval));
+    //   if (ret < 0) {
+    //       pep_error("Failed to set TCP_FASTOPEN option! [RET = %d]", ret);
+    //   }
+    // }
+    //
+    //UDP
+    //
+    
     ret = bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (ret < 0) {
         pep_error("Failed to bind socket! [RET = %d]", ret);
     }
 
-    ret = listen(listenfd, LISTENER_QUEUE_SIZE);
-    if (ret < 0) {
-        pep_error("Failed to set quesize of listenfd to %d! [RET = %d]",
-                  LISTENER_QUEUE_SIZE, ret);
-    }
+    //TCP
+    // ret = listen(listenfd, LISTENER_QUEUE_SIZE);
+    // if (ret < 0) {
+    //     pep_error("Failed to set quesize of listenfd to %d! [RET = %d]",
+    //               LISTENER_QUEUE_SIZE, ret);
+    // }
+    //
+    //UDP
+    //
+
+    //UDP START
+    unsigned char RecvBuffer[RECV_BUFFER_SIZE];
+    char cmbuf[100];
+
+    struct iovec iov;
+    iov.iov_base = RecvBuffer;
+    iov.iov_len = sizeof(RecvBuffer) - 1;
+    struct msghdr mh;
+    mh.msg_name = &cliaddr;
+    mh.msg_namelen = sizeof(struct sockaddr_in);
+    mh.msg_control = cmbuf;
+    mh.msg_controllen = 100;
+    mh.msg_iovlen = 1;
+    mh.msg_iov = &iov;
+    //END UDP
 
     /* Accept loop */
     PEP_DEBUG("Entering lister main loop...");
@@ -644,13 +711,40 @@ void *listener_loop(void UNUSED(*unused))
         out_fd = -1;
         proxy = NULL;
 
-        len = sizeof(struct sockaddr_in);
-        connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &len);
-        if (connfd < 0) {
-            pep_warning("accept() failed! [Errno: %s, %d]",
-                        strerror(errno), errno);
-            continue;
+        //TCP
+        // len = sizeof(struct sockaddr_in);
+        // connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &len);
+        // if (connfd < 0) {
+        //     pep_warning("accept() failed! [Errno: %s, %d]",
+        //                 strerror(errno), errno);
+        //     continue;
+        // }
+        //
+        //UDP START
+        //
+        // We need to get original dst addr, thus we have to use recvmsg instead of recvfrom.
+        //
+        // len = sizeof(struct sockaddr_in);
+        // int recvLen;
+        // recvLen = recvfrom(listenfd, RecvBuffer, RECV_BUFFER_SIZE, 0, &cliaddr, &len);
+        //
+
+        dataLen = recvmsg(listenfd, &mh, 0);
+
+        for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&mh); cmsg != NULL; cmsg = CMSG_NXTHDR(&mh, cmsg)){
+            if(cmsg->cmsg_level != SOL_IP || cmsg->cmsg_type != IP_ORIGDSTADDR) continue;
+            memcpy(&r_servaddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         }
+
+        // char recvToNums[10000];
+        // recvToNums[0]='\0';
+        // for(int i=0;i<10;i++){
+        //     snprintf(recvToNums+strlen(recvToNums), 6, ",%d\0", RecvBuffer[i]);
+        // }
+        // PEP_DEBUG("Recv UDP packet(len=%d): %s", dataLen, recvToNums);
+
+        //END UDP
+
 
         /*
          * Try to find incomming connection in our SYN table
@@ -659,123 +753,171 @@ void *listener_loop(void UNUSED(*unused))
         key.addr = ntohl(cliaddr.sin_addr.s_addr);
         key.port = ntohs(cliaddr.sin_port);
         toip(ipbuf, key.addr);
-        PEP_DEBUG("New incomming connection: %s:%d", ipbuf, key.port);
+        //TCP
+        // PEP_DEBUG("New incomming connection: %s:%d", ipbuf, key.port);
+        //UDP 
+        //
+        // toip(ipbuf1, ntohl(r_servaddr.sin_addr.s_addr));
+        // PEP_DEBUG("cliaddr: %s r_servaddr: %s", ipbuf, ipbuf1);
 
         SYNTAB_LOCK_READ();
         proxy = syntab_find(&key);
+        SYNTAB_UNLOCK_READ();
+        // PEP_DEBUG("find proxy: %d", !proxy);
 
         /*
          * If the proxy is not in the table, add the entry.
          */
         if (!proxy) {
-            SYNTAB_UNLOCK_READ();
-            save_proxy_from_socket(connfd, cliaddr);
+            
+            //TCP
+            //save_proxy_from_socket(connfd, cliaddr);
+            //UDP
+            save_proxy_from_socket(connfd, cliaddr, r_servaddr);
+
             SYNTAB_LOCK_READ();
             proxy = syntab_find(&key);
-        }
 
-        /*
-         * If still can't find key in the table, there is an error.
-         */
-        if (!proxy) {
-            pep_warning("Can not find the connection in SYN table. "
-                        "Terminating!");
+            /*
+            * If still can't find key in the table, there is an error.
+            */
+            if (!proxy) {
+                pep_warning("Can not find the connection in SYN table. "
+                            "Terminating!");
+                SYNTAB_UNLOCK_READ();
+                goto close_connection;
+            }
+            /*
+            * The proxy we fetched from the SYN table is in PST_PENDING state.
+            * Now we're going to setup connection for it and configure endpoints.
+            * While the proxy is in PST_PENDING state it may be possibly removed
+            * by the garbage connections collector. Collector is invoked every N
+            * seconds and removes from SYN table all pending connections
+            * that were not activated during predefined interval. Thus we have
+            * to pin our proxy to protect ourself from segfault.
+            */
+            pin_proxy(proxy);
+            assert(proxy->status == PST_PENDING);
             SYNTAB_UNLOCK_READ();
-            goto close_connection;
-        }
 
-        /*
-         * The proxy we fetched from the SYN table is in PST_PENDING state.
-         * Now we're going to setup connection for it and configure endpoints.
-         * While the proxy is in PST_PENDING state it may be possibly removed
-         * by the garbage connections collector. Collector is invoked every N
-         * seconds and removes from SYN table all pending connections
-         * that were not activated during predefined interval. Thus we have
-         * to pin our proxy to protect ourself from segfault.
-         */
-        pin_proxy(proxy);
-        assert(proxy->status == PST_PENDING);
-        SYNTAB_UNLOCK_READ();
+            toip(ipbuf, proxy->dst.addr);
+            r_port = proxy->dst.port;
+            PEP_DEBUG("Connecting to %s:%d...", ipbuf, r_port);
+            host = gethostbyname(ipbuf);
+            if (!host) {
+                pep_warning("Failed to get host %s!", ipbuf);
+                goto close_connection;
+            }
 
-        toip(ipbuf, proxy->dst.addr);
-        r_port = proxy->dst.port;
-        PEP_DEBUG("Connecting to %s:%d...", ipbuf, r_port);
-        host = gethostbyname(ipbuf);
-        if (!host) {
-            pep_warning("Failed to get host %s!", ipbuf);
-            goto close_connection;
-        }
+            //TCP
+            //
+            // memset(&r_servaddr, 0, sizeof(r_servaddr));
+            // r_servaddr.sin_family = AF_INET;
+            // r_servaddr.sin_addr.s_addr = ((struct in_addr *)(host->h_addr))->s_addr;
+            // r_servaddr.sin_port = htons(r_port);
+            //
+            //UDP
+            //
 
-        memset(&r_servaddr, 0, sizeof(r_servaddr));
-        r_servaddr.sin_family = AF_INET;
-        r_servaddr.sin_addr.s_addr = ((struct in_addr *)(host->h_addr))->s_addr;
-        r_servaddr.sin_port = htons(r_port);
+            proxy->src.fd = connfd;
+            if (proxy->status == PST_CLOSED) {
+                unpin_proxy(proxy);
+                goto close_connection;
+            }
 
-        ret = socket(AF_INET, SOCK_STREAM, 0);
-        if (ret < 0) {
-            pep_warning("Failed to create socket! [%s:%d]",
-                        strerror(errno), errno);
-            goto close_connection;
-        }
-
-        out_fd = ret;
-        fcntl(out_fd, F_SETFL, O_NONBLOCK);
-
-        /*
-         * Set outbound endpoint to transparent mode
-         * (bind to external address)
-         */
-        ret = setsockopt(out_fd, SOL_TCP,TCP_CONGESTION,out_link_cc,strlen(out_link_cc));
-        if(ret<0){
-            pep_error("Failed to set TCP_CONGESTION option! [RET = %d]", ret);
-        }
-        
-        /***********************************************************/
-        //tcp_nodelay = 1;
-        ret = setsockopt(out_fd, IPPROTO_TCP,TCP_NODELAY,(void*)&tcp_nodelay,sizeof(tcp_nodelay));
-        if(ret<0){
-            pep_error("Failed to set TCP_NODELAY option! [RET = %d]", ret);
-        }
-        
-        /***********************************************************/
-        
-        ret = setsockopt(out_fd, SOL_IP, IP_TRANSPARENT,
-                         &optval, sizeof(optval));
-        if (ret < 0) {
-            pep_error("Failed to set IP_TRANSPARENT option! [RET = %d]", ret);
-        }
-
-        toip(ipbuf, proxy->src.addr);
-        toip(ipbuf1, proxy->dst.addr);
-
-        if (fastopen) {
-          ret = sendto(out_fd, PEPBUF_WPOS(&proxy->src.buf), 0, MSG_FASTOPEN,
-                       (struct sockaddr *)&r_servaddr, sizeof(r_servaddr));
-        }
-        else {
-          ret = connect(out_fd, (struct sockaddr *)&r_servaddr,
-                        sizeof(r_servaddr));
-        }
-        if ((ret < 0) && !nonblocking_err_p(errno)) {
-            pep_warning("Failed to connect! [%s:%d]", strerror(errno), errno);
-            goto close_connection;
-        }
-
-        proxy->src.fd = connfd;
-        proxy->dst.fd = out_fd;
-        if (proxy->status == PST_CLOSED) {
+            proxy->status = PST_CONNECT;
             unpin_proxy(proxy);
-            goto close_connection;
         }
 
-        proxy->status = PST_CONNECT;
-        unpin_proxy(proxy);
-        PEP_DEBUG("Sending signal to poller [%d, %d]!", connfd, out_fd);
-        if (pthread_kill(poller, POLLER_NEWCONN_SIG) != 0) {
-            pep_error("Failed to send %d siganl to poller thread",
-                      POLLER_NEWCONN_SIG);
-        }
 
+        //TCP
+        // ret = socket(AF_INET, SOCK_STREAM, 0);
+        //UDP
+        if(proxy->dst.fd == -1){
+            ret = socket(AF_INET, SOCK_DGRAM, 0);
+
+            if (ret < 0) {
+                pep_warning("Failed to create socket! [%s:%d]",
+                            strerror(errno), errno);
+                goto close_connection;
+            }
+
+            out_fd = ret;
+            fcntl(out_fd, F_SETFL, O_NONBLOCK);
+
+            /*
+            * Set outbound endpoint to transparent mode
+            * (bind to external address)
+            */
+            ret = setsockopt(out_fd, SOL_IP, IP_TRANSPARENT,
+                            &optval, sizeof(optval));
+            if (ret < 0) {
+                pep_error("Failed to set IP_TRANSPARENT option! [RET = %d]", ret);
+            }
+
+            // bind out_fd to cliaddr
+            ret = bind(out_fd, (struct sockaddr *)&cliaddr, sizeof(cliaddr));
+            if (ret < 0) {
+                pep_error("Failed to bind pep-server socket! [RET = %d]", ret);
+            }
+
+            proxy->dst.fd = out_fd;
+        }
+        
+
+
+
+        //TCP
+        // ret = setsockopt(out_fd, SOL_TCP,TCP_CONGESTION,out_link_cc,strlen(out_link_cc));
+        // if(ret<0){
+        //     pep_error("Failed to set TCP_CONGESTION option! [RET = %d]", ret);
+        // }
+        //
+        //
+        // ret = setsockopt(out_fd, IPPROTO_TCP,TCP_NODELAY,(void*)&tcp_nodelay,sizeof(tcp_nodelay));
+        // if(ret<0){
+        //     pep_error("Failed to set TCP_NODELAY option! [RET = %d]", ret);
+        // }
+        //
+        //UDP
+        //
+        
+        
+
+        // toip(ipbuf, proxy->src.addr);
+        // toip(ipbuf1, proxy->dst.addr);
+
+        //TCP
+        //
+        // if (fastopen) {
+        //   ret = sendto(out_fd, PEPBUF_WPOS(&proxy->src.buf), 0, MSG_FASTOPEN,
+        //                (struct sockaddr *)&r_servaddr, sizeof(r_servaddr));
+        // }
+        // else {
+        //   ret = connect(out_fd, (struct sockaddr *)&r_servaddr,
+        //                 sizeof(r_servaddr));
+        // }
+        // if ((ret < 0) && !nonblocking_err_p(errno)) {
+        //     pep_warning("Failed to connect! [%s:%d]", strerror(errno), errno);
+        //     goto close_connection;
+        // }
+        //
+        //UDP
+        //
+
+
+        //TCP
+        //
+        // PEP_DEBUG("Sending signal to poller [%d, %d]!", connfd, out_fd);
+        // if (pthread_kill(poller, POLLER_NEWCONN_SIG) != 0) {
+        //     pep_error("Failed to send %d siganl to poller thread",
+        //               POLLER_NEWCONN_SIG);
+        // }
+        //
+        //UDP
+        // Packets are directly transmitted in listener_loop, so poller is deprecated.
+        ret = sendto (proxy->dst.fd, RecvBuffer, dataLen, 0, &r_servaddr, sizeof(struct sockaddr_in));
+        // PEP_DEBUG("sent packet ret=%d",ret);
         continue;
 
 close_connection:
@@ -1085,16 +1227,20 @@ static void init_pep_threads(void)
         pep_error("Failed to create the listener thread! [RET = %d]", ret);
     }
 
-    PEP_DEBUG("Creating poller thread");
-    ret = pthread_create(&poller, NULL, poller_loop, NULL);
-    if (ret < 0) {
-        pep_error("Failed to create the poller thread! [RET = %d]", ret);
-    }
-    PEP_DEBUG("Creating timer_sch thread");
-    ret = pthread_create(&timer_sch, NULL, timer_sch_loop, NULL);
-    if (ret < 0) {
-        pep_error("Failed to create the timer_sch thread! [RET = %d]", ret);
-    }
+    //TCP
+    // PEP_DEBUG("Creating poller thread");
+    // ret = pthread_create(&poller, NULL, poller_loop, NULL);
+    // if (ret < 0) {
+    //     pep_error("Failed to create the poller thread! [RET = %d]", ret);
+    // }
+    // PEP_DEBUG("Creating timer_sch thread");
+    // ret = pthread_create(&timer_sch, NULL, timer_sch_loop, NULL);
+    // if (ret < 0) {
+    //     pep_error("Failed to create the timer_sch thread! [RET = %d]", ret);
+    // }
+    //
+    //UDP
+    //
 }
 
 static void init_pep_queues(void)
@@ -1149,7 +1295,7 @@ int main(int argc, char *argv[])
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "dvVnhfp:a:C:l:g:t:c:",
+        c = getopt_long(argc, argv, "dvVhfn:p:a:C:l:g:t:c:",
                         long_options, &option_index);
         if (c == -1)
             break;
@@ -1177,7 +1323,7 @@ int main(int argc, char *argv[])
                 strncpy(out_link_cc, optarg, 19);
                 break;
             case 'n':
-                tcp_nodelay = 1;
+                tcp_nodelay = atoi(optarg);
                 break;
             case 'l':
                 logger.filename = optarg;
@@ -1216,28 +1362,28 @@ int main(int argc, char *argv[])
         pep_error("Failed to initialize SYN table!");
     }
 
-    poll_resources.num_pollfds = numfds = max_conns * 2;
-    poll_resources.pollfds = calloc(numfds, sizeof(struct pollfd));
-    if (!poll_resources.pollfds) {
-        pep_error("Failed to allocate %zd bytes for pollfds array!",
-                  numfds * sizeof(struct pollfd));
-    }
+    // poll_resources.num_pollfds = numfds = max_conns * 2;
+    // poll_resources.pollfds = calloc(numfds, sizeof(struct pollfd));
+    // if (!poll_resources.pollfds) {
+    //     pep_error("Failed to allocate %zd bytes for pollfds array!",
+    //               numfds * sizeof(struct pollfd));
+    // }
 
-    poll_resources.endpoints = calloc(numfds, sizeof(struct pep_endpoint *));
-    if (!poll_resources.endpoints) {
-        free(poll_resources.pollfds);
-        pep_error("Failed to allocate %zd bytes for pdescrs array!",
-                  numfds * sizeof(struct pep_endpoint *));
-    }
+    // poll_resources.endpoints = calloc(numfds, sizeof(struct pep_endpoint *));
+    // if (!poll_resources.endpoints) {
+    //     free(poll_resources.pollfds);
+    //     pep_error("Failed to allocate %zd bytes for pdescrs array!",
+    //               numfds * sizeof(struct pep_endpoint *));
+    // }
 
-    sigemptyset(&sigset);
-    sigaddset(&sigset, POLLER_NEWCONN_SIG);
-    sigaddset(&sigset, SIGPIPE);
-    sigprocmask(SIG_BLOCK, &sigset, NULL);
+    // sigemptyset(&sigset);
+    // sigaddset(&sigset, POLLER_NEWCONN_SIG);
+    // sigaddset(&sigset, SIGPIPE);
+    // sigprocmask(SIG_BLOCK, &sigset, NULL);
 
-    init_pep_queues();
+    // init_pep_queues();
     init_pep_threads();
-    create_threads_pool(PEPPOOL_THREADS);
+    // create_threads_pool(PEPPOOL_THREADS);
 
     PEP_DEBUG("Pepsal started...");
     pthread_join(listener, &valptr);

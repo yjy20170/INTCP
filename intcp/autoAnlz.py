@@ -95,7 +95,7 @@ def getPlotParam(group,isRttTest=False):
             color = 'royalblue'
         else:
             color = 'g'
-            
+
         if group[0].pepCC == 'nopep':
             marker = 'x'
             linestyle = '--'
@@ -110,7 +110,7 @@ def getPlotParam(group,isRttTest=False):
         marker = 's'
         linestyle = '-'
     return color,marker,linestyle
-    
+
 def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
     if mode==1:
         x=[]
@@ -120,14 +120,14 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
             x += cnt*[netEnv.get(keyX)]
             y += result[netEnv]
         #sns.regplot(x=x,y=y,scatter_kws={'s':10},line_kws={'linewidth':1,'label':label},ci=95,x_estimator=np.mean)
-        sns.regplot(x=x,y=y,scatter_kws={'s':2,'color':color,},line_kws={'linewidth':1,'label':label,'color':color},ci=95)    
-    
+        sns.regplot(x=x,y=y,scatter_kws={'s':2,'color':color,},line_kws={'linewidth':1,'label':label,'color':color},ci=95)
+
     elif mode==2:
         x = []
         y_mean=[]
         y_lower = []
         y_upper = []
-        
+
         for netEnv in group:
             y = result[netEnv]
             if len(y)==0:
@@ -140,11 +140,11 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
             y_lower.append(cur_y_lower)
             y_upper.append(cur_y_upper)
             plt.plot([cur_x,cur_x],[cur_y_lower,cur_y_upper],color=color)
-            
+
         plt.plot(x,y_mean,label=label,color=color,marker=marker)
         plt.fill_between(x,y_mean,y_lower,color=color,alpha=alpha)
         plt.fill_between(x,y_mean,y_upper,color=color,alpha=alpha)
-        
+
 def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
     print("entering plotseq")
     #plt.figure(figsize=(5,5),dpi=200)
@@ -161,9 +161,9 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
             print(len(group))
             for netEnv in group:
                 print(netEnv.get(keyX),result[netEnv])
-                
+
             color,marker,linestyle = getPlotParam(group,isRttTest)
-                
+
             if not isRttTest:
                 plt.plot([netEnv.get(keyX) for netEnv in group],
                             [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
@@ -213,8 +213,6 @@ def plotByGroup(resultPath, mapNeToResult, keyX, curveDiffSegs=[], plotDiffSegs=
     print('curves num:',len(curves))
     for curve in curves:
        print('points in curve:',len(curve))
-    # TODO
-    # automatically find the difference between these pointGroups
 
     curveGroups = []
     for curve in curves:
@@ -284,11 +282,12 @@ def anlz(npsetName,isRttTest=False):
 if __name__=='__main__':
 
     #nesetName = 'mot_rtt_6'
+    nesetName = 'mot_rtt_6_test'
     #nesetName = 'mot_bwVar_8'
     parser = argparse.ArgumentParser()
     parser.add_argument('--r', action='store_const', const=True, default=False, help='rtt test')
     args = parser.parse_args()
-    
+
     nesetNames = ['mot_rtt_6']
     for nesetName in nesetNames:
         anlz(nesetName,args.r)

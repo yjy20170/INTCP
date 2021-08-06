@@ -25,7 +25,7 @@ def recvFunc(tcp_socket,limit):
     lastIdx = 0
     while 1:
         data = recv_data_generator.__next__()
-        
+
         curTime = Utils.getStrTime()
         owd_c2s = Utils.timeDelta(data[8:16], data[0:8])
         owd_s2c = Utils.timeDelta(curTime, data[8:16])
@@ -57,7 +57,7 @@ if __name__=='__main__':
     # create socket
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
-    
+
     server_addr = ("10.0.2.1", 3000)
     #server_addr = ("127.0.0.1", 3000)
     tcp_socket.connect(server_addr)
@@ -70,4 +70,3 @@ if __name__=='__main__':
     sendThread.join()
     recvThread.join()
     tcp_socket.close()
-

@@ -2,14 +2,30 @@
 cd `dirname $0`
 # set iptables and start pepsal with hybla
 
+[ -r ../my.conf ] && . ../my.conf
+
+SILENT=">/dev/null 2>&1"
+
+CCA=""
+LOG=""
+while getopts "vC:" opt
+do
+    case $opt in
+        v)
+        LOG="-v"
+        SILENT=""
+        ;;
+        C)
+        CCA="-C $OPTARG"
+        ;;
+        ?)
+        echo "Unknown opt"
+        exit 1;;
+    esac
+done
+
 #echo "setting iptables..."
 ./setipt
 
 #echo "starting pepsal..."
-#../pepsal/src/pepsal  -C $1 > ../logs/pep.txt
-#../pepsal/src/pepsal  -v -C $1
-if [ $# -eq 1 ];then
-    ../pepsal/src/pepsal -C $1 >/dev/null 2>&1
-else
-    ../pepsal/src/pepsal -n -C $1 >/dev/null 2>&1
-fi
+../pepsal${PROTOCOL}/src/pepsal -n ${PEP_TCP_NODELAY} ${CCA} ${LOG} ${SILENT}
