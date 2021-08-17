@@ -150,8 +150,11 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
     #plt.figure(figsize=(5,5),dpi=200)
     plt.figure(figsize=(8,5),dpi = 320)
     #plt.figure(dpi=200)
-    plt.ylim((0,20))
-    legend_font = {"family" : "Times New Roman"}
+    if not isRttTest:
+        plt.ylim((0,20))
+    else:
+        plt.ylim((0,1000))
+    legend_font = {"family" : "Times New Roman",'size':12}
     if len(groups)==1:
         group = groups[0]
         plt.plot([netEnv.get(keyX) for netEnv in group],
@@ -172,15 +175,15 @@ def plotSeq(resultPath, result, keyX, groups, title, legends=[],isRttTest=False)
                 drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
                 #plt.legend()
         plt.legend(frameon=True,prop=legend_font)
-    plt.xlabel(NetEnv.NetEnv.keyToStr(keyX),family="Times New Roman") #(keyX.title()+'('+xunit+')')
+    plt.xlabel(NetEnv.NetEnv.keyToStr(keyX),family="Times New Roman",size=12) #(keyX.title()+'('+xunit+')')
     if isRttTest:
-        plt.ylabel('one way delay(ms)'),
+        plt.ylabel('one way delay(ms)',family="Times New Roman",size=12),
         #plt.ylabel('error rate')
     else:
-        plt.ylabel('Bandwidth(Mbps)',family="Times New Roman")
-    plt.title(title,family="Times New Roman")
-    plt.yticks(fontproperties = 'Times New Roman')
-    plt.xticks(fontproperties = 'Times New Roman')
+        plt.ylabel('Bandwidth(Mbps)',family="Times New Roman",size=12)
+    plt.title(title,family="Times New Roman",size=15)
+    plt.yticks(fontproperties = 'Times New Roman',size=12)
+    plt.xticks(fontproperties = 'Times New Roman',size=12)
     #plt.tight_layout()
     plt.savefig('%s/%s.png' % (resultPath, title))
     return

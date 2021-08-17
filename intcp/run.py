@@ -70,7 +70,7 @@ def mngo(netEnv, isManual, isRttTest, logPath):
 if __name__=='__main__':
 
 
-    neSetNames = ['expr','expr2']#"mot_itm_test"
+    neSetNames = ['expr']#"mot_itm_test"
     isManual = getArgsFromCli().m
     isRttTest = getArgsFromCli().r
     

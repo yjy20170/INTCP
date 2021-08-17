@@ -174,7 +174,7 @@ def RttTest(mn, netEnv, logFolderPath):
         atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' 1 &')
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
-    atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py &')
+    atomic(mn.getNodeByName('h2').cmd)('python3 ../tcp_test/server.py &')
     
     #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(netEnv.rttTestPacket,netEnv.rttTotal))
     if netEnv.pepCC=="nopep":
@@ -182,6 +182,6 @@ def RttTest(mn, netEnv, logFolderPath):
     else:
         limit = netEnv.rttSat+0.5*netEnv.rttTotal
         
-    atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -l %f > %s &'%(limit,logFilePath))
+    atomic(mn.getNodeByName('h1').cmd)('python3 ../tcp_test/client.py -l %f > %s &'%(limit,logFilePath))
     time.sleep(netEnv.sendTime)
     #time.sleep(netEnv.rttTestPacket*netEnv.rttTotal/1000+10)

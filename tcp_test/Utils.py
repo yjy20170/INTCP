@@ -1,5 +1,7 @@
+#!/usr/bin/python
 import time
 from decimal import Decimal
+
 
 # Unit: xxx.xxxx sec
 def getStrTime():
@@ -32,3 +34,4 @@ def recvData(recv):
             del subStrs[-1]
         for ss in subStrs:
             yield ss
+
