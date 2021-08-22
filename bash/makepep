@@ -2,9 +2,29 @@
 cd `dirname $0`
 # auto generate binary file "src/pepsal"
 
-cd ../pepsal
-./autogen.sh
-make
-make install
+
+[ -r ../my.conf ] && . ../my.conf
+
+cd ../pepsal${PROTOCOL}
+LIGHT=0
+while getopts "l" opt
+do
+    case $opt in
+        l)
+        LIGHT=1
+        ;;
+        ?)
+        echo "Unknown opt"
+        exit 1;;
+    esac
+done
+
+if [[ $LIGHT -eq 0 ]]
+then
+    sudo ./autogen.sh
+fi
+
+sudo make
+sudo make install
 echo "finished."
 ls src/pepsal -l

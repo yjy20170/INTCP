@@ -171,7 +171,7 @@ def RttTest(mn, netEnv, logFolderPath):
     delFile(logFilePath)
     
     if netEnv.pepCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+netEnv.pepCC+' 1 &')
+        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+netEnv.pepCC+' &')
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(netEnv.rttTestPacket,netEnv.rttTotal,logFilePath))
     atomic(mn.getNodeByName('h2').cmd)('python3 ../tcp_test/server.py &')

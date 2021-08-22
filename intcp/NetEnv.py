@@ -136,6 +136,7 @@ def getNetEnvSet(nesetName):
     neSet = None
 
     if nesetName == "expr":
+
         neSet = NetEnvSet(nesetName, NetEnv(loss=0,sendTime=30,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
         #rttSats = [20,50,100,200,300]
         rttSats = [100]
@@ -143,7 +144,7 @@ def getNetEnvSet(nesetName):
             
             #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
             neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep'])
-    if nesetName == "expr2":
+    elif nesetName == "expr2":
         neSet = NetEnvSet(nesetName, NetEnv(loss=5,sendTime=30,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","pepCC"])
         #rttSats = [20,50,100,200,300]
         rttSats = [200]
@@ -151,6 +152,7 @@ def getNetEnvSet(nesetName):
             
             #neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="cubic",pepCC=['nopep','cubic'])
             neSet.add(rttSat=rttSat,rttTotal=rttSat+50,e2eCC="hybla",pepCC=['nopep'])
+
 
 
     #1.1
