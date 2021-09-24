@@ -1,4 +1,4 @@
 *.pyc
-.idea/
-logs/
-result/
+.*/
+autoTest/result/
+autoTest/logs/
