@@ -31,6 +31,7 @@ def createNet(testParam):
         topo.addLink(s4,pep2)
         topo.addLink(pep2,s2)
         topo.addLink(s2,h2)
+        
     elif testParam.absTopoParam.name=="net_hmh":
         router = 'pep'
         topo.addNode(router, cls=TbNode)
@@ -67,10 +68,44 @@ def createNet(testParam):
 
     mn = Mininet(topo)
     mn.start()
-    onNetCreated(topo, testParam)
+    onNetCreated(mn, testParam)
 
     return mn
     
 # execute commands to further configure the network
-def onNetCreated(topo, testParam):
-    return
+def onNetCreated(mn, testParam):
+    if testParam.absTopoParam.name=="net_hmmh":
+        pep1 = mn.getNodeByName('pep1')
+        pep2 = mn.getNodeByName('pep2')
+        h1 = mn.getNodeByName('h1')
+        h2 = mn.getNodeByName('h2')
+        sat = mn.getNodeByName('sat')
+
+        ### for those nodes which connects to n>=2 networks, add n-1 ip here
+
+        pep1.cmd('ifconfig pep1-eth1 10.0.3.1 netmask 255.255.255.0')
+
+        sat.cmd('ifconfig sat-eth1 10.0.4.90 netmask 255.255.255.0')
+
+        pep2.cmd('ifconfig pep2-eth1 10.0.2.90 netmask 255.255.255.0')
+
+        ### how to forward while receiving a packet
+
+        h1.cmd('route add default gw 10.0.1.90')
+
+        pep1.cmd('route add default gw 10.0.3.90')
+
+        sat.cmd('route add -net 10.0.1.0 netmask 255.255.255.0 gw 10.0.3.1')
+        sat.cmd('route add default gw 10.0.4.1')
+
+        pep2.cmd('route add default gw 10.0.4.90')
+
+        h2.cmd('route add default gw 10.0.2.90')
+
+        ###
+
+        pep1.cmd('sysctl net.ipv4.ip_forward=1')
+        sat.cmd('sysctl net.ipv4.ip_forward=1')
+        pep2.cmd('sysctl net.ipv4.ip_forward=1') 
+    else:
+        return

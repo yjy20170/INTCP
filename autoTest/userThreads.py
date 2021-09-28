@@ -7,6 +7,7 @@ from FileUtils import delFile
 threads = []
 
 def threadFunc(cls):
+    print('123')
     def wrapper(func):
         name = func.__name__ + 'Thread'
         def wrapped(*args, **kw):
@@ -16,7 +17,7 @@ def threadFunc(cls):
             return ret
         # global FuncsDict
         # FuncsDict[func.__name__] = wrapper
-        threads.append(cls(func,name=name))
+        #threads.append(cls(func,name=name))
         return wrapped
     return wrapper
 

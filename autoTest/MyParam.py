@@ -34,6 +34,7 @@ def getTestParamSet(tpsetName):
     if tpsetName == "expr":
         absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
         appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=10,sendRound=1)
+        
         linkParams = {
                 'h1-pep':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
                 'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0)
@@ -43,7 +44,7 @@ def getTestParamSet(tpsetName):
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['e2eCC'],keysPlotDiff=[])
 
         tpSet.add({
-            'pep-h2.rtt':[100]
+            'pep-h2.rtt':[100,200]
         })
         return tpSet
 

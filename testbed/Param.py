@@ -120,7 +120,7 @@ class LinkParam(Param):
 class AbsTopoParam(Param):
     Keys = ['name',
             'nodes',
-            'links', 
+            'links'
     ]
     SegDefault = {'name':'xxx',
     }

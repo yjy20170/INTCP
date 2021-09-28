@@ -16,7 +16,7 @@ def getArgsFromCli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--m', action='store_const', const=True, default=False, help='enter command line interface(run auto experiment by default)')
-    # parser.add_argument('--r', action='store_const', const=True, default=False, help='enter rtt test')
+    parser.add_argument('--r', action='store_const', const=True, default=False, help='enter rtt test')
     parser.add_argument('--a', action='store_const', const=True, default=False, help='only run analyzing program')
     args = parser.parse_args()
     return args
@@ -33,7 +33,7 @@ if __name__=='__main__':
 
     isAnlz = getArgsFromCli().a
     isManual = getArgsFromCli().m
-    # isRttTest = getArgsFromCli().r
+    isRttTest = getArgsFromCli().r
 
     for sno,tpSetName in enumerate(tpSetNames):
         print('\nStart NetEnvSet (%d/%d)' % (sno+1,len(tpSetNames)))

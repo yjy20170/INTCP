@@ -15,7 +15,9 @@ def run(testParam, logPath):
 
     mn = RealNetwork.createNet(testParam)
 
-    threads = testParam.appParam.threads+linkDnmcThreads.threads
+    #threads = testParam.appParam.threads+linkDnmcThreads.threads
+    threads = testParam.appParam.threads
+    
     TbThread.smartStart(threads, (mn, testParam, logPath,) )
 
     if testParam.appParam.isManual:
