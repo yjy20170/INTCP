@@ -22,20 +22,29 @@ def threadFunc(cls):
 
 @threadFunc(NormalThread)
 def Init(mn, testParam, logPath):
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
-    h2 = mn.getNodeByName('h2')
-    #DEBUG
-    intf = pep.connectionsTo(s2)[0][0]
-    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(testParam.appParam.txqueuelen))
-    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(testParam.appParam.txqueuelen))
+    for l in testParam.linkParams:
+        nameA,nameB = l.split('-')
+        nodeA = mn.getNodeByName(nameA)
+        switch = mn.getNodeByName(l)
+        nodeB = mn.getNodeByName(nameB)
 
+        intf = nodeA.connectionsTo(switch)[0][0]
+        atomic(nodeA.cmd)("ifconfig %s txqueuelen %d"%(l,testParam.appParam.txqueuelen))
+        atomic(nodeA.cmd)("ifconfig %s txqueuelen %d"%(l,testParam.appParam.txqueuelen))
 
-    # tc -s -d qdisc show dev pep-eth2
-    # print(testParam.max_queue_size)
-    cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
-    for cmd in cmds:
-        atomic(intf.tc)(cmd)
+        # tc -s -d qdisc show dev pep-eth2
+        # print(testParam.max_queue_size)
+        cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
+        for cmd in cmds:
+            atomic(intf.tc)(cmd)
+
+        intf = nodeB.connectionsTo(switch)[0][0]
+        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+'-'+nameA,testParam.appParam.txqueuelen))
+        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+'-'+nameA,testParam.appParam.txqueuelen))
+
+        cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
+        for cmd in cmds:
+            atomic(intf.tc)(cmd)
 
 @threadFunc(LatchThread)
 def Iperf(mn, testParam, logPath):

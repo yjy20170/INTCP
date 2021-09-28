@@ -22,6 +22,7 @@ def threadFunc(cls):
     return wrapper
 
 ### thread for dynamic link params control
+#TODO K for each link? or independent thread for each link?
 K = 0
 def generateBw(policy, meanbw,varbw, prd=10):
     if policy=='random':
@@ -40,11 +41,6 @@ def generateBw(policy, meanbw,varbw, prd=10):
     
 @threadFunc(NormalThread)
 def LinkUpdate(mn, testParam, logPath):
-    if testParam.linkParams['pep-h2'].varBw <= 0:
-        return
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
-    h2 = mn.getNodeByName('h2')
     
     #TODO we should make sure thar the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
@@ -62,52 +58,65 @@ def LinkUpdate(mn, testParam, logPath):
 
     global K
     K = 1
-
+    linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].varBw > 0]
+    if linkNames == []:
+        return
     while LatchThread.isRunning():
-        if testParam.linkParams['pep-h2'].varMethod in ['squareHighPulse', 'squareLowPulse']:
+        for linkName in linkNames:
+            nameA,nameB = linkName.split('-')
+            nodeA = mn.getNodeByName(nameA)
+            switch = mn.getNodeByName(linkName)
+            nodeB = mn.getNodeByName(nameB)
+            # if testParam.linkParams[linkName].varMethod in ['squareHighPulse', 'squareLowPulse']:
+            #     # newBw = generateBw('random',testParam.bw,testParam.varBw)
+            #     newBw = generateBw('square', testParam.linkParams[linkName].bw, testParam.linkParams[linkName].varBw)
+            #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+            #         config(intf, bw=newBw)
+            #     if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
+            #         time.sleep(5)
+            #     else:
+            #         time.sleep(testParam.linkParams['pep-h2'].varIntv)
 
-            # newBw = generateBw('random',testParam.bw,testParam.varBw)
-            newBw = generateBw('square', testParam.linkParams['pep-h2'].bw, testParam.linkParams['pep-h2'].varBw)
-            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
-                config(intf, bw=newBw)
-            if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
-                time.sleep(5)
-            else:
-                time.sleep(testParam.linkParams['pep-h2'].varIntv)
-
-            # newBw = generateBw('random',testParam.bw,testParam.varBw)
-            newBw = generateBw('square', testParam.linkParams['pep-h2'].bw, testParam.linkParams['pep-h2'].varBw)
-            for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
-                config(intf, bw=newBw)
-            if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
-                time.sleep(testParam.linkParams['pep-h2'].varIntv)
-            else:
-                time.sleep(5)
-        else:
-            #newBw = generateBw('random',testParam.bw,testParam.varBw)
-            newBw = generateBw(testParam.linkParams['pep-h2'].varMethod, testParam.linkParams['pep-h2'].bw, testParam.linkParams['pep-h2'].varBw)
-            for intf in (s2.connectionsTo(pep)[0]+s2.connectionsTo(h2)[0]):
+            #     # newBw = generateBw('random',testParam.bw,testParam.varBw)
+            #     newBw = generateBw('square', testParam.linkParams['pep-h2'].bw, testParam.linkParams['pep-h2'].varBw)
+            #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
+            #         config(intf, bw=newBw)
+            #     if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
+            #         time.sleep(testParam.linkParams['pep-h2'].varIntv)
+            #     else:
+            #         time.sleep(5)
+            # else:
+            newBw = generateBw(testParam.linkParams[linkName].varMethod, testParam.linkParams[linkName].bw, testParam.linkParams[linkName].varBw)
+            for intf in (nodeA.connectionsTo(switch)[0]+
+                    switch.connectionsTo(nodeA)[0]+
+                    switch.connectionsTo(nodeB)[0]+
+                    nodeB.connectionsTo(switch)[0]):
                 config(intf,bw=newBw)
-            time.sleep(testParam.linkParams['pep-h2'].varIntv)
-
+        # linkName is the name of last link in linkNames
+        time.sleep(testParam.linkParams[linkName].varIntv)
 
 ### thread for dynamic link up/down control
+#TODO one thread per link?
 @threadFunc(NormalThread)
 def MakeItm(mn, testParam, logPath):
-    if testParam.linkParams['pep-h2'].itmDown <= 0:
+    linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].itmDown > 0]
+    if linkNames == []:
         return
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
     while LatchThread.isRunning():
-        time.sleep(testParam.linkParams['pep-h2'].itmTotal-testParam.linkParams['pep-h2'].itmDown)
-        atomic(s2.cmd)('echo a')
-        atomic(pep.cmd)('echo a')
-        atomic(mn.configLinkStatus)('s2','pep','down')
-        
-        time.sleep(testParam.linkParams['pep-h2'].itmDown)
-        atomic(s2.cmd)('echo a')
-        atomic(pep.cmd)('echo a')
-        atomic(mn.configLinkStatus)('s2','pep','up')
+        time.sleep(testParam.linkParams[linkNames[-1]].itmTotal-testParam.linkParams[linkNames[-1]].itmDown)
+        for l in linkNames:
+            nameA,nameB = l.split('-')
+            atomic(mn.getNodeByName(nameA).cmd)('echo')
+            atomic(mn.configLinkStatus)(nameA,l,'down')
+            atomic(mn.getNodeByName(nameB).cmd)('echo')
+            atomic(mn.configLinkStatus)(nameB,l,'down')
+        time.sleep(testParam.linkParams[linkNames[-1]].itmDown)
+        for l in linkNames:
+            nameA,nameB = l.split('-')
+            atomic(mn.getNodeByName(nameA).cmd)('echo')
+            atomic(mn.configLinkStatus)(nameA,l,'up')
+            atomic(mn.getNodeByName(nameB).cmd)('echo')
+            atomic(mn.configLinkStatus)(nameB,l,'up')
 
-        # if changing s2 - h2
-        # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')
+            # if changing s2 - h2
+            # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')
