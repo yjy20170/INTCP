@@ -263,6 +263,7 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
 
 
 def drawCDF(tpSet, mapNeToResult, resultPath):
+    plt.figure(figsize=(8,5),dpi = 320)
     x_min = -1
     x_max = -1
     for tp in tpSet.testParams:
@@ -290,8 +291,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath):
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
     plt.legend(legends)
+    plt.title(title)
+    plt.xlabel('one way delay(ms)',size=12)
     plt.savefig('%s/%s.png' % (resultPath, title))
-    plt.show()
+    #plt.show()
     
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])

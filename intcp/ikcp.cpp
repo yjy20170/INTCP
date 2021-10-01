@@ -1,6 +1,6 @@
 #include "./include/ikcp.h"
 #undef LOG_LEVEL
-#define LOG_LEVEL TRACE
+#define LOG_LEVEL SILENT
 
 
 //EXPR

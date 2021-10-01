@@ -15,7 +15,7 @@ def sendFunc(tcp_socket):
         strPadded = Utils.padStr(strTime, 16)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
-        time.sleep(0.01)
+        time.sleep(0.05)
 
 def recvFunc(tcp_socket,limit):
     prev_owd_c2s = 0

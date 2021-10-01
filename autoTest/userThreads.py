@@ -107,10 +107,12 @@ def RttTest(mn, testParam, logPath):
         if testParam.appParam.midCC != 'nopep':
             if testParam.absTopoParam.name=="net_hmh":
                 atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm &')
+                #atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"mid"))
             elif testParam.absTopoParam.name=="net_hmmh":
                 atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm &')
                 atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm &')
-        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %ss &'%(logFilePath))
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"server"))
+        #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))
         time.sleep(testParam.appParam.sendTime)
         return
