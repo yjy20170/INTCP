@@ -32,9 +32,9 @@ def recvFunc(tcp_socket,limit):
         rtt = Utils.timeDelta(curTime, data[0:8])
         #if float(owd_c2s)>net_rtt and prev_owd_c2s<net_rtt:
         #if True:
-        if float(owd_c2s)>limit and prev_owd_c2s<limit:
-        #if float(owd_c2s)>limit:
-            print(data[8:16],'idx', idxPkt, 'owd_c2s', owd_c2s,'owd_s2c',owd_s2c,'rtt', rtt,flush=True)
+        #if float(owd_c2s)>limit and prev_owd_c2s<limit:
+        if float(owd_c2s)>limit:
+            print(data[8:16],'idx', idxPkt, 'owd_c2s', owd_c2s,'owd_s2c',owd_s2c,'rtt', rtt,'owd_obs',owd_c2s,flush=True)
         if len(data) != 16:
             print(idxPkt, data)
             print()

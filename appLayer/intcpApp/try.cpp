@@ -4,20 +4,40 @@ appLayer/in*App/try
 */
 
 #include <iostream>
-#include <list>
+#include <stack>
+#include <vector>
 using namespace std;
-#define A 1
-#define ppp(a) cout<<A<<' '<<a<<endl;
-void aaa(){
-    ppp("aaa");
+bool IsPopOrder(vector<int> pushV,vector<int> popV) {
+    stack<int> stk;
+    int i = 0;
+    int idx = 0;
+    for(;i < pushV.size();i++){
+        cout<<"入栈 "<<pushV[i]<<endl;
+        if(pushV[i] == popV[idx]){
+        	cout<<"出栈 "<<popV[idx]<<endl;
+            idx++;
+            while(!stk.empty() &&stk.top()==popV[idx]){
+        	    cout<<"出栈 "<<popV[idx]<<endl;
+                idx++;
+                stk.pop();
+            }
+        }else{
+            stk.push(pushV[i]);
+        }
+    }
+    if(stk.empty()) return true;
+    return false;
+	
 }
-#define A 2
-void bbb(){
-    ppp("bbb");
-}
-
 int main(){
-    ppp("hh");
-    aaa();
-    bbb();
+    vector<int> pushV, popV;
+    for(int i=0;i<5;i++){
+        pushV.push_back(i);
+    }
+    popV.push_back(2);
+    popV.push_back(1);
+    popV.push_back(4);
+    popV.push_back(0);
+    popV.push_back(3);
+    cout<<IsPopOrder(pushV,popV)<<endl;
 }

@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import time
 import matplotlib.pyplot as plt
 import os
@@ -7,9 +9,12 @@ import argparse
 import seaborn as sns
 import numpy as np 
 from scipy.stats import scoreatpercentile
+import statsmodels.api as sm
 
-
+sys.path.append(os.path.dirname(os.sys.path[0]))
 from FileUtils import createFolder, fixOwnership, writeText
+import MyParam
+
 
 plt.rc('font',family='Times New Roman')
 # plt.rcParams['font.sans-serif'] = 'Times New Roman'
@@ -53,35 +58,45 @@ def loadLog(logPath, tpSet, isDetail=False):
                         print(num)
             else:
                 print("load rtt log")
-                rttTotal = tp.rttTotal
-                total_packets = 0
-                retran_packets = 0
-                if tp.midCC=="nopep":
-                    threhold = 1.5*tp.rttTotal
-                else:
-                    threhold = tp.rttSat+0.5*tp.rttTotal
+                #rttTotal = tp.rttTotal
+                #total_packets = 0
+                #retran_packets = 0
+                #if tp.midCC=="nopep":
+                #    threhold = 1.5*tp.rttTotal
+                #else:
+                #    threhold = tp.rttSat+0.5*tp.rttTotal
                 for line in lines:
+                    if "owd_obs" in line:
+                        pos = line.find("owd_obs")
+                        try:
+                            num = float(line[pos+8:])
+                            thrps.append(num)
+                        except:
+                            continue
+                    '''
                     total_packets += 1
                     if "owd_c2s" in line:
                         pos1 = line.find("owd_c2s")
                         pos2 = line.find("owd_s2c")
                         num = float(line[pos1+8:pos2])
-                        #thrps.append(num)
+                        thrps.append(num)
                         if num>threhold:
                             thrps.append(num)
                             print(num)
-                        #pos = line.find("deltaTime")
-                        #num = float(line[pos+10:-3])
-                        #if(num>rttTotal):
-                        #    retran_packets += 1
-                        #    thrps.append(num)
-                        #    print(num)
+                        pos = line.find("deltaTime")
+                        num = float(line[pos+10:-3])
+                        if(num>rttTotal):
+                            retran_packets += 1
+                            thrps.append(num)
+                            print(num)
+                    '''
                 #thrps.append(retran_packets/total_packets)
         if isDetail or tpSet.tpTemplate.appParam.isRttTest:
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-        
+    #for k in result:
+    #    print(k,result[k][:5])    
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -247,7 +262,37 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
         plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
 
 
-
+def drawCDF(tpSet, mapNeToResult, resultPath):
+    x_min = -1
+    x_max = -1
+    for tp in tpSet.testParams:
+        if len(mapNeToResult[tp])>0:
+            cur_min = min(mapNeToResult[tp])
+            cur_max = max(mapNeToResult[tp])
+            if x_min == -1:
+                x_min = cur_min
+            else:
+                x_min = min(cur_min,x_min)
+            if x_max == -1:
+                x_max = cur_max
+            else:
+                x_max = max(cur_max,x_max)
+    x = np.linspace(x_min,x_max)
+    keys = tpSet.keysCurveDiff
+    legends = []
+    for tp in tpSet.testParams:
+        #print(tp,len(mapNeToResult[tp]))
+        if len(mapNeToResult[tp]) >0:
+            ecdf = sm.distributions.ECDF(mapNeToResult[tp])
+            y = ecdf(x)
+            plt.step(x,y)
+            #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
+            legends.append(' '.join([tp.segToStr(key) for key in keys]))
+    title = 'cdf'
+    plt.legend(legends)
+    plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.show()
+    
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
     mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
@@ -256,12 +301,28 @@ def anlz(tpSet, logPath, resultPath):
 
     #mapNeToResult = loadLog(logPath, neSet, isDetail=False)
     print('-----')
-    plotByGroup(tpSet, mapTpToResult, resultPath)
+    #plotByGroup(tpSet, mapTpToResult, resultPath)
     if not tpSet.tpTemplate.appParam.isRttTest:
         print('-----')
+        plotByGroup(tpSet, mapTpToResult, resultPath)
         summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
         print(summaryString)
         writeText('%s/summary.txt'%(resultPath), summaryString)
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
-
+    else:
+        print('entering rtt analyse')
+        drawCDF(tpSet,mapTpToResult,resultPath)
     fixOwnership(resultPath,'r')
+
+"""
+if __name__=='__main__':
+    tpSetNames = ['expr']
+    for sno,tpSetName in enumerate(tpSetNames):
+        print('Analyzing NetEnvSet (%d/%d)\n' % (sno+1,len(tpSetNames)))
+        tpSet = MyParam.getTestParamSet(tpSetName)
+        # netTopo = NetTopo.netTopos[neSet.neTemplate.netName]
+
+        logPath = '%s/%s' % ('./logs', tpSetName)
+        resultPath = '%s/%s' % ('./result', tpSetName)
+        anlz(tpSet, logPath, resultPath)
+"""

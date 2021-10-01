@@ -7,7 +7,7 @@ from FileUtils import delFile
 threads = []
 
 def threadFunc(cls):
-    print('123')
+    #print('123')
     def wrapper(func):
         name = func.__name__ + 'Thread'
         def wrapped(*args, **kw):
@@ -17,28 +17,37 @@ def threadFunc(cls):
             return ret
         # global FuncsDict
         # FuncsDict[func.__name__] = wrapper
-        #threads.append(cls(func,name=name))
+        threads.append(cls(func,name=name))
         return wrapped
     return wrapper
 
-@threadFunc(NormalThread)
+#@threadFunc(NormalThread)
 def Init(mn, testParam, logPath):
-    s2 = mn.getNodeByName('s2')
-    pep = mn.getNodeByName('pep')
-    h2 = mn.getNodeByName('h2')
-    #DEBUG
-    intf = pep.connectionsTo(s2)[0][0]
-    atomic(pep.cmd)("ifconfig pep-eth1 txqueuelen %d"%(testParam.appParam.txqueuelen))
-    atomic(pep.cmd)("ifconfig pep-eth2 txqueuelen %d"%(testParam.appParam.txqueuelen))
+    for l in testParam.linkParams:
+        nameA,nameB = l.split('-')
+        nodeA = mn.getNodeByName(nameA)
+        switch = mn.getNodeByName(l)
+        nodeB = mn.getNodeByName(nameB)
 
+        intf = nodeA.connectionsTo(switch)[0][0]
+        atomic(nodeA.cmd)("ifconfig %s txqueuelen %d"%(l,testParam.appParam.txqueuelen))
+        atomic(nodeA.cmd)("ifconfig %s txqueuelen %d"%(l,testParam.appParam.txqueuelen))
 
-    # tc -s -d qdisc show dev pep-eth2
-    # print(testParam.max_queue_size)
-    cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
-    for cmd in cmds:
-        atomic(intf.tc)(cmd)
+        # tc -s -d qdisc show dev pep-eth2
+        # print(testParam.max_queue_size)
+        cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
+        for cmd in cmds:
+            atomic(intf.tc)(cmd)
 
-@threadFunc(LatchThread)
+        intf = nodeB.connectionsTo(switch)[0][0]
+        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+'-'+nameA,testParam.appParam.txqueuelen))
+        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+'-'+nameA,testParam.appParam.txqueuelen))
+
+        cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
+        for cmd in cmds:
+            atomic(intf.tc)(cmd)
+
+#@threadFunc(LatchThread)
 def Iperf(mn, testParam, logPath):
     if testParam.appParam.get('isManual') or testParam.appParam.get('isRttTest'):
         return
@@ -74,18 +83,35 @@ def RttTest(mn, testParam, logPath):
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
     
-    if testParam.midCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
+    #if testParam.midCC != 'nopep':
+    #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(testParam.rttTestPacket,testParam.rttTotal,logFilePath))
-    atomic(mn.getNodeByName('h2').cmd)('python3 ../tcp_test/server.py &')
-    
-    #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(testParam.rttTestPacket,testParam.rttTotal))
-    if testParam.midCC=="nopep":
-        limit = 1.5*testParam.rttTotal
-    else:
-        limit = testParam.rttSat+0.5*testParam.rttTotal
+    if testParam.appParam.get('protocol')=="TCP":
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py &')
         
-    atomic(mn.getNodeByName('h1').cmd)('python3 ../tcp_test/client.py -l %f > %s &'%(limit,logFilePath))
-    time.sleep(testParam.sendTime)
-    #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
+        #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(testParam.rttTestPacket,testParam.rttTotal))
+        
+        #if testParam.midCC=="nopep":
+        #    limit = 1.5*testParam.rttTotal
+        #else:
+        #    limit = testParam.rttSat+0.5*testParam.rttTotal
+        limit = 0     
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f > %s &'%(limit,logFilePath))
+        time.sleep(testParam.appParam.sendTime)
+        #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
+    elif testParam.appParam.get('protocol')=="INTCP":
+        
+        #time.sleep(1)
+        
+        if testParam.appParam.midCC != 'nopep':
+            if testParam.absTopoParam.name=="net_hmh":
+                atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm &')
+            elif testParam.absTopoParam.name=="net_hmmh":
+                atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm &')
+                atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm &')
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %ss &'%(logFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))
+        time.sleep(testParam.appParam.sendTime)
+        return
+
