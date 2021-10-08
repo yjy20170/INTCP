@@ -120,7 +120,7 @@ class LinkParam(Param):
 class AbsTopoParam(Param):
     Keys = ['name',
             'nodes',
-            'links', 
+            'links'
     ]
     SegDefault = {'name':'xxx',
     }
@@ -150,6 +150,7 @@ class AppParam(Param):
             if key == 'threads':
                 threads = self.get(key)
                 for th in threads:
+                    #print(th)
                     string += IndentSpace*(indent+1)
                     string += th.fname + '\n'
                 continue
@@ -236,9 +237,17 @@ class TestParamSet:
         keys = list(segDict.keys())
         while True:
             perm = singleSegs.copy()
+            neNameElems = []
             for i,key in enumerate(keys):
                 perm[key] = segDict[key][pos[i]]
-            neSpec = '_'.join([key + '_' + str(perm[key]) for key in perm])
+                if key=="absTopoParam":
+                    neNameElems.append('topo_'+perm[key].name)
+                elif key=="linkParams":
+                    continue
+                else:
+                    neNameElems.append(key+'_'+str(perm[key]))
+            
+            neSpec = '_'.join(neNameElems)
             self.testParams.append(TestParam(template=self.tpTemplate, name=self.tpsetName + '_' + neSpec, **perm))
 
             if segDict=={}:

@@ -1,6 +1,6 @@
 #include "./include/ikcp.h"
 #undef LOG_LEVEL
-#define LOG_LEVEL DEBUG
+#define LOG_LEVEL SILENT
 
 
 //EXPR
@@ -339,6 +339,7 @@ int IntcpTransCB::responseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 }
 
 void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts){
+    LOG(TRACE,"recv interest [%d,%d)\n\n",rangeStart,rangeEnd);
 	int sentEnd = responseInt(rangeStart,rangeEnd);
 	if(sentEnd<rangeEnd){
 		// rest interest
@@ -372,7 +373,7 @@ void IntcpTransCB::notifyNewData(IUINT32 dataStart, IUINT32 dataEnd, IUINT32 ts)
         if (_itimediff(intStart,dataEnd) <0 && _itimediff(intEnd,dataStart) >0){
 			IUINT32 maxStart = _imax_(intStart, dataStart);
 			IUINT32 minEnd = _imin_(intEnd, dataEnd);
-
+            LOG(SILENT,"%d %d",maxStart,minEnd);
 			int sentEnd = responseInt(maxStart,minEnd);
 			if(sentEnd==intEnd) {
 				recvedInts.erase(p);
@@ -393,7 +394,6 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
     IUINT32 sn = segPtr->sn;
     int repeat = 0;
 
-    
     // // seqhole retransmit
     // // from sn to range
     // if(isMidnode){
@@ -949,6 +949,7 @@ void IntcpTransCB::flushInt(){
 
 // snd_queue -> send straightforward;
 void IntcpTransCB::flushData(){
+    LOG(DEBUG,"sendqueue len %lu\n",snd_queue.size())
     //TODO CC -- cwnd/sendingRate
     // int dataOutputLimit = getDataSwnd();
     int dataOutputLimit = 1024;
@@ -969,16 +970,17 @@ void IntcpTransCB::flushData(){
         }
         LOG(TRACE, "output data sn %d", segPtr->sn);
         
-        //EXPR
-        //simulate packet loss
-        if(!isMidnode){
-            if(segPtr->sn%10==8){
-                LOG(DEBUG,"drop sn %d [%d,%d)", segPtr->sn, segPtr->rangeStart, segPtr->rangeEnd);
-                snd_queue.erase(p);
-                deleteSeg(segPtr);
-                continue;
-            }
-        }
+        // //EXPR
+        // //simulate packet loss
+        // if(!isMidnode){
+        //     if(segPtr->sn%10==8){
+        //         LOG(DEBUG,"drop sn %d [%d,%d)", segPtr->sn, segPtr->rangeStart, segPtr->rangeEnd);
+        //         snd_queue.erase(p);
+        //         deleteSeg(segPtr);
+        //         continue;
+        //     }
+        // }
+
 		// responser doesn't need to tell requester its rwnd.
 		// segPtr->wnd = seg.wnd;
 		sizeToSend = (int)(sendEnd - tmpBuffer);

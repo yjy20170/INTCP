@@ -2,13 +2,13 @@
 cd `dirname $0`
 INTCP="../../intcp"
 echo "start making..."
-g++ -c ${INTCP}/*.cpp -lpthread -g
+g++ -c ${INTCP}/*.cpp -lpthread -g -std=c++11
 echo "making intcps"
-g++ intcp_server.cpp *.o -o intcps -lpthread -g
+g++ intcp_server.cpp *.o -o intcps -lpthread -g -std=c++11
 echo "making intcpm"
-g++ intcp_mid.cpp    *.o -o intcpm -lpthread -g
+g++ intcp_mid.cpp    *.o -o intcpm -lpthread -g -std=c++11
 echo "making intcpc"
-g++ intcp_client.cpp *.o -o intcpc -lpthread -g
+g++ intcp_client.cpp *.o -o intcpc -lpthread -g -std=c++11
 echo "finished."
 rm *.o
 

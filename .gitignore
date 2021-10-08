@@ -3,3 +3,6 @@
 autoTest/result/
 autoTest/logs/
 appLayer/intcpApp/try
+appLayer/intcpApp/intcpm
+appLayer/intcpApp/intcps
+appLayer/intcpApp/intcpc

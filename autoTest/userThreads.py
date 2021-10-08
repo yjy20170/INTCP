@@ -7,6 +7,7 @@ from FileUtils import delFile
 threads = []
 
 def threadFunc(cls):
+    #print('123')
     def wrapper(func):
         name = func.__name__ + 'Thread'
         def wrapped(*args, **kw):
@@ -43,7 +44,7 @@ def Init(mn, testParam, logPath):
         for cmd in cmds:
             atomic(intf.tc)(cmd)
 
-@threadFunc(LatchThread)
+#@threadFunc(LatchThread)
 def Iperf(mn, testParam, logPath):
     if testParam.appParam.get('isManual') or testParam.appParam.get('isRttTest'):
         return
@@ -79,18 +80,37 @@ def RttTest(mn, testParam, logPath):
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
     
-    if testParam.midCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
+    #if testParam.midCC != 'nopep':
+    #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(testParam.rttTestPacket,testParam.rttTotal,logFilePath))
-    atomic(mn.getNodeByName('h2').cmd)('python3 ../tcp_test/server.py &')
-    
-    #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(testParam.rttTestPacket,testParam.rttTotal))
-    if testParam.midCC=="nopep":
-        limit = 1.5*testParam.rttTotal
-    else:
-        limit = testParam.rttSat+0.5*testParam.rttTotal
+    if testParam.appParam.get('protocol')=="TCP":
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py &')
         
-    atomic(mn.getNodeByName('h1').cmd)('python3 ../tcp_test/client.py -l %f > %s &'%(limit,logFilePath))
-    time.sleep(testParam.sendTime)
-    #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
+        #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(testParam.rttTestPacket,testParam.rttTotal))
+        
+        #if testParam.midCC=="nopep":
+        #    limit = 1.5*testParam.rttTotal
+        #else:
+        #    limit = testParam.rttSat+0.5*testParam.rttTotal
+        limit = 0     
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f > %s &'%(limit,logFilePath))
+        time.sleep(testParam.appParam.sendTime)
+        #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
+    elif testParam.appParam.get('protocol')=="INTCP":
+        
+        #time.sleep(1)
+        
+        if testParam.appParam.midCC != 'nopep':
+            if testParam.absTopoParam.name=="net_hmh":
+                atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm &')
+                #atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"mid"))
+            elif testParam.absTopoParam.name=="net_hmmh":
+                atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm &')
+                atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm &')
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"server"))
+        #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps &')
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))
+        time.sleep(testParam.appParam.sendTime)
+        return
+
