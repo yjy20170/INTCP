@@ -15,8 +15,7 @@ def run(testParam, logPath):
 
     mn = RealNetwork.createNet(testParam)
 
-    #threads = testParam.appParam.threads+linkDnmcThreads.threads
-    threads = testParam.appParam.threads
+    threads = testParam.appParam.threads+linkDnmcThreads.threads
     
     TbThread.smartStart(threads, (mn, testParam, logPath,) )
 

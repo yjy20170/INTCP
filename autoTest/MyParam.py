@@ -28,7 +28,6 @@ class MyAppParam(Param.AppParam):
     }
 
 
-
 def getTestParamSet(tpsetName):
     print('Using TestParamSet \'%s\'' % tpsetName)
 
@@ -75,7 +74,7 @@ def getTestParamSet(tpsetName):
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep2-h2.rtt',keysCurveDiff=['midNodes','protocol'],keysPlotDiff=[])
         '''
         tpSet.add({
-            'pep2-h2.rtt':[10]
+            'pep2-h2.rtt':[50]
         })
         '''
         loss = 5

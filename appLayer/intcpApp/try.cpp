@@ -2,42 +2,55 @@
 g++ appLayer/in*App/try.cpp -o appLayer/in*App/try
 appLayer/in*App/try
 */
-
 #include <iostream>
-#include <stack>
+#include <algorithm>
 #include <vector>
 using namespace std;
-bool IsPopOrder(vector<int> pushV,vector<int> popV) {
-    stack<int> stk;
-    int i = 0;
-    int idx = 0;
-    for(;i < pushV.size();i++){
-        cout<<"入栈 "<<pushV[i]<<endl;
-        if(pushV[i] == popV[idx]){
-        	cout<<"出栈 "<<popV[idx]<<endl;
-            idx++;
-            while(!stk.empty() &&stk.top()==popV[idx]){
-        	    cout<<"出栈 "<<popV[idx]<<endl;
-                idx++;
-                stk.pop();
-            }
-        }else{
-            stk.push(pushV[i]);
-        }
+struct s{
+    int l,r;
+    s(int _l,int _r):l(_l),r(_r){}
+    s(){}
+    bool operator< (const s &a) const{
+        return this->l<a.l;
     }
-    if(stk.empty()) return true;
+};
+bool solution(vector<int> &A, vector<int> &P, int B, int E){
+    if(B>E){
+        int tmp=E;
+        E=B;
+        B=tmp;
+    }
+    s sv[100005];
+    int n=A.size();
+    for(int i=0;i<n;i++){
+        sv[i] = s(P[i]-A[i],P[i]+A[i]);
+    }
+    sort(sv,sv+n);
+    int last=0,next=0;
+    s rm(B,0);
+    while(1){
+        last=next;
+        next=upper_bound(sv+last,sv+n,rm)-sv;
+        if(next<=0 || last==next){
+            return false;
+        }
+        rm=sv[last];
+        for(int i=last;i<next;i++){
+            if(sv[i].r>rm.r){
+                rm=sv[i];
+            }
+        }
+        if(rm.r>=E)
+            return true;
+    }
     return false;
-	
 }
 int main(){
-    vector<int> pushV, popV;
-    for(int i=0;i<5;i++){
-        pushV.push_back(i);
-    }
-    popV.push_back(2);
-    popV.push_back(1);
-    popV.push_back(4);
-    popV.push_back(0);
-    popV.push_back(3);
-    cout<<IsPopOrder(pushV,popV)<<endl;
+    vector<int> a,p;
+    a.push_back(2);
+    a.push_back(1);
+    p.push_back(5);
+    p.push_back(1);
+    int b=-1,e=2;
+    cout<<solution(a,p,b,e)<<endl;
 }

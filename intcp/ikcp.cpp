@@ -969,6 +969,17 @@ void IntcpTransCB::flushData(){
             dataOutputLimit -= segPtr->len;
         }
         LOG(TRACE, "output data sn %d", segPtr->sn);
+        
+        // //EXPR
+        // //simulate packet loss
+        // if(!isMidnode){
+        //     if(segPtr->sn%10==8){
+        //         LOG(DEBUG,"drop sn %d [%d,%d)", segPtr->sn, segPtr->rangeStart, segPtr->rangeEnd);
+        //         snd_queue.erase(p);
+        //         deleteSeg(segPtr);
+        //         continue;
+        //     }
+        // }
 
 		// responser doesn't need to tell requester its rwnd.
 		// segPtr->wnd = seg.wnd;
