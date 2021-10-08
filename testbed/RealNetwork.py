@@ -11,11 +11,47 @@ def createNet(testParam):
     topo=Topo()
 
     #TODO only suitable for chain topo with less than 100 nodes
-    # nodes = testParam.absTopoParam.nodes
-    # topo.addHost(nodes[0], cls=TbNode)
-    # for i in range(1,len(nodes)):
-    #     topo.addHost(nodes[i], cls=TbNode)
-    #     topo.addSwitch(nodes[i-1]+'-'+nodes[i])
+    nodes = testParam.absTopoParam.nodes
+    topo.addHost(nodes[0], cls=TbNode)
+    for i in range(1,len(nodes)):
+        topo.addHost(nodes[i], cls=TbNode)
+        linkName = nodes[i-1]+'-'+nodes[i]
+        linkNameRvs = nodes[i]+'-'+nodes[i-1]
+        topo.addSwitch(linkName)
+
+        delay = testParam.linkParams[linkName].rtt/4
+        loss = testParam.linkParams[linkName].loss # only one half add loss
+        bw = testParam.linkParams[linkName].bw
+        if i == len(nodes)-1:
+            seg = 100
+        else:
+            seg = i
+        topo.addLink(nodes[i-1],linkName, intfName1 = linkName, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.1/24'%seg},
+                bw = bw, delay = '%dms'%delay, loss = loss)
+        topo.addLink(nodes[i],linkName, intfName1 = linkNameRvs, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.2/24'%seg},
+                bw = bw, delay = '%dms'%delay, loss = 0)
+    mn = Mininet(topo)
+    mn.start()
+    
+    # add route rules
+    for i in range(len(nodes)-1):
+        if i == len(nodes)-2:
+            seg = 100
+        else:
+            seg = i+1
+        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
+    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
+    for i in range(2,len(nodes)-1):
+        for seg in range(1,i):
+            mn.getNodeByName(nodes[i]).cmd(
+                    'route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(seg,i))
+    
+    return mn
+
+def createNet_deprecated(testParam):
+    topo=Topo()
     if testParam.absTopoParam.name=="net_hmmh":
 
         h1 = topo.addHost('h1', cls=TbNode)
@@ -44,10 +80,10 @@ def createNet(testParam):
                 bw = bw, delay = '%dms'%delay, loss = loss)
 
         topo.addLink(pep2,s3, intfName1 = 'pep2-h1', cls = TCLink, 
-                params1 = {'ip':'10.0.3.1/24'},
+                params1 = {'ip':'10.0.100.1/24'},
                 bw = bw, delay = '%dms'%delay, loss = loss)
         topo.addLink(h2,s3, intfName1 = 'h2-pep2', cls = TCLink, 
-                params1 = {'ip':'10.0.3.2/24'},
+                params1 = {'ip':'10.0.100.2/24'},
                 bw = bw, delay = '%dms'%delay, loss = loss)
 
         mn = Mininet(topo)
@@ -56,10 +92,10 @@ def createNet(testParam):
         # add route rules
         mn.getNodeByName(h1).cmd('route add default gw 10.0.1.2')
         mn.getNodeByName(pep1).cmd('route add default gw 10.0.2.2')
-        mn.getNodeByName(pep2).cmd('route add default gw 10.0.3.2')
+        mn.getNodeByName(pep2).cmd('route add default gw 10.0.100.2')
         mn.getNodeByName(pep2).cmd('route add -net 10.0.1.0 netmask 255.255.255.0 gw 10.0.2.1')
         # mn.getNodeByName(pep2).cmd('route add -net 10.0.2.0 netmask 255.255.255.0 gw 10.0.2.1')
-        mn.getNodeByName(h2).cmd('route add default gw 10.0.3.1')
+        mn.getNodeByName(h2).cmd('route add default gw 10.0.100.1')
         
         # sat.cmd('route add -net 10.0.1.0 netmask 255.255.255.0 gw 10.0.3.1')
         # sat.cmd('route add default gw 10.0.4.1')
