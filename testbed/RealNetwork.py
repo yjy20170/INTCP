@@ -6,7 +6,9 @@ from testbed.TbNode import TbNode
 
 
 #TODO automatic; provide IP to application
-
+def splitLoss(loss,n):
+    return 100*(1-(1-loss/100)**(1/n))
+    
 def createNet(testParam):
     topo=Topo()
 
@@ -31,24 +33,24 @@ def createNet(testParam):
         bw = 100
         topo.addLink(h1,s1, intfName1 = 'h1-pep1', cls = TCLink, 
                 params1 = {'ip':'10.0.1.1/24'},
-                bw = testParam.linkParams['h1-pep1'].bw, delay = '%dms'%(testParam.linkParams['h1-pep1'].rtt/4), loss = testParam.linkParams['h1-pep1'].loss/2)
+                bw = testParam.linkParams['h1-pep1'].bw, delay = '%dms'%(testParam.linkParams['h1-pep1'].rtt/4), loss = splitLoss(testParam.linkParams['h1-pep1'].loss,2))
         topo.addLink(pep1,s1, intfName1 = 'pep1-h1', cls = TCLink, 
                 params1 = {'ip':'10.0.1.2/24'},
-                bw = testParam.linkParams['h1-pep1'].bw, delay = '%dms'%(testParam.linkParams['h1-pep1'].rtt/4), loss = testParam.linkParams['h1-pep1'].loss/2)
+                bw = testParam.linkParams['h1-pep1'].bw, delay = '%dms'%(testParam.linkParams['h1-pep1'].rtt/4), loss = splitLoss(testParam.linkParams['h1-pep1'].loss,2))
 
         topo.addLink(pep1,s2, intfName1 = 'pep1-pep2', cls = TCLink, 
                 params1 = {'ip':'10.0.3.1/24'},
-                bw = testParam.linkParams['pep1-pep2'].bw, delay = '%dms'%(testParam.linkParams['pep1-pep2'].rtt/4), loss = testParam.linkParams['pep1-pep2'].loss/2)
+                bw = testParam.linkParams['pep1-pep2'].bw, delay = '%dms'%(testParam.linkParams['pep1-pep2'].rtt/4), loss = splitLoss(testParam.linkParams['pep1-pep2'].loss,2))
         topo.addLink(pep2,s2, intfName1 = 'pep2-pep1', cls = TCLink, 
                 params1 = {'ip':'10.0.3.2/24'},
-                bw = testParam.linkParams['pep1-pep2'].bw, delay = '%dms'%(testParam.linkParams['pep1-pep2'].rtt/4), loss = testParam.linkParams['pep1-pep2'].loss/2)
+                bw = testParam.linkParams['pep1-pep2'].bw, delay = '%dms'%(testParam.linkParams['pep1-pep2'].rtt/4), loss = splitLoss(testParam.linkParams['pep1-pep2'].loss,2))
 
         topo.addLink(pep2,s3, intfName1 = 'pep2-h2', cls = TCLink, 
                 params1 = {'ip':'10.0.2.2/24'},
-                bw = testParam.linkParams['pep2-h2'].bw, delay = '%dms'%(testParam.linkParams['pep2-h2'].rtt/4), loss = testParam.linkParams['pep2-h2'].loss/2)
+                bw = testParam.linkParams['pep2-h2'].bw, delay = '%dms'%(testParam.linkParams['pep2-h2'].rtt/4), loss = splitLoss(testParam.linkParams['pep2-h2'].loss,2))
         topo.addLink(h2,s3, intfName1 = 'h2-pep2', cls = TCLink, 
                 params1 = {'ip':'10.0.2.1/24'},
-                bw = testParam.linkParams['pep2-h2'].bw, delay = '%dms'%(testParam.linkParams['pep2-h2'].rtt/4), loss = testParam.linkParams['pep2-h2'].loss/2)
+                bw = testParam.linkParams['pep2-h2'].bw, delay = '%dms'%(testParam.linkParams['pep2-h2'].rtt/4), loss = splitLoss(testParam.linkParams['pep2-h2'].loss,2))
 
         mn = Mininet(topo)
         mn.start()
@@ -95,7 +97,7 @@ def createNet(testParam):
             topo.addLink(switch,router,
                         intfName2 = '%s-eth%d' % (router,hindex),
                         params2 = {'ip':'10.0.%d.100/24' % hindex},
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss/2)
+                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
             
             host = 'h%d' % hindex
             topo.addNode(host, cls=TbNode,
@@ -103,7 +105,7 @@ def createNet(testParam):
                         defaultRoute = 'via 10.0.%d.100' % hindex)
 
             topo.addLink(switch, host,
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss/2)
+                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
 
 
         mn = Mininet(topo)

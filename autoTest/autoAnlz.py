@@ -262,6 +262,17 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
         plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
 
 
+def getCdfParam(tp):
+    if tp.appParam.protocol=="INTCP":
+        linestyle = '--'
+    else:
+        linestyle = '-'
+    
+    loss_dict = {1:"blue",5:"green",10:"orangered"}
+    nodes_dict = {1:"blue",2:"orangered"}
+    #color = loss_dict[tp.appParam.total_loss]
+    color = nodes_dict[tp.appParam.midNodes]
+    return color,linestyle 
 def drawCDF(tpSet, mapNeToResult, resultPath):
     plt.figure(figsize=(8,5),dpi = 320)
     x_min = -1
@@ -278,15 +289,18 @@ def drawCDF(tpSet, mapNeToResult, resultPath):
                 x_max = cur_max
             else:
                 x_max = max(cur_max,x_max)
+    x_max = min(x_max,1000)
     x = np.linspace(x_min,x_max)
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
         #print(tp,len(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
+            color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            plt.step(x,y)
+            #plt.step(x,y)
+            plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
