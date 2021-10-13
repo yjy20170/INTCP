@@ -49,7 +49,7 @@ void *onNewSess(void* _sessPtr){
         printf("recv [%d,%d) sendTime %u curTime %u owd_obs %u\n", start, end,sendTime,curTime, curTime-sendTime);
         fflush(stdout);
   
-        usleep(100);//sleep 0.1ms
+        //usleep(10);//sleep 0.1ms
 
         
     }
@@ -61,6 +61,6 @@ int main(){
     Cache cache(QUAD_STR_LEN);
     ByteMap<IntcpSess*> sessMap;
     startRequester(&cache,&sessMap,onNewSess,
-        "10.0.1.1","10.0.2.1",DEFAULT_SERVER_PORT);
+        "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);
     return 0;
 }

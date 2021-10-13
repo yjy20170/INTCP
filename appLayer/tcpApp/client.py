@@ -15,7 +15,7 @@ def sendFunc(tcp_socket):
         strPadded = Utils.padStr(strTime, 16)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
-        time.sleep(0.05)
+        time.sleep(0.005)
 
 def recvFunc(tcp_socket,limit):
     prev_owd_c2s = 0
@@ -58,7 +58,7 @@ if __name__=='__main__':
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
 
-    server_addr = ("10.0.2.1", 3000)
+    server_addr = ("10.0.100.2", 3000)
     #server_addr = ("127.0.0.1", 3000)
     tcp_socket.connect(server_addr)
 

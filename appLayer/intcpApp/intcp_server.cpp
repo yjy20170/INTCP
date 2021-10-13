@@ -33,7 +33,7 @@ void *onNewSess(void* _sessPtr){
         sessPtr->insertData(dataBuf,start,start+REQ_LEN);
         LOG(DEBUG,"insert %d %d\n",start,start+REQ_LEN);
         start += REQ_LEN;
-        usleep(1.01*1000*REQ_INTV);
+        usleep(1.1*1000*REQ_INTV);
         //printf("abcde\n");
     }
     
@@ -53,7 +53,7 @@ int main(){
     ByteMap<IntcpSess*> sessMap;
 
     startResponser(&cache,&sessMap,onNewSess,
-            "10.0.2.1", DEFAULT_SERVER_PORT);
+            "10.0.100.2", DEFAULT_SERVER_PORT);
 
     // udpRecvLoop(&args);
     return 0;

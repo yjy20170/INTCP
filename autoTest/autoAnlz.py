@@ -289,8 +289,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath):
                 x_max = cur_max
             else:
                 x_max = max(cur_max,x_max)
+    x_min  = 0
     x_max = min(x_max,1000)
     x = np.linspace(x_min,x_max)
+    #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
