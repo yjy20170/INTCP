@@ -12,9 +12,9 @@ using namespace std;
 
 // #include <queue>
 
-#define BLOCK_LEN 1024
+#define BLOCK_LEN 4096
 #define BLOCK_SEG_NUM 10
-#define MAX_BLOCK_NUM 100000 // 100MB
+#define MAX_BLOCK_NUM 10000 // 40MB
 
 struct Block;
 struct Node{
