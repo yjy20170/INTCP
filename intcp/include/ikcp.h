@@ -88,7 +88,10 @@ struct IntcpSeg
 
 struct IntRange
 {
-    IUINT32 start, end;
+    // ts is for rtt caclulation: 
+    // when response interest in recvedInts, 
+    // copy the ts of interest to data packet header
+    IUINT32 start, end, ts;
 };
 
 struct Hole

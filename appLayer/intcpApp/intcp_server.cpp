@@ -31,7 +31,7 @@ void *onNewSess(void* _sessPtr){
         memset(dataBuf,0,REQ_LEN);
         *((IUINT32 *)dataBuf) = getMillisec();
         sessPtr->insertData(dataBuf,start,start+REQ_LEN);
-        LOG(DEBUG,"insert %d %d\n",start,start+REQ_LEN);
+        LOG(TRACE,"insert %d %d\n",start,start+REQ_LEN);
         start += REQ_LEN;
         usleep(1.1*1000*REQ_INTV);
         //printf("abcde\n");

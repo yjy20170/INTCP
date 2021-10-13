@@ -36,8 +36,8 @@ def getTestParamSet(tpsetName):
         appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=1,midCC='pep')
         
         linkParams = {
-                'h1-pep':Param.LinkParam(loss=0, rtt=75, bw=20, varBw=0),
-                'pep-h2':Param.LinkParam(loss=0, rtt=75, bw=20, varBw=0)
+                'h1-pep':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0)
         }
         tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
 

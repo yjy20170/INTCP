@@ -35,5 +35,5 @@ def run(testParam, logPath):
 def clear():
     TbThread.clear()
 
-    os.system('mn -c >/dev/null 2>&1')
-    os.system('killall -9 xterm >/dev/null 2>&1')
+    os.system('sudo mn -c >/dev/null 2>&1')
+    os.system('sudo killall -9 xterm >/dev/null 2>&1')
