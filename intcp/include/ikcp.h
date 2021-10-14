@@ -42,6 +42,7 @@ const IUINT32 INTCP_RTO_NDL = 30;        // no delay min rto
 const IUINT32 INTCP_RTO_MIN = 100;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 200;
 const IUINT32 INTCP_RTO_MAX = 60000;
+const float INTCP_RTO_FACTOR = 1.8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
@@ -151,8 +152,8 @@ private:
     int (*outputFunc)(const char *buf, int len, void *user, int dstRole);
 	// set callback called by responseInterest
 	int (*fetchDataFunc)(char *buf, IUINT32 start, IUINT32 end, void *user);
+    int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user);
 	// also called by responseInterest
-	// int (*reportUnsatInt)(IUINT32 start, IUINT32 end, void *user);
     void* (*mallocFunc)(size_t);
     void (*freeFunc)(void *);
 
@@ -190,7 +191,7 @@ public:
     IntcpTransCB(void *user, 
 			int (*_outputFunc)(const char *buf, int len, void *user, int dstRole), 
 			int (*_fetchDataFunc)(char *buf, IUINT32 start, IUINT32 end, void *user),
-			// int (*_reportUnsatInt)(IUINT32 start, IUINT32 end, void *user),
+			int (*_onUnsatInt)(IUINT32 start, IUINT32 end, void *user),
 			// bool _isUnreliable,
 			bool _isMidnode
 	);

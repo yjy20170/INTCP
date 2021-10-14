@@ -50,7 +50,7 @@ void startRequester(Cache *cachePtr, ByteMap<IntcpSess*> *sessMapPtr,
 }
 
 void startResponser(Cache *cachePtr, ByteMap<IntcpSess*> *sessMapPtr, 
-        void *(*onNewSess)(void* _sessPtr),
+        void *(*onNewSess)(void* _sessPtr), int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user),
         const char* ipStr, uint16_t respPortH){
     int ret;
     struct udpRecvLoopArgs args;
@@ -58,6 +58,7 @@ void startResponser(Cache *cachePtr, ByteMap<IntcpSess*> *sessMapPtr,
     args.onNewSess = onNewSess;
     args.listenAddr = toAddr(inet_addr(ipStr),htons(respPortH));
     args.cachePtr = cachePtr;
+    args.onUnsatInt = onUnsatInt;
     pthread_t listener;
     pthread_create(&listener, NULL, &udpRecvLoop, &args);
 

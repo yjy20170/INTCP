@@ -78,7 +78,7 @@ public:
         void *(*onNewSess)(void* _sessPtr));
     //responser
     IntcpSess(Quad quad, int listenFd, Cache* _cachePtr,
-        void *(*onNewSess)(void* _sessPtr));
+        void *(*onNewSess)(void* _sessPtr),int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user));
     //midnode
     IntcpSess(Quad quad, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr));
@@ -91,7 +91,7 @@ public:
 void* TransUpdateLoop(void *args);
 int udpSend(const char* buf,int len, void* user, int dstRole);
 int fetchData(char *buf, IUINT32 start, IUINT32 end, void *user);
-IntcpTransCB* createTransCB(const IntcpSess *sessPtr, bool isMidnode);
+IntcpTransCB* createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user));
 
 /***************** multi-session management *****************/
 
@@ -100,6 +100,7 @@ struct udpRecvLoopArgs
 {
     ByteMap<IntcpSess*> *sessMapPtr;
     void* (*onNewSess)(void*);
+    int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user);
     struct sockaddr_in listenAddr;
     int listenFd=-1;
     Cache* cachePtr;
