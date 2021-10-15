@@ -36,13 +36,15 @@
         }else{ \
             ptrL++; \
         } \
-        printf("[%s|%s@%s, %d]\n        " format "\n", \
-                #level, __func__, ptrL, \
-                __LINE__, ##__VA_ARGS__); \
+        int limit = 30; \
+        char prefix[limit+4]; \
+        memset(prefix,' ',limit+4); \
+        snprintf(prefix, limit+1, "%s@%s,%d", \
+                __func__, ptrL, __LINE__); \
+        prefix[strlen(prefix)]=' '; \
+        prefix[limit+1] = '|'; \
+        prefix[limit+3] = '\0'; \
+        printf("%s" format "\n",prefix,##__VA_ARGS__); \
     }
 
-        // const char *ptrR = strrchr(fileStr, '.'); 
-        // printf("[%s|%s@%*.*s, %d] " format "\n", 
-        //             levelStr, __func__, (int)(ptrR-ptrL), (int)(ptrR-ptrL), ptrL, 
-        //             __LINE__, ##__VA_ARGS__); 
 #endif

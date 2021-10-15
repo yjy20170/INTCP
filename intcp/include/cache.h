@@ -13,7 +13,7 @@ using namespace std;
 // #include <queue>
 
 #define BLOCK_LEN 4096
-#define BLOCK_SEG_NUM 10
+#define BLOCK_SEG_NUM 100
 #define MAX_BLOCK_NUM 10000 // 40MB
 
 struct Block;

@@ -32,7 +32,7 @@ void *onNewSess(void* _sessPtr){
     t.detach();
     
     while(1){
-        usleep(100);//sleep 0.1ms
+        usleep(10);//sleep 0.1ms
         
         ret = sessPtr->recvData(recvBuf,MaxBufSize,&start,&end);
         
@@ -49,6 +49,9 @@ void *onNewSess(void* _sessPtr){
         LOG(TRACE, "recv [%d,%d)\n", start, end);
 
         printf("recv %d [%d,%d) sendTime %u curTime %u owd_obs %u\n", end-start,start, end,sendTime,curTime, curTime-sendTime);
+        if(curTime-sendTime > 2000){
+            assert(false);
+        }
         fflush(stdout);
     }
 
