@@ -261,8 +261,30 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
         plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
 
+def getRetranThreshold(tp):
+    rtt_total = 0
+    rtt_min = 10000
+    for lp in tp.linkParams.values():
+        rtt_total += lp.rtt
+        rtt_min = min(rtt_min,lp.rtt)
+    if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
+        return rtt_total*0.5 + rtt_min
+    else:
+        return rtt_total*1.5
 
-def drawCDF(tpSet, mapNeToResult, resultPath):
+def getCdfParam(tp):
+    if tp.appParam.protocol=="INTCP":
+        linestyle = '--'
+    else:
+        linestyle = '-'
+    
+    loss_dict = {1:"blue",5:"green",0.1:"orangered"}
+    nodes_dict = {1:"blue",3:"orangered"}
+    color = loss_dict[tp.appParam.total_loss]
+    #color = nodes_dict[tp.appParam.midNodes]
+    return color,linestyle 
+    
+def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
     plt.figure(figsize=(8,5),dpi = 320)
     x_min = -1
     x_max = -1
@@ -270,6 +292,7 @@ def drawCDF(tpSet, mapNeToResult, resultPath):
         if len(mapNeToResult[tp])>0:
             cur_min = min(mapNeToResult[tp])
             cur_max = max(mapNeToResult[tp])
+            #print("min",cur_min,"max",cur_max)
             if x_min == -1:
                 x_min = cur_min
             else:
@@ -278,15 +301,34 @@ def drawCDF(tpSet, mapNeToResult, resultPath):
                 x_max = cur_max
             else:
                 x_max = max(cur_max,x_max)
+    x_min  = 0
+    x_max = min(x_max,1000)
     x = np.linspace(x_min,x_max)
+    
+    if retranPacketOnly:
+        for tp in tpSet.testParams:
+            prev_owd = 0
+            retran_packet_owds = []
+            limit = getRetranThreshold(tp)
+            print("limit",limit)
+            for owd in mapNeToResult[tp]:
+                if prev_owd<owd and owd>limit:
+                    retran_packet_owds.append(owd)
+                prev_owd = owd
+            mapNeToResult[tp] = retran_packet_owds
+            print("min",min(mapNeToResult[tp]))
+            
+    #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
         #print(tp,len(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
+            color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            plt.step(x,y)
+            #plt.step(x,y)
+            plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
@@ -314,7 +356,7 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
         print('entering rtt analyse')
-        drawCDF(tpSet,mapTpToResult,resultPath)
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
     fixOwnership(resultPath,'r')
 
 """

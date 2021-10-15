@@ -42,17 +42,21 @@ void *onNewSess(void* _sessPtr){
         recvBuf[end-start]='\0';
         
         int pos = _round_up(start,REQ_LEN);
-        if(end-pos<sizeof(int))
-            continue;
-        IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
-        IUINT32 curTime = getMillisec();
-        LOG(TRACE, "recv [%d,%d)\n", start, end);
+        while(1){
+            if(end-pos<sizeof(int))
+                break;
+         
+            IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
+            IUINT32 curTime = getMillisec();
+            LOG(TRACE, "recv [%d,%d)\n", start, end);
 
-        printf("recv %d [%d,%d) sendTime %u curTime %u owd_obs %u\n", end-start,start, end,sendTime,curTime, curTime-sendTime);
-        if(curTime-sendTime > 2000){
-            assert(false);
+
+            printf("recv [%d,%d) sendTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,sendTime,curTime, curTime-sendTime);
+            fflush(stdout);
+            pos += REQ_LEN;
         }
-        fflush(stdout);
+        
+
     }
 
     return nullptr;

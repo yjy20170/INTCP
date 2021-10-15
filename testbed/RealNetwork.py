@@ -6,7 +6,9 @@ from testbed.TbNode import TbNode
 
 
 #TODO automatic; provide IP to application
-
+def splitLoss(loss,n):
+    return 100*(1-(1-loss/100)**(1/n))
+    
 def createNet(testParam):
     topo=Topo()
 
@@ -20,7 +22,7 @@ def createNet(testParam):
         topo.addSwitch(linkName)
 
         delay = testParam.linkParams[linkName].rtt/4
-        loss = testParam.linkParams[linkName].loss # only one half add loss
+        loss = splitLoss(testParam.linkParams[linkName].loss,2)
         bw = testParam.linkParams[linkName].bw
         if i == len(nodes)-1:
             seg = 100
@@ -31,7 +33,7 @@ def createNet(testParam):
                 bw = bw, delay = '%dms'%delay, loss = loss)
         topo.addLink(nodes[i],linkName, intfName1 = linkNameRvs, cls = TCLink, 
                 params1 = {'ip':'10.0.%d.2/24'%seg},
-                bw = bw, delay = '%dms'%delay, loss = 0)
+                bw = bw, delay = '%dms'%delay, loss = loss)
     mn = Mininet(topo)
     mn.start()
     
@@ -85,7 +87,6 @@ def createNet_deprecated(testParam):
         topo.addLink(h2,s3, intfName1 = 'h2-pep2', cls = TCLink, 
                 params1 = {'ip':'10.0.100.2/24'},
                 bw = bw, delay = '%dms'%delay, loss = loss)
-
         mn = Mininet(topo)
         mn.start()
     
@@ -129,15 +130,14 @@ def createNet_deprecated(testParam):
             topo.addLink(switch,router,
                         intfName2 = '%s-eth%d' % (router,hindex),
                         params2 = {'ip':'10.0.%d.100/24' % hindex},
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss)
-
+                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
             host = 'h%d' % hindex
             topo.addNode(host, cls=TbNode,
                         ip='10.0.%d.1/24' % hindex,
                         defaultRoute = 'via 10.0.%d.100' % hindex)
 
             topo.addLink(switch, host,
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = loss)
+                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
 
         mn = Mininet(topo)
         mn.start()
