@@ -81,14 +81,14 @@ IntcpTransCB::IntcpTransCB(
 		void *_user, 
 		int (*_outputFunc)(const char *buf, int len, void *user, int dstRole),
 		int (*_fetchDataFunc)(char *buf, IUINT32 start, IUINT32 end, void *user),
-		// int (*_reportUnsatInt)(IUINT32 start, IUINT32 end, void *user),
+        int (*_onUnsatInt)(IUINT32 start, IUINT32 end, void *user),
 		// bool _isUnreliable
 		bool _isMidnode
 		):
 user(_user),
 outputFunc(_outputFunc),
 fetchDataFunc(_fetchDataFunc),
-// reportUnsatInt(_reportUnsatInt),
+onUnsatInt(_onUnsatInt),
 // isUnreliable(_isUnreliable), 
 isMidnode(_isMidnode),
 snd_nxt(0),
@@ -333,7 +333,7 @@ int IntcpTransCB::responseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 }
 
 void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts){
-    LOG(TRACE,"recv interest [%d,%d)\n\n",rangeStart,rangeEnd);
+    LOG(TRACE,"recv interest [%d,%d)",rangeStart,rangeEnd);
     int sentEnd = responseInt(rangeStart,rangeEnd);
     if(sentEnd<rangeEnd){
         // rest interest
@@ -348,9 +348,13 @@ void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts){
             }
             //TODO try to merge interests which have union
             IntRange ir;
-            ir.start = rangeStart;
+            ir.start = sentEnd;
             ir.end = rangeEnd;
             recvedInts.push_back(ir);
+            //TODO app data ---onUnsatInt---> cache ---notifyNewData---> send
+            // really inefficient
+            LOG(TRACE,"unsat [%d,%d)",sentEnd,rangeEnd);
+            onUnsatInt(sentEnd, rangeEnd, user);
         }
     }
 }
@@ -907,7 +911,7 @@ void IntcpTransCB::flushInt(){
 	list<IntcpSeg*>::iterator p,next;
     for (p = int_buf.begin(); p != int_buf.end(); p=next) {
         next=p;next++;
-        IntcpSeg *segPtr = *p;
+        IntcpSeg *segPtr = *p; 
         int needsend = 0;
         if(isMidnode){
             needsend = 1;
@@ -916,9 +920,11 @@ void IntcpTransCB::flushInt(){
             if (segPtr->xmit == 0) {
                 needsend = 1;
                 segPtr->rto = rx_rto;
-                segPtr->resendts = current + segPtr->rto + rtomin;
+                // segPtr->resendts = current + segPtr->rto + rtomin;
+                segPtr->resendts = current + IUINT32(segPtr->rto*INTCP_RTO_FACTOR);
             } else if (_itimediff(current, segPtr->resendts) >= 0) {
-                LOG(DEBUG,"----- Timeout [%d,%d) -----",segPtr->rangeStart,segPtr->rangeEnd);
+                LOG(TRACE,"----- Timeout [%d,%d) xmit %d -----",
+                        segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit);
                 needsend = 1; //1 -> 0
                 xmit++;
                 if (nodelay == 0) { //this branch is default
@@ -1077,9 +1083,9 @@ void IntcpTransCB::update(IUINT32 _current)
     IINT32 slap = _itimediff(_current, nextFlushTs);
 
 	if (slap>0 || slap<-10000){
-        LOG(TRACE,"iq %ld ib %ld pit %ld sq %ld rb %ld rq %ld",
-                int_queue.size(), int_buf.size(),recvedInts.size(),
-                snd_queue.size(),rcv_buf.size(),rcv_queue.size());
+        // LOG(DEBUG,"iq %ld ib %ld pit %ld sq %ld rb %ld rq %ld",
+        //         int_queue.size(), int_buf.size(),recvedInts.size(),
+        //         snd_queue.size(),rcv_buf.size(),rcv_queue.size());
         flush();
 
 		if (slap >= updateInterval || slap < -10000) {

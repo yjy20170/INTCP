@@ -50,11 +50,13 @@ void *onNewSess(void* _sessPtr){
             IUINT32 curTime = getMillisec();
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
+
             printf("recv [%d,%d) sendTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,sendTime,curTime, curTime-sendTime);
             fflush(stdout);
             pos += REQ_LEN;
         }
         
+
     }
 
     return nullptr;

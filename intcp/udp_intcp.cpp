@@ -164,7 +164,7 @@ cachePtr(_cachePtr)
     Quad quad(requesterAddr,responserAddr);
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE);
+    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, nullptr);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -174,7 +174,7 @@ cachePtr(_cachePtr)
 // this is for [responser]
 // this is called when receiving a new Quad
 IntcpSess::IntcpSess(Quad quad, int listenFd, Cache* _cachePtr,
-        void *(*onNewSess)(void* _sessPtr)):
+        void *(*onNewSess)(void* _sessPtr), int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)):
 nodeRole(INTCP_RESPONSER),
 cachePtr(_cachePtr)
 {
@@ -187,7 +187,7 @@ cachePtr(_cachePtr)
 
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE);
+    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, onUnsatInt);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -209,7 +209,7 @@ cachePtr(_cachePtr)
     if(socketFd_toReq==-1 || socketFd_toResp)
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE);
+    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, nullptr);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -240,9 +240,10 @@ void IntcpSess::insertData(const char *sendBuf, int start, int end){
     // transCB->send(sendBuf,end-start);
     int ret=cachePtr->insert(nameChars,start,end,sendBuf);
     assert(ret==0);
-    lock.lock();
+    //WARNING: input -> parseInt -> onUnsatInt -> insertData, lock is occupied by input()
+    // lock.lock();
     transCB->notifyNewData(start,end,getMillisec());
-    lock.unlock();
+    // lock.unlock();
 }
 void* TransUpdateLoop(void *args){
     IntcpSess *sessPtr = (IntcpSess*)args;
@@ -268,8 +269,8 @@ void* TransUpdateLoop(void *args){
     }
     return nullptr;
 }
-IntcpTransCB* createTransCB(const IntcpSess *sessPtr, bool isMidnode){
-    IntcpTransCB* transCB = new IntcpTransCB((void*)sessPtr, udpSend, fetchData, isMidnode);
+IntcpTransCB* createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)){
+    IntcpTransCB* transCB = new IntcpTransCB((void*)sessPtr, udpSend, fetchData, onUnsatInt, isMidnode);
     
     //set transCB paramaters
     // transCB->setNoDelay(1, 5, 2, 1);
@@ -317,7 +318,6 @@ int fetchData(char *buf, IUINT32 start, IUINT32 end, void *user){
     int readlen = sess->cachePtr->read(sess->nameChars, start, end, buf);
     return readlen;
 }
-
 
 /***************** multi-session management *****************/
 
@@ -405,7 +405,7 @@ void *udpRecvLoop(void *_args){
             LOG(TRACE,"establish: %s:%d", sendIPstr, ntohs(sendAddr.sin_port));
             if(isEndp){
                 //new responser session
-                sessPtr = new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess);
+                sessPtr = new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess, args->onUnsatInt);
             } else {
                 //new midnode session
                 sessPtr = new IntcpSess(quad, args->cachePtr, args->onNewSess);
