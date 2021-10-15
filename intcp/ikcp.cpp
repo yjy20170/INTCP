@@ -1,6 +1,6 @@
 #include "./include/ikcp.h"
 #undef LOG_LEVEL
-#define LOG_LEVEL DEBUG
+#define LOG_LEVEL SILENT
 
 
 //EXPR
@@ -564,8 +564,8 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
         //     break;
         // }
         if (segPtr->rangeStart < intSeg->rangeEnd && segPtr->rangeEnd > intSeg->rangeStart) {
-            LOG(TRACE,"[%d,%d) rtt %d current %d",segPtr->rangeStart,segPtr->rangeEnd,
-                    _getMillisec()-intSeg->ts, _getMillisec());
+            LOG(DEBUG,"[%d,%d) rtt %d current %d xmit %d",segPtr->rangeStart,segPtr->rangeEnd,
+                    _getMillisec()-intSeg->ts, _getMillisec(), intSeg->xmit);
 
             //-------------------------------
             // insert [the intersection of seg and interest] into rcv_buf

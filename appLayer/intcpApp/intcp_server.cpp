@@ -33,7 +33,7 @@ void *onNewSess(void* _sessPtr){
         sessPtr->insertData(dataBuf,start,start+REQ_LEN);
         LOG(TRACE,"insert %d %d\n",start,start+REQ_LEN);
         start += REQ_LEN;
-        usleep(1.1*1000*REQ_INTV);
+        usleep(1*1000*REQ_INTV);
         //printf("abcde\n");
     }
     

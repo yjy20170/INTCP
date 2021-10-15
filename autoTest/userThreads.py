@@ -112,6 +112,7 @@ def RttTest(mn, testParam, logPath):
             '''
             for node in testParam.absTopoParam.nodes:
                 if not node=='h1' and not node=='h2':
+                    print(node,"run intcpm")
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                     
         #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"server"))
