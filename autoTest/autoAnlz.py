@@ -280,8 +280,8 @@ def getCdfParam(tp):
     
     loss_dict = {1:"blue",5:"green",0.1:"orangered"}
     nodes_dict = {1:"blue",3:"orangered"}
-    color = loss_dict[tp.appParam.total_loss]
-    #color = nodes_dict[tp.appParam.midNodes]
+    #color = loss_dict[tp.appParam.total_loss]
+    color = nodes_dict[tp.appParam.midNodes]
     return color,linestyle 
     
 def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
@@ -327,8 +327,8 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
             color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            #plt.step(x,y)
-            plt.step(x,y,linestyle=linestyle,color=color)
+            plt.step(x,y)
+            #plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
