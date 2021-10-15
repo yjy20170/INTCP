@@ -329,7 +329,7 @@ bool addrCmp(struct sockaddr_in addr1, struct sockaddr_in addr2){
 
 void *udpRecvLoop(void *_args){
     struct udpRecvLoopArgs *args = (struct udpRecvLoopArgs *)_args;
-    char recvBuf[MaxBufSize];
+    char recvBuf[1500]; //for UDP, 1500 is proper
     int recvLen;
 
     // first, create a socket for listening

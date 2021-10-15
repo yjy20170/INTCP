@@ -38,8 +38,8 @@ using namespace std;
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 
-const IUINT32 INTCP_RTO_NDL = 30;        // no delay min rto
-const IUINT32 INTCP_RTO_MIN = 100;        // normal min rto
+const IUINT32 INTCP_RTO_NDL = 10;        // no delay min rto
+const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 200;
 const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_FACTOR = 1.0;
@@ -55,7 +55,7 @@ const IUINT32 INTCP_WND_SND = 32;
 const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 const IUINT32 INTCP_MTU_DEF = 1400; //EXPR 1400
 const IUINT32 INTCP_ACK_FAST = 3;
-const IUINT32 INTCP_INTERVAL = 5; //EXPR 100 -> 5
+const IUINT32 INTCP_INTERVAL = 1; //EXPR 100 -> 5
 const IUINT32 INTCP_DEADLINK = 20;
 const IUINT32 INTCP_THRESH_INIT = 2;
 const IUINT32 INTCP_THRESH_MIN = 2;

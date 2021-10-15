@@ -43,7 +43,7 @@ def getTestParamSet(tpsetName):
 
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['total_loss','protocol'],keysPlotDiff=[])
         
-        losses = [1,5,10]
+        losses = [5,5,10]
         for loss in losses:
             tpSet.add({
                 'total_loss':loss,

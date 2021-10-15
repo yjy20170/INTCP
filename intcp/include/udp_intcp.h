@@ -25,7 +25,7 @@
 
 using namespace std;
 
-const int MaxBufSize = 1500;
+const int MaxBufSize = 3000;
 const socklen_t AddrLen = (socklen_t)(sizeof(struct sockaddr_in));
 
 /***************** util functions *****************/
