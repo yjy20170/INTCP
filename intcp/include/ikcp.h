@@ -42,7 +42,7 @@ const IUINT32 INTCP_RTO_NDL = 30;        // no delay min rto
 const IUINT32 INTCP_RTO_MIN = 100;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 200;
 const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_FACTOR = 1.8;
+const float INTCP_RTO_FACTOR = 1.0;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data

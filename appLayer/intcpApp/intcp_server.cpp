@@ -7,6 +7,7 @@
 
 
 int provideData(IUINT32 start, IUINT32 end, void *_sessPtr){
+    /*
     LOG(DEBUG,"insert [%d,%d)",start,end);
     IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
     char *dataBuf = new char[end-start];
@@ -15,23 +16,24 @@ int provideData(IUINT32 start, IUINT32 end, void *_sessPtr){
     *((IUINT32 *)dataBuf) = getMillisec();
     sessPtr->insertData(dataBuf,start,end);
     delete dataBuf;
+    */
     return 0;
 }
 
 void *onNewSess(void* _sessPtr){
     LOGL(DEBUG);
-    // IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
-    // char dataBuf[TOTAL_DATA_LEN];
+    IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
+    char dataBuf[TOTAL_DATA_LEN];
     
-    // int start = 0;
-    // while(1){
-    //     memset(dataBuf,0,REQ_LEN);
-    //     *((IUINT32 *)dataBuf) = getMillisec();
-    //     sessPtr->insertData(dataBuf,start,start+REQ_LEN);
-    //     LOG(TRACE,"insert %d %d\n",start,start+REQ_LEN);
-    //     start += REQ_LEN;
-    //     usleep(1.05*1000*REQ_INTV);
-    // }
+    int start = 0;
+    while(1){
+         memset(dataBuf,0,REQ_LEN);
+         *((IUINT32 *)dataBuf) = getMillisec();
+         sessPtr->insertData(dataBuf,start,start+REQ_LEN);
+         LOG(TRACE,"insert %d %d\n",start,start+REQ_LEN);
+         start += REQ_LEN;
+         usleep(1*1000*REQ_INTV);
+     }
     
     return nullptr;
 }
