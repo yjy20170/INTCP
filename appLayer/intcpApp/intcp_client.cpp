@@ -43,15 +43,17 @@ void *onNewSess(void* _sessPtr){
         
         int pos = _round_up(start,REQ_LEN);
         while(1){
-            if(end-pos<sizeof(int))
+            if(end-pos<sizeof(IUINT32)*2)
                 break;
          
             IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
+            IUINT32 xmit = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)));
+            IUINT32 recvTime = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*2));
             IUINT32 curTime = getMillisec();
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
 
-            printf("recv [%d,%d) sendTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,sendTime,curTime, curTime-sendTime);
+            printf("recv [%d,%d) xmit %u owd_noOrder %u sendTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-sendTime,sendTime,curTime, curTime-sendTime);
             fflush(stdout);
             pos += REQ_LEN;
         }

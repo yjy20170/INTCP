@@ -582,7 +582,9 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
             intsecDataSeg->len = intsecEnd-intsecStart;
             memcpy(intsecDataSeg->data, segPtr->data+intsecStart-segPtr->rangeStart,
                     intsecEnd-intsecStart);
-            memcpy(intsecDataSeg->data+sizeof(IUINT32), sizeof(IUINT32), &intSeg->xmit);
+            memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
+            IUINT32 cur_tmp = _getMillisec();
+            memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
             if(rcv_buf.empty()){
                 rcv_buf.push_back(intsecDataSeg);
             }else{
