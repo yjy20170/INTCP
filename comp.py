@@ -1,5 +1,0 @@
-n=lambda x:x.isnumeric()
-f=lambda x:x.count('.')<=1 and n(x.replace('.',''))
-np=lambda j,x:j(x) if x[0]!='-' else j(x[1:])
-e=lambda x:(lambda y:False if len(y)>2 else (np(f,y[0]) and (np(n,y[1]) if len(y)==2 else True)))(x.replace('E','e').split('e'))
-print(e(input()))
