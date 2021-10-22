@@ -16,6 +16,9 @@ void *onNewSess(void* _sessPtr){
     
     char recvBuf[MaxBufSize];
     while(1){
+        //printf("intcpm loop\n");
+        //fflush(stdout);
+        //sleep(1);
         int ret;
         IUINT32 start,end;
         ret = sessPtr->recvData(recvBuf, MaxBufSize, &start, &end);
@@ -30,7 +33,8 @@ void *onNewSess(void* _sessPtr){
 int main(){
     Cache cache(QUAD_STR_LEN);
     ByteMap<IntcpSess*> sessMap;
-
+    printf("entering intcpm\n");
+    fflush(stdout);
     startMidnode(&cache,&sessMap,onNewSess,DEFAULT_MID_PORT);
     
     return 0;

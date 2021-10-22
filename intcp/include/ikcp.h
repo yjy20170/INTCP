@@ -40,9 +40,9 @@ const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart
 
 const IUINT32 INTCP_RTO_NDL = 10;        // no delay min rto
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 200;
+const IUINT32 INTCP_RTO_DEF = 1000; //500
 const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_FACTOR = 1.0;
+const float INTCP_RTO_FACTOR = 1.5;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data

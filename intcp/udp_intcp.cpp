@@ -367,7 +367,7 @@ void *udpRecvLoop(void *_args){
         // );
 
         recvLen = recvmsg(listenFd, &mhdr, 0);
-
+        //LOGL(DEBUG);
         for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&mhdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&mhdr, cmsg)){
             if(cmsg->cmsg_level != SOL_IP || cmsg->cmsg_type != IP_ORIGDSTADDR) continue;
             memcpy(&recvAddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));

@@ -61,19 +61,16 @@ def loadLog(logPath, tpSet, isDetail=False):
                 #rttTotal = tp.rttTotal
                 #total_packets = 0
                 #retran_packets = 0
-                #if tp.midCC=="nopep":
-                #    threhold = 1.5*tp.rttTotal
-                #else:
-                #    threhold = tp.rttSat+0.5*tp.rttTotal
-                for line in lines:
-                    if "owd_obs" in line:
-                        pos = line.find("owd_obs")
-                        try:
-                            num = float(line[pos+8:])
-                            thrps.append(num)
-                        except:
-                            continue
-                    '''
+                if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
+                    for line in lines:
+                        if "owd_obs" in line:
+                            pos_obs = line.find("owd_obs")
+                            try:
+                                num = float(line[pos_obs+8:])
+                                thrps.append(num)
+                            except:
+                                continue
+                        '''
                     total_packets += 1
                     if "owd_c2s" in line:
                         pos1 = line.find("owd_c2s")
@@ -279,7 +276,7 @@ def getCdfParam(tp):
         linestyle = '-'
     
     loss_dict = {1:"blue",5:"green",0.1:"orangered"}
-    nodes_dict = {1:"blue",3:"orangered"}
+    nodes_dict = {1:"blue",2:"green",3:"orangered"}
     #color = loss_dict[tp.appParam.total_loss]
     color = nodes_dict[tp.appParam.midNodes]
     return color,linestyle 
@@ -327,15 +324,18 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
             color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            plt.step(x,y)
-            #plt.step(x,y,linestyle=linestyle,color=color)
+            #plt.step(x,y)
+            plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
     plt.legend(legends)
     plt.title(title)
     plt.xlabel('one way delay(ms)',size=12)
-    plt.savefig('%s/%s.png' % (resultPath, title))
+    if retranPacketOnly:
+        plt.savefig('%s/%s_%s.png' % (resultPath, title,"retran"))
+    else:
+        plt.savefig('%s/%s_%s.png' % (resultPath, title,"all"))
     #plt.show()
     
 def anlz(tpSet, logPath, resultPath):
@@ -356,6 +356,7 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
         print('entering rtt analyse')
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = False)
         drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
     fixOwnership(resultPath,'r')
 
