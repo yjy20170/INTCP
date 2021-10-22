@@ -24,7 +24,7 @@ def getArgsFromCli():
     
 if __name__=='__main__':
     os.chdir(sys.path[0]) 
-    # import inspect
+    # import inspects
 
     # for name, obj in inspect.getmembers(userThreads):
     #     if inspect.isclass(Thread):

@@ -1,6 +1,6 @@
 #include "./include/ikcp.h"
 #undef LOG_LEVEL
-#define LOG_LEVEL SILENT
+#define LOG_LEVEL DEBUG
 
 
 //EXPR
@@ -54,6 +54,7 @@ IntcpSeg* IntcpTransCB::createSeg(int size)
 {
     IntcpSeg* ptr = (IntcpSeg*)myMalloc(sizeof(IntcpSeg) + size);
     new(ptr) IntcpSeg;
+    memset(ptr->data,1,size);
     return ptr;
 }
 
@@ -246,6 +247,9 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
 int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end)
 {
     int len = end - start;
+    if(len>64){
+        LOG(DEBUG,"%d %d",start,end);
+    }
     IntcpSeg *seg;
 
     assert(mss > 0);
@@ -270,7 +274,7 @@ int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end)
         seg->rangeEnd = start+size;
         start += size;
         snd_queue.push_back(seg);
-		// LOG(DEBUG, "sendData sn %d [%d,%d) \"%.*s\"",seg->sn,seg->rangeStart,seg->rangeEnd,seg->len,seg->data);
+		LOG(TRACE, "sendData sn %d [%d,%d) ",seg->sn,seg->rangeStart,seg->rangeEnd);
         buffer += size;
         len -= size;
     }
@@ -314,7 +318,7 @@ void IntcpTransCB::updateRTT(IINT32 rtt)
 
 int IntcpTransCB::responseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 	// first, try to fetch data
-	IUINT32 segStart, segEnd, sentEnd;
+	IUINT32 segStart, segEnd, sentEnd=rangeStart;
 	int fetchLen;
 	for(segStart = rangeStart; segStart < rangeEnd; segStart+=mtu){
 		segEnd = _imin_(rangeEnd, segStart+mtu);
@@ -333,7 +337,10 @@ int IntcpTransCB::responseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 }
 
 void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts){
-    LOG(TRACE,"recv interest [%d,%d)",rangeStart,rangeEnd);
+    // if(rangeEnd-rangeStart>64){
+    // if(true){
+    //     LOG(DEBUG,"recv interest [%d,%d)",rangeStart,rangeEnd);
+    // }
     int sentEnd = responseInt(rangeStart,rangeEnd);
     if(sentEnd<rangeEnd){
         // rest interest
@@ -514,7 +521,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                 }
             }
             if(segPtr->sn >= rightBound){
-                if(segPtr->sn > rightBound){
+                if(segPtr->sn > rightBound && segPtr->rangeStart > byteRightBound){
                     // add a new hole
                     Hole newHole;
                     newHole.start = rightBound;
@@ -544,6 +551,14 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
         }
     }
 
+    // if(!isMidnode){
+    // if(true){
+    //     LOG(DEBUG,"rcv data [%d,%d)",segPtr->rangeStart,segPtr->rangeEnd);
+    //     for(auto hole: holes){
+    //         LOG(DEBUG,"hole [%d,%d)",hole.byteStart,hole.byteEnd);
+    //     }
+    // }
+
     if(isMidnode){
         rcv_queue.push_back(segPtr);
         return;
@@ -557,7 +572,6 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
     //     deleteSeg(segPtr);
     //     return;
     // }
-
     
     list<IntcpSeg*>::iterator intIter, intNext;
     //in requester, need to delete range of int_buf
@@ -582,6 +596,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
             intsecDataSeg->len = intsecEnd-intsecStart;
             memcpy(intsecDataSeg->data, segPtr->data+intsecStart-segPtr->rangeStart,
                     intsecEnd-intsecStart);
+            //DEBUG
             memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
             IUINT32 cur_tmp = _getMillisec();
             memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
@@ -886,8 +901,9 @@ void IntcpTransCB::flushInt(){
                 first = false;
             } else {
                 if(iter->start <= newseg->rangeEnd){
+                    LOG(TRACE,"%u %u %u %u",newseg->rangeStart,newseg->rangeEnd,iter->start,iter->end);
                     newseg->rangeStart = _imin_(iter->start,newseg->rangeStart);
-                    newseg->rangeEnd = _imin_(_imin_(newseg->rangeEnd, iter->end),
+                    newseg->rangeEnd = _imin_(_imax_(newseg->rangeEnd, iter->end),
                             newseg->rangeStart+intRangeLimit);
                 } else {
                     break;
@@ -902,6 +918,9 @@ void IntcpTransCB::flushInt(){
         }
         intRangeLimit -= newseg->rangeEnd-newseg->rangeStart;
         int_buf.push_back(newseg);
+        if(newseg->rangeEnd-newseg->rangeStart > 64){
+            LOG(DEBUG,"%d %d",newseg->rangeStart,newseg->rangeEnd);
+        }
     }
 	
 	// ---------------- output ---------------------------
@@ -1010,10 +1029,10 @@ void IntcpTransCB::flushInt(){
 
 // snd_queue -> send straightforward;
 void IntcpTransCB::flushData(){
-    // LOG(DEBUG,"sendqueue len %lu\n",snd_queue.size());
+    LOG(TRACE,"sendqueue len %lu",snd_queue.size());
     //TODO CC -- cwnd/sendingRate
     // int dataOutputLimit = getDataSwnd();
-    int dataOutputLimit = 1024;
+    int dataOutputLimit = 65536;
     //TODO design token bucket
 
 	char *sendEnd=tmpBuffer;
@@ -1049,7 +1068,13 @@ void IntcpTransCB::flushData(){
             sendEnd = tmpBuffer;
         }
 
-        LOG(DEBUG,"output data sn %d [%d,%d) cur %u",segPtr->sn,segPtr->rangeStart,segPtr->rangeEnd,_getMillisec());
+        LOG(DEBUG,"output data sn %d [%d,%d) cur %u {%u}",segPtr->sn,segPtr->rangeStart,
+                segPtr->rangeEnd,_getMillisec(), *(IUINT32*)(segPtr->data));
+        static int tmpcnt=0;
+        if(*(IUINT32*)(segPtr->data)==0){
+            tmpcnt++;
+            if(tmpcnt>3)abort();
+        }
         sendEnd = encodeSeg(sendEnd, segPtr);
         if (segPtr->len > 0) {
             memcpy(sendEnd, segPtr->data, segPtr->len);
