@@ -3,6 +3,8 @@
 import socket
 import Utils
 
+
+        
 if __name__=='__main__':
     tcp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print('socket created.')
@@ -20,14 +22,19 @@ if __name__=='__main__':
     client_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
 
     recv_data_generator = Utils.recvData(client_socket.recv)
+    idxPkt = 0
     while(1):
         data = recv_data_generator.__next__()
-        strTime = Utils.getStrTime()
+        curTime = Utils.getStrTime()
+        owd = Utils.timeDelta(curTime, data[0:8])
+        idxPkt += 1
+        print('idx', idxPkt,'sendTime',data[0:8],'curTime',curTime,'owd_obs', owd,flush=True)
         # 24 bytes in all
+        '''
         strPadded = Utils.padStr(data + strTime, 26)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(client_socket.send, bytesToSend)
-
+        '''
 
     client_socket.close()
 

@@ -85,18 +85,12 @@ def RttTest(mn, testParam, logPath):
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(testParam.rttTestPacket,testParam.rttTotal,logFilePath))
     if testParam.appParam.get('protocol')=="TCP":
-        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py &')
-        
-        #atomic(mn.getNodeByName('h1').cmd)('python ../tcp_test/client.py -c %d -rt %d &'%(testParam.rttTestPacket,testParam.rttTotal))
-        
-        #if testParam.midCC=="nopep":
-        #    limit = 1.5*testParam.rttTotal
-        #else:
-        #    limit = testParam.rttSat+0.5*testParam.rttTotal
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py > %s &'%(logFilePath))
         limit = 0     
-        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f > %s &'%(limit,logFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(limit))
         time.sleep(testParam.appParam.sendTime)
         #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
+        
     elif testParam.appParam.get('protocol')=="INTCP":
         
         #time.sleep(1)
@@ -109,15 +103,7 @@ def RttTest(mn, testParam, logPath):
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                     time.sleep(2)
                     #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
-            
-            '''
-            print("bp1")
-            atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+'pep2'))
-            print("bp2")
-            time.sleep(2)
-            atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+'pep1')) 
-            print("bp3")
-            '''    
+
         #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))

@@ -45,17 +45,25 @@ void *onNewSess(void* _sessPtr){
         while(1){
             if(end-pos<sizeof(IUINT32)*2)
                 break;
-         
+            //printf("%d %d %d\n",pos,start,end);
             IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
             IUINT32 xmit = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)));
             IUINT32 recvTime = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*2));
             IUINT32 rto = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*3));
             IUINT32 curTime = getMillisec();
             LOG(TRACE, "recv [%d,%d)\n", start, end);
-
-
+            
+            //printf("recv [%d,%d) xmit %u rto %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,rto,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
             printf("recv [%d,%d) xmit %u rto %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,rto,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
             fflush(stdout);
+            /*
+            if(recvTime<1000){
+                printf("recv [%d,%d) xmit %u rto %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,rto,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+                //printf("%d %d %d\n",pos,start,end);
+                fflush(stdout);
+            
+            }
+            */
             pos += REQ_LEN;
         }
         
@@ -71,5 +79,6 @@ int main(){
     printf("entering intcpc\n");
     startRequester(&cache,&sessMap,onNewSess,
         "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);
+    //printf(_round_up())
     return 0;
 }
