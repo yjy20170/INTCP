@@ -61,19 +61,16 @@ def loadLog(logPath, tpSet, isDetail=False):
                 #rttTotal = tp.rttTotal
                 #total_packets = 0
                 #retran_packets = 0
-                #if tp.midCC=="nopep":
-                #    threhold = 1.5*tp.rttTotal
-                #else:
-                #    threhold = tp.rttSat+0.5*tp.rttTotal
-                for line in lines:
-                    if "owd_obs" in line:
-                        pos = line.find("owd_obs")
-                        try:
-                            num = float(line[pos+8:])
-                            thrps.append(num)
-                        except:
-                            continue
-                    '''
+                if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
+                    for line in lines:
+                        if "owd_obs" in line:
+                            pos_obs = line.find("owd_obs")
+                            try:
+                                num = float(line[pos_obs+8:])
+                                thrps.append(num)
+                            except:
+                                continue
+                        '''
                     total_packets += 1
                     if "owd_c2s" in line:
                         pos1 = line.find("owd_c2s")
@@ -95,8 +92,8 @@ def loadLog(logPath, tpSet, isDetail=False):
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-    #for k in result:
-    #    print(k,result[k][:5])    
+    for k in result:
+       print(k,result[k][:5])    
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -279,9 +276,11 @@ def getCdfParam(tp):
         linestyle = '-'
     
     loss_dict = {1:"blue",5:"green",0.1:"orangered"}
-    nodes_dict = {1:"blue",3:"orangered"}
-    color = loss_dict[tp.appParam.total_loss]
+    nodes_dict = {1:"blue",2:"green",3:"orangered"}
+    midcc_dict = {'pep':"green",'nopep':'orangered'}
+    #color = loss_dict[tp.appParam.total_loss]
     #color = nodes_dict[tp.appParam.midNodes]
+    color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     
 def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
@@ -302,8 +301,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
             else:
                 x_max = max(cur_max,x_max)
     x_min  = 0
-    x_max = min(x_max,1000)
-    x = np.linspace(x_min,x_max)
+    #DEBUG
+    #x_max = min(x_max,2000)
+    x_max = 3000
+    x = np.linspace(x_min,x_max,num=500)
     
     if retranPacketOnly:
         for tp in tpSet.testParams:
@@ -335,7 +336,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
     plt.legend(legends)
     plt.title(title)
     plt.xlabel('one way delay(ms)',size=12)
-    plt.savefig('%s/%s.png' % (resultPath, title))
+    if retranPacketOnly:
+        plt.savefig('%s/%s_%s.png' % (resultPath, title,"retran"))
+    else:
+        plt.savefig('%s/%s_%s.png' % (resultPath, title,"all"))
     #plt.show()
     
 def anlz(tpSet, logPath, resultPath):
@@ -356,6 +360,7 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
         print('entering rtt analyse')
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = False)
         drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
     fixOwnership(resultPath,'r')
 

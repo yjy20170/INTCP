@@ -54,7 +54,6 @@ IntcpSeg* IntcpTransCB::createSeg(int size)
 {
     IntcpSeg* ptr = (IntcpSeg*)myMalloc(sizeof(IntcpSeg) + size);
     new(ptr) IntcpSeg;
-    memset(ptr->data,1,size);
     return ptr;
 }
 
@@ -68,8 +67,7 @@ void IntcpTransCB::deleteSeg(IntcpSeg *seg)
 // output segment, size include kcp header
 int IntcpTransCB::output(const void *data, int size, int dstRole)
 {
-    // LOG(DEBUG, "%d %.*s", size-INTCP_OVERHEAD, size-INTCP_OVERHEAD,
-    //          (const char*)data+INTCP_OVERHEAD);
+    // LOG(DEBUG, "size %d", size-INTCP_OVERHEAD);
     if (size == 0) return 0;
     return outputFunc((const char*)data, size, user, dstRole);
 }
@@ -247,9 +245,9 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
 int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end)
 {
     int len = end - start;
-    if(len>64){
-        LOG(DEBUG,"%d %d",start,end);
-    }
+    // if(len>64){
+    //     LOG(DEBUG,"%d %d",start,end);
+    // }
     IntcpSeg *seg;
 
     assert(mss > 0);
@@ -460,7 +458,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                 } else if(segPtr->sn >= iter->end){
                     iter->count++;
                     if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
-                        LOG(DEBUG,"----hole [%d,%d) current %u----", iter->byteStart, iter->byteEnd, current);
+                        LOG(TRACE,"----hole [%d,%d) current %u----", iter->byteStart, iter->byteEnd, current);
                         if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*mss){
                             LOG(DEBUG, "abnormal! ignore this hole");
                         } else {
@@ -481,6 +479,9 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                                 newseg->ts = _getMillisec();//current;
                                 newseg->rangeStart = sentEnd;
                                 newseg->rangeEnd = iter->byteEnd;
+                                //if(iter->byteEnd-sentEnd>1000){
+                                //    LOG(DEBUG,"big hole sentEnd %d [%d,%d) sn [%d,%d)\n",sentEnd,iter->byteStart,iter->byteEnd,iter->start,iter->end);
+                                //}
                                 char *end = encodeSeg(tmpBuffer, newseg);
                                 output(tmpBuffer, end-tmpBuffer, INTCP_RESPONSER);
                                 // request(sentEnd, iter->byteEnd);
@@ -521,7 +522,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                 }
             }
             if(segPtr->sn >= rightBound){
-                if(segPtr->sn > rightBound && segPtr->rangeStart > byteRightBound){
+                if(segPtr->sn > rightBound && (segPtr->rangeStart>byteRightBound)){
                     // add a new hole
                     Hole newHole;
                     newHole.start = rightBound;
@@ -531,7 +532,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                     newHole.ts = current;
                     newHole.count = 1;
                     holes.push_back(newHole);
-                    LOG(TRACE,"new hole [%d,%d) current %u",newHole.byteStart, newHole.byteEnd, current);
+                    LOG(DEBUG,"new hole [%d,%d) current %u",newHole.byteStart, newHole.byteEnd, current);
                 }
                 rightBound = segPtr->sn+1;
                 byteRightBound = segPtr->rangeEnd;
@@ -597,9 +598,11 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
             memcpy(intsecDataSeg->data, segPtr->data+intsecStart-segPtr->rangeStart,
                     intsecEnd-intsecStart);
             //DEBUG
-            memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
             IUINT32 cur_tmp = _getMillisec();
+            // LOG(DEBUG,"xmit %u rto %u rcvTime %u",intSeg->xmit,intSeg->rto,cur_tmp);
+            memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
             memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
+            memcpy(intsecDataSeg->data+sizeof(IUINT32)*3, &intSeg->firstTs, sizeof(IUINT32));
             if(rcv_buf.empty()){
                 rcv_buf.push_back(intsecDataSeg);
             }else{
@@ -891,6 +894,7 @@ void IntcpTransCB::flushInt(){
         newseg->xmit = 0;
         // LOG(DEBUG,"real cur %u int_cur %u",_getMillisec(),current);
         newseg->ts = _getMillisec();//current;
+        newseg->firstTs = newseg->ts;
         bool first = true;
         //TODO interest merge before sending, has bug now?
         // assume that rangeEnd of interest in int_queue is in order
@@ -918,9 +922,9 @@ void IntcpTransCB::flushInt(){
         }
         intRangeLimit -= newseg->rangeEnd-newseg->rangeStart;
         int_buf.push_back(newseg);
-        if(newseg->rangeEnd-newseg->rangeStart > 64){
-            LOG(DEBUG,"%d %d",newseg->rangeStart,newseg->rangeEnd);
-        }
+        // if(newseg->rangeEnd-newseg->rangeStart > 64){
+        //     LOG(DEBUG,"%d %d",newseg->rangeStart,newseg->rangeEnd);
+        // }
     }
 	
 	// ---------------- output ---------------------------
@@ -940,7 +944,7 @@ void IntcpTransCB::flushInt(){
 	list<IntcpSeg*>::iterator p,next;
     for (p = int_buf.begin(); p != int_buf.end(); p=next) {
         next=p;next++;
-        IntcpSeg *segPtr = *p; 
+        IntcpSeg *segPtr = *p;
         int needsend = 0;
         if(isMidnode){
             needsend = 1;
@@ -951,7 +955,7 @@ void IntcpTransCB::flushInt(){
                 segPtr->rto = IUINT32(rx_rto*INTCP_RTO_FACTOR);
                 // segPtr->resendts = current + segPtr->rto + rtomin;
                 LOG(TRACE,"request [%d,%d) rto %d",segPtr->rangeStart,segPtr->rangeEnd, IUINT32(segPtr->rto*INTCP_RTO_FACTOR));
-                segPtr->resendts = current + segPtr->rto + rtomin;
+                segPtr->resendts = current + segPtr->rto;// + rtomin;
             } else if (_itimediff(current, segPtr->resendts) >= 0) {
                 LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                         segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),segPtr->rto);
@@ -979,8 +983,9 @@ void IntcpTransCB::flushInt(){
                 output(tmpBuffer, sizeToSend, INTCP_RESPONSER);
                 sendEnd = tmpBuffer;
             }
-
-            LOG(TRACE, "send int [%d,%d)",segPtr->rangeStart,segPtr->rangeEnd);
+            if(segPtr->rangeEnd-segPtr->rangeStart>1000){
+                LOG(DEBUG, "send int [%d,%d)",segPtr->rangeStart,segPtr->rangeEnd);
+            }
             sendEnd = encodeSeg(sendEnd, segPtr);
             if (segPtr->xmit >= dead_link) {
                 state = (IUINT32)-1;
@@ -1068,13 +1073,7 @@ void IntcpTransCB::flushData(){
             sendEnd = tmpBuffer;
         }
 
-        LOG(DEBUG,"output data sn %d [%d,%d) cur %u {%u}",segPtr->sn,segPtr->rangeStart,
-                segPtr->rangeEnd,_getMillisec(), *(IUINT32*)(segPtr->data));
-        static int tmpcnt=0;
-        if(*(IUINT32*)(segPtr->data)==0){
-            tmpcnt++;
-            if(tmpcnt>3)abort();
-        }
+        LOG(TRACE,"output data sn %d [%d,%d) cur %u",segPtr->sn,segPtr->rangeStart,segPtr->rangeEnd,_getMillisec());
         sendEnd = encodeSeg(sendEnd, segPtr);
         if (segPtr->len > 0) {
             memcpy(sendEnd, segPtr->data, segPtr->len);

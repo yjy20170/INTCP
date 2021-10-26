@@ -40,9 +40,9 @@ const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart
 
 const IUINT32 INTCP_RTO_NDL = 10;        // no delay min rto
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 200;
+const IUINT32 INTCP_RTO_DEF = 1000; //500
 const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_FACTOR = 1.0;
+const float INTCP_RTO_FACTOR = 1.05;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
@@ -55,7 +55,7 @@ const IUINT32 INTCP_WND_SND = 32;
 const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 const IUINT32 INTCP_MTU_DEF = 1400; //EXPR 1400
 const IUINT32 INTCP_ACK_FAST = 3;
-const IUINT32 INTCP_INTERVAL = 5; //EXPR 100 -> 5
+const IUINT32 INTCP_INTERVAL = 1; //EXPR 100 -> 5
 const IUINT32 INTCP_DEADLINK = 20;
 const IUINT32 INTCP_THRESH_INIT = 2;
 const IUINT32 INTCP_THRESH_MIN = 2;
@@ -74,6 +74,7 @@ struct IntcpSeg
     IUINT32 cmd;    //need send,1B
     IUINT32 wnd;    //need send,2B //TODO for CC
     IUINT32 ts;        //need send,4B
+    IUINT32 firstTs;        //don't send
     IUINT32 sn;        //need send,4B
     IUINT32 len;    //need send,4B
     IUINT32 resendts;

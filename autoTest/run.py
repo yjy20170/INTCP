@@ -21,15 +21,15 @@ def getArgsFromCli():
     args = parser.parse_args()
     return args
 
-    
+
 if __name__=='__main__':
     os.chdir(sys.path[0]) 
-    # import inspects
+    # import inspect
 
     # for name, obj in inspect.getmembers(userThreads):
     #     if inspect.isclass(Thread):
     #         print(Thread)
-    tpSetNames = ["expr3"]#"mot_itm_test"
+    tpSetNames = ['expr3']#["intcp_split_test"]
 
     isAnlz = getArgsFromCli().a
     isManual = getArgsFromCli().m

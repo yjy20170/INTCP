@@ -49,11 +49,14 @@ void *onNewSess(void* _sessPtr){
             IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
             IUINT32 xmit = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)));
             IUINT32 recvTime = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*2));
+            IUINT32 firstTs = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*3));
             IUINT32 curTime = getMillisec();
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
-
-            printf("recv [%d,%d) xmit %u owd_noOrder %u sendTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-sendTime,sendTime,curTime, curTime-sendTime);
+            // if(recvTime<1000){
+                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+                // abort();
+            // }
             fflush(stdout);
             pos += REQ_LEN;
         }
@@ -67,6 +70,7 @@ void *onNewSess(void* _sessPtr){
 int main(){
     Cache cache(QUAD_STR_LEN);
     ByteMap<IntcpSess*> sessMap;
+    printf("entering intcpc\n");
     startRequester(&cache,&sessMap,onNewSess,
         "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);
     return 0;

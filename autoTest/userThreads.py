@@ -102,20 +102,23 @@ def RttTest(mn, testParam, logPath):
         #time.sleep(1)
         
         if testParam.appParam.midCC != 'nopep':
-            '''
-            if testParam.absTopoParam.name=="net_hmh":
-                atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm &')
-                #atomic(mn.getNodeByName('pep').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"mid"))
-            elif testParam.absTopoParam.name=="net_hmmh":
-                atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm &')
-                atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm &')
-            '''
+            
             for node in testParam.absTopoParam.nodes:
                 if not node=='h1' and not node=='h2':
                     print(node,"run intcpm")
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                    
-        #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"server"))
+                    time.sleep(2)
+                    #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
+            
+            '''
+            print("bp1")
+            atomic(mn.getNodeByName('pep2').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+'pep2'))
+            print("bp2")
+            time.sleep(2)
+            atomic(mn.getNodeByName('pep1').cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+'pep1')) 
+            print("bp3")
+            '''    
+        #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))
         time.sleep(testParam.appParam.sendTime)

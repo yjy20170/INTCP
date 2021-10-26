@@ -7,14 +7,22 @@ import time
 import Utils
 import argparse
 
+DataLen = 1400
+
 def sendFunc(tcp_socket):
+    lastTime = -1
     while 1:
         # 8 bytes
         strTime = Utils.getStrTime()
         # 1024 bytes in all
-        strPadded = Utils.padStr(strTime, 16)
+        strPadded = Utils.padStr(strTime, DataLen)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
+        cur = float(strTime)
+        if lastTime!=-1 and cur-lastTime > 0.008:
+            print(cur-lastTime,strTime)
+            break
+        lastTime = cur
         time.sleep(0.005)
 
 def recvFunc(tcp_socket,limit):
@@ -35,7 +43,7 @@ def recvFunc(tcp_socket,limit):
         #if float(owd_c2s)>limit and prev_owd_c2s<limit:
         if float(owd_c2s)>limit:
             print(data[8:16],'idx', idxPkt, 'owd_c2s', owd_c2s,'owd_s2c',owd_s2c,'rtt', rtt,'owd_obs',owd_c2s,flush=True)
-        if len(data) != 16:
+        if len(data) != DataLen:
             print(idxPkt, data)
             print()
         idxPkt += 1
@@ -64,9 +72,9 @@ if __name__=='__main__':
 
     sendThread = Thread(target=sendFunc, args=(tcp_socket,))
     sendThread.start()
-    recvThread = Thread(target=recvFunc, args=(tcp_socket,args.l,))
-    recvThread.start()
+    #recvThread = Thread(target=recvFunc, args=(tcp_socket,args.l,))
+    #recvThread.start()
 
     sendThread.join()
-    recvThread.join()
+    #recvThread.join()
     tcp_socket.close()

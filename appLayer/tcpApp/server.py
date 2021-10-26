@@ -20,13 +20,17 @@ if __name__=='__main__':
     client_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
 
     recv_data_generator = Utils.recvData(client_socket.recv)
+    idxPkt=0
     while(1):
         data = recv_data_generator.__next__()
         strTime = Utils.getStrTime()
+        idxPkt+=1
+        print('idx', idxPkt, 'sendTime',data[0:8],'curTime', strTime,'owd_obs',Utils.timeDelta(strTime,data[0:8]),flush=True)
+        
         # 24 bytes in all
-        strPadded = Utils.padStr(data + strTime, 26)
-        bytesToSend = strPadded.encode('utf8')
-        Utils.sendData(client_socket.send, bytesToSend)
+        # strPadded = Utils.padStr(data + strTime, 26)
+        # bytesToSend = strPadded.encode('utf8')
+        #Utils.sendData(client_socket.send, bytesToSend)
 
 
     client_socket.close()
