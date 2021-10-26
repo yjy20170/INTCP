@@ -317,8 +317,11 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
                     retran_packet_owds.append(owd)
                 prev_owd = owd
             mapNeToResult[tp] = retran_packet_owds
-            print("min",min(mapNeToResult[tp]))
-            
+            print(tp.name,len(retran_packet_owds))
+            if len(retran_packet_owds)==0:
+                return
+            #print("min",min(mapNeToResult[tp]))
+       
     #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
     legends = []
@@ -341,7 +344,27 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
     else:
         plt.savefig('%s/%s_%s.png' % (resultPath, title,"all"))
     #plt.show()
-    
+
+def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
+    plt.figure(figsize=(8,5),dpi = 320)
+    #plt.ylim((0,2000))
+    keys = tpSet.keysCurveDiff
+    legends = []
+    for tp in tpSet.testParams:
+        if len(mapNeToResult[tp]) >0:
+            color,linestyle = getCdfParam(tp)
+            plt.plot([i for i in range(len(mapNeToResult[tp]))],mapNeToResult[tp])
+            #plt.plot([i for i in range(2000)],mapNeToResult[tp][:2000],color=color,linestyle=linestyle)
+            #plt.plot([i for i in range(snStart,snEnd)],mapNeToResult[tp][snStart:snEnd])
+            legends.append(' '.join([tp.segToStr(key) for key in keys]))
+            
+    title = 'Seq Diagram'
+    plt.title(title)
+    plt.legend(legends)
+    plt.xlabel('packet sn',size=12)      
+    plt.ylabel('one way delay(ms)',size=12)
+    plt.savefig('%s/%s.png' % (resultPath, title))
+     
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
     mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
@@ -360,6 +383,7 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
         print('entering rtt analyse')
+        drawSeqGraph(tpSet,mapTpToResult, resultPath)
         drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = False)
         drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
     fixOwnership(resultPath,'r')
