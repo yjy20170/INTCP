@@ -7,7 +7,7 @@ import time
 import Utils
 import argparse
 
-DataLen = 1400
+DataLen = 16
 
 def sendFunc(tcp_socket):
     lastTime = -1
@@ -22,7 +22,7 @@ def sendFunc(tcp_socket):
         if lastTime!=-1 and cur-lastTime > 0.008:
             print(cur-lastTime,strTime)
         lastTime = cur
-        time.sleep(0.005)
+        time.sleep(0.05)
 
 def recvFunc(tcp_socket,limit):
     prev_owd_c2s = 0
