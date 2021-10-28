@@ -23,8 +23,8 @@ void Cache::nameSeqToKey(char* buf, const char* name, IUINT32 index){
 Cache::Cache(int nameLen):KeyLen(nameLen+sizeof(IUINT32)){
 }
 
-Block* Cache::addBlock(const char* keyChars){
-    Block *blockPtr = new Block;
+shared_ptr<Block> Cache::addBlock(const char* keyChars){
+    shared_ptr<Block> blockPtr(new Block); //TODO
     dataMap.setValue(keyChars, KeyLen, blockPtr);
     // cout<<"[Cache::addBlock] dataMap.setValue "<<checksum(keyChars)<<endl;
     
@@ -44,23 +44,19 @@ Block* Cache::addBlock(const char* keyChars){
 }
 
 void Cache::dropBlock(list<Node>::iterator iter){
-    LOGL(TRACE);
-    // release memory
-    Block* blockPtr = iter->blockIter->second;
-    delete blockPtr;
     // delete block in map
     dataMap.erase(iter->blockIter);
     // delete block in lruList
     lruList.erase(iter);
 }
-void Cache::updateLRU(Block* blockPtr){
+void Cache::updateLRU(shared_ptr<Block> blockPtr){
     // move node in lruList to lruList's end
     lruList.splice(lruList.end(), lruList, blockPtr->nodeIter);
 }
 //TODO seq over UINT32_MAX
 int Cache::insert(const char* name, IUINT32 dataStart, IUINT32 dataEnd, const char* dataBuf){
     lock.lock();
-    Block* blockPtr;
+    shared_ptr<Block> blockPtr;
     char tmpKeyChars[100];
     //divide data to blocks
     IUINT32 blockStart = (dataStart/BLOCK_LEN)*BLOCK_LEN;
@@ -130,7 +126,7 @@ int Cache::insert(const char* name, IUINT32 dataStart, IUINT32 dataEnd, const ch
 
 int Cache::read(const char* name, IUINT32 dataStart, IUINT32 dataEnd, char* dataBuf){
     lock.lock();
-    Block* blockPtr;
+    shared_ptr<Block> blockPtr;
     char tmpKeyChars[KeyLen];
 
     //divide data to blocks

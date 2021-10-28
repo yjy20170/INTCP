@@ -1,20 +1,22 @@
-#ifndef __STRMAP_H__
-#define __STRMAP_H__
+#ifndef __BYTEMAP_H__
+#define __BYTEMAP_H__
 
 #include <unordered_map>
 #include <cstring>
-// #include <iostream>
+#include <iostream>
+#include <memory>
+using namespace std;
 class ByteArray{
 public:
     int len;
-    char* bytePtr;
+    shared_ptr<char> bytePtr;
     ByteArray(int _len, const char* _bytePtr):len(_len) {
-        bytePtr = new char[len];
-        memcpy(bytePtr, _bytePtr, len);
+        bytePtr = shared_ptr<char>(new char[len]);
+        memcpy(bytePtr.get(), _bytePtr, len);
     }
-    //TODO error info: "free(): double free detected in tcache 2"
     // ~ByteArray(){
-    //     delete bytePtr;
+    //     cout<<(void*)bytePtr.get()<<' '<<bytePtr.use_count()<<endl;
+    //     // delete bytePtr;
     // }
 };
 struct hashBytes
@@ -22,14 +24,14 @@ struct hashBytes
     size_t operator()(const ByteArray &ba) const
     {
         // std::cout<<"hash "<<ba.bytePtr<<std::endl;
-        return std::_Hash_bytes(ba.bytePtr, ba.len, 0);
+        return std::_Hash_bytes(ba.bytePtr.get(), ba.len, 0);
     }
 };
 struct eqBytes
 {
     bool operator()(const ByteArray &ba1, const ByteArray &ba2) const
     {
-        if(ba1.len==ba2.len && memcmp(ba1.bytePtr, ba2.bytePtr, ba1.len)==0)
+        if(ba1.len==ba2.len && memcmp(ba1.bytePtr.get(), ba2.bytePtr.get(), ba1.len)==0)
             return true;
         return false;
     }

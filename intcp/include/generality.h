@@ -1,8 +1,8 @@
-#ifndef __GENERALITY_H_
-#define __GENERALITY_H_
+#ifndef __GENERALITY_H__
+#define __GENERALITY_H__
 
 #include <cstring>
-
+#include <sys/time.h>
 //=====================================================================
 // INLINE DEFINITION                                                  
 //=====================================================================
@@ -250,5 +250,20 @@ static inline char *decode32u(char *p, IUINT32 *l)
 }
 
 
+static void _get_current_time(long *sec, long *usec)
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    if (sec) *sec = time.tv_sec;
+    if (usec) *usec = time.tv_usec;
+}
+
+static IUINT32 _getMillisec(){
+    long sec,usec;
+    IINT64 res;
+    _get_current_time(&sec,&usec);
+    res = ((IINT64)sec) * 1000 + (usec / 1000);
+    return (IUINT32)(res & 0xfffffffful);
+}
 
 #endif

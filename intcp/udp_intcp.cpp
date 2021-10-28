@@ -269,14 +269,13 @@ void* TransUpdateLoop(void *args){
     }
     return nullptr;
 }
-IntcpTransCB* createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)){
-    IntcpTransCB* transCB = new IntcpTransCB((void*)sessPtr, udpSend, fetchData, onUnsatInt, isMidnode);
-    
+shared_ptr<IntcpTransCB> createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)){
+   
     //set transCB paramaters
     // transCB->setNoDelay(1, 5, 2, 1);
     // transCB->setWndSize(10,128);
     // transCB->setMtu(20);
-    return transCB;
+    return shared_ptr<IntcpTransCB>(new IntcpTransCB((void*)sessPtr, udpSend, fetchData, onUnsatInt, isMidnode));
 }
 
 int udpSend(const char* buf,int len, void* user, int dstRole){
@@ -356,7 +355,7 @@ void *udpRecvLoop(void *_args){
     mhdr.msg_iovlen = 1;
     mhdr.msg_iov = &iov;
 
-    IntcpSess *sessPtr;
+    shared_ptr<IntcpSess> sessPtr;
     while(1){
         // int recvLen = recvfrom(
         //     listenFd,
@@ -405,10 +404,10 @@ void *udpRecvLoop(void *_args){
             LOG(TRACE,"establish: %s:%d", sendIPstr, ntohs(sendAddr.sin_port));
             if(isEndp){
                 //new responser session
-                sessPtr = new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess, args->onUnsatInt);
+                sessPtr = shared_ptr<IntcpSess>(new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess, args->onUnsatInt));
             } else {
                 //new midnode session
-                sessPtr = new IntcpSess(quad, args->cachePtr, args->onNewSess);
+                sessPtr = shared_ptr<IntcpSess>(new IntcpSess(quad, args->cachePtr, args->onNewSess));
             }
              //nodeRole=server
             args->sessMapPtr->setValue(quad.chars, QUAD_STR_LEN, sessPtr);

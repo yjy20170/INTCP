@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 
 #include <list>
-#include <iostream>//DEBUG
+#include <memory> // for shared_ptr
 
 #include "generality.h"
 #include "log.h"
@@ -128,12 +128,12 @@ private:
 
     //requester
     list<IntRange> int_queue;
-    list<IntcpSeg*> int_buf;
-    list<IntcpSeg*> rcv_buf;
-    list<IntcpSeg*> rcv_queue;
+    list<shared_ptr<IntcpSeg>> int_buf;
+    list<shared_ptr<IntcpSeg>> rcv_buf;
+    list<shared_ptr<IntcpSeg>> rcv_queue;
     //responser
     list<IntRange> recvedInts;
-    list<IntcpSeg*> snd_queue;
+    list<shared_ptr<IntcpSeg>> snd_queue;
 
 	// midnode solution 1 ---- one session has two unreliable TransCB
 	// for requester
@@ -158,17 +158,11 @@ private:
 	int (*fetchDataFunc)(char *buf, IUINT32 start, IUINT32 end, void *user);
     int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user);
 	// also called by responseInterest
-    void* (*mallocFunc)(size_t);
-    void (*freeFunc)(void *);
 
-    char *tmpBuffer;
-
-    void myFree(void *ptr);
-    void* myMalloc(size_t size);
+    shared_ptr<char> tmpBuffer;
 
     // allocate a new kcp segment
-    IntcpSeg* createSeg(int size);
-    void deleteSeg(IntcpSeg *seg);
+    shared_ptr<IntcpSeg> createSeg(int size);
     char* encodeSeg(char *ptr, const IntcpSeg *seg);
 
     // flush pending data
@@ -185,7 +179,8 @@ private:
     // returns below zero for error
     int sendData(const char *buffer, IUINT32 start, IUINT32 end);
 
-    void parseData(IntcpSeg *newseg);
+    void parseData(shared_ptr<IntcpSeg> newseg);
+    void moveToRcvQueue();
 
 //---------------------------------------------------------------------
 // interface
@@ -199,8 +194,9 @@ public:
 			// bool _isUnreliable,
 			bool _isMidnode
 	);
+    IntcpTransCB(){}
     // release kcp control object
-    ~IntcpTransCB();
+    // ~IntcpTransCB();
 
     // intcp user/upper level request
     void request(IUINT32 rangeStart,IUINT32 rangeEnd);
@@ -246,9 +242,6 @@ public:
     // resend: 0:disable fast resend(default), 1:enable fast resend
     // nc: 0:normal congestion control(default), 1:disable congestion control
     int setNoDelay(int nodelay, int interval, int resend, int nc);
-
-    // setup allocator
-    void setAllocator(void* (*new_malloc)(size_t), void (*new_free)(void*));
 
     // get how many packet is waiting to be sent
     int getWaitSnd();

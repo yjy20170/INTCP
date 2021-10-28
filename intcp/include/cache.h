@@ -18,7 +18,7 @@ using namespace std;
 
 struct Block;
 struct Node{
-    ByteMap<Block*>::iterator blockIter;
+    ByteMap<shared_ptr<Block>>::iterator blockIter;
 };
 struct Block {
     char dataPtr[BLOCK_LEN];
@@ -38,7 +38,7 @@ struct Block {
 class Cache
 {
 public: // need lock
-    ByteMap<Block*> dataMap;
+    ByteMap<shared_ptr<Block>> dataMap;
     void nameSeqToKey(char* buf, const char* name, IUINT32 index);
 
     
@@ -52,9 +52,9 @@ private: // doesn't need lock
     // key = name + blockStart
     // KeyLen = name + sizeof(IUNIT32)
     mutex lock;
-    Block* addBlock(const char* key);
+    shared_ptr<Block> addBlock(const char* key);
     void dropBlock(list<Node>::iterator iter);
-    void updateLRU(Block* blockPtr);
+    void updateLRU(shared_ptr<Block> blockPtr);
     int checksum(const char* keyChars);
 };
 
