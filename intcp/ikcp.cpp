@@ -91,6 +91,7 @@ onUnsatInt(_onUnsatInt),
 // isUnreliable(_isUnreliable), 
 isMidnode(_isMidnode),
 snd_nxt(0),
+snd_nxt_int(0),
 rcv_nxt(0),
 ts_probe(0),
 probe_wait(0),
@@ -119,7 +120,12 @@ xmit(0),
 dead_link(INTCP_DEADLINK),
 mallocFunc(NULL),
 freeFunc(NULL),
-rightBound(-1)
+dataSnRightBound(-1),
+dataByteRightBound(-1),
+dataRightBoundTs(-1),
+intSnRightBound(-1),
+intByteRightBound(-1),
+intRightBoundTs(-1)
 {
     tmpBuffer = (char*)myMalloc((mtu + INTCP_OVERHEAD) * 3);
     assert(tmpBuffer != NULL);
@@ -266,8 +272,7 @@ int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end)
         }
 		seg->cmd = INTCP_CMD_PUSH;
         seg->len = size;
-        seg->sn = snd_nxt;
-        snd_nxt++;
+        seg->sn = snd_nxt++;
         seg->rangeStart = start;
         seg->rangeEnd = start+size;
         start += size;
@@ -334,7 +339,115 @@ int IntcpTransCB::responseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 	return sentEnd;
 }
 
-void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts){
+void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
+    // if(isMidnode){
+    if(true){
+        if(intSnRightBound==-1 || current-intRightBoundTs>INTCP_SEQHOLE_TIMEOUT){
+            intSnRightBound = sn+1;
+            intByteRightBound = rangeEnd;
+            intRightBoundTs = current;
+            intHoles.clear();
+        }else{
+            // locate the position of seg in intHoles
+            list<Hole>::iterator iter,next;
+            for(iter=intHoles.begin(); iter!=intHoles.end();iter=next){
+                next=iter;next++;
+                if(current-iter->ts>INTCP_SEQHOLE_TIMEOUT){
+                    intHoles.erase(iter);
+                } else if(sn >= iter->end){
+                    iter->count++;
+                    if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
+                        if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*mss){
+                            LOG(DEBUG, "abnormal! ignore this hole");
+                        } else {
+                            // // keypoint
+                            // IntcpSeg* newseg = createSeg(0);
+                            // assert(newseg);
+                            // newseg->len = 0;
+                            // newseg->sn = snd_nxt_int++;
+                            // newseg->cmd = INTCP_CMD_INT;
+                            // newseg->wnd = getRwnd();
+                            // // resendts and rto will be set before output
+                            // // newseg->resendts = current;
+                            // // newseg->rto = rx_rto;
+                            // newseg->xmit = 0;
+                            // // LOG(DEBUG,"real cur %u int_cur %u",_getMillisec(),current);
+                            // newseg->ts = _getMillisec();//current;
+                            // newseg->rangeStart = iter->byteStart;
+                            // newseg->rangeEnd = iter->byteEnd;
+                            // //if(iter->byteEnd-sentEnd>1000){
+                            // //    LOG(DEBUG,"big hole sentEnd %d [%d,%d) sn [%d,%d)\n",sentEnd,iter->byteStart,iter->byteEnd,iter->start,iter->end);
+                            // //}
+                            // char *end = encodeSeg(tmpBuffer, newseg);
+                            // output(tmpBuffer, end-tmpBuffer, INTCP_RESPONSER);
+                            LOG(DEBUG,"---- int hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
+                            parseInt(iter->byteStart, iter->byteEnd);
+                        }
+                        intHoles.erase(iter);
+                    }
+                } else if(sn >= iter->start){
+                    if(sn == iter->start){
+                        if(sn == iter->end-1){ // hole is fixed
+                            intHoles.erase(iter);
+                        } else {
+                            iter->start++;
+                            iter->byteStart = rangeEnd;
+                        }
+                    }else if(sn == iter->end-1){
+                        iter->end--;
+                        iter->byteEnd = rangeStart;
+                        iter->count++;
+                    }else{
+                        Hole newHole;
+                        newHole.count = iter->count;
+                        newHole.start = sn+1;
+                        newHole.end = iter->end;
+                        newHole.byteStart = rangeEnd;
+                        newHole.byteEnd = iter->byteEnd;
+                        newHole.ts = current;
+                        intHoles.insert(next, newHole);
+
+                        iter->end = sn;
+                        iter->byteEnd = rangeEnd;
+                        iter->count++;
+                    }
+                } else { // segPtr->sn < iter->start
+                    // for this hole and subsequent holes, all hole.start > sn
+                    break;
+                }
+            }
+            if(sn >= intSnRightBound){
+                if(sn > intSnRightBound && (rangeStart>intByteRightBound)){
+                    // add a new hole
+                    Hole newHole;
+                    newHole.start = intSnRightBound;
+                    newHole.end = sn;
+                    newHole.byteStart = intByteRightBound;
+                    newHole.byteEnd = rangeStart;
+                    newHole.ts = current;
+                    newHole.count = 1;
+                    intHoles.push_back(newHole);
+                }
+                intSnRightBound = sn+1;
+                intByteRightBound = rangeEnd;
+                intRightBoundTs = current;
+            }
+            
+        }
+        if(!intHoles.empty()){
+            char tmp[100];
+            string str;
+            for(auto ho:intHoles){
+                snprintf(tmp,100,"   [ st %d end %d bSt %d bEnd %d ]",ho.start,ho.end,ho.byteStart,ho.byteEnd);
+                str += tmp;
+            }
+            LOG(TRACE,"sn %d intHoles: %ld %s",
+                    sn,intHoles.size(),str.c_str());
+        }
+    }
+}
+void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
+    
     // if(rangeEnd-rangeStart>64){
     // if(true){
     //     LOG(DEBUG,"recv interest [%d,%d)",rangeStart,rangeEnd);
@@ -396,22 +509,22 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
     // // seqhole retransmit
     // // from sn to range
     // if(isMidnode){
-    //     if(rightBound==-1 || current-rightBoundTs>INTCP_SEQHOLE_TIMEOUT){
-    //         rightBound = segPtr->rangeEnd;
-    //         rightBoundTs = current;
+    //     if(dataSnRightBound==-1 || current-dataRightBoundTs>INTCP_SEQHOLE_TIMEOUT){
+    //         dataSnRightBound = segPtr->rangeEnd;
+    //         dataRightBoundTs = current;
     //     }else{
-    //         if(rightBound>segPtr->rangeStart){
-    //             // locate the position of seg in holes
+    //         if(dataSnRightBound>segPtr->rangeStart){
+    //             // locate the position of seg in dataHoles
     //             list<Hole>::iterator iter,next;
-    //             for(iter=holes.begin(); iter!=holes.end();iter=next){
+    //             for(iter=dataHoles.begin(); iter!=dataHoles.end();iter=next){
     //                 next=iter;next++;
     //                 if(current-iter->ts>INTCP_SEQHOLE_TIMEOUT){
-    //                     holes.erase(iter);
+    //                     dataHoles.erase(iter);
     //                 } else if(segPtr->rangeStart >= iter->end){
     //                     iter->count++;
     //                     if(iter->count > INTCP_SEQHOLE_THRESHOLD){
     //                         request(iter->start,iter->end); // keypoint
-    //                         holes.erase(iter);
+    //                         dataHoles.erase(iter);
     //                     }
     //                 } else if(segPtr->rangeStart > iter->start){
     //                     if(segPtr->rangeEnd < iter->end){
@@ -420,13 +533,13 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
     //                         newHole.start = segPtr->rangeEnd;
     //                         newHole.end = iter->end;
     //                         newHole.ts = current;
-    //                         holes.insert(next, newHole);
+    //                         dataHoles.insert(next, newHole);
     //                     }
     //                     iter->end=segPtr->rangeStart;
     //                     iter->count++;
     //                 } else { // segPtr->rangeStart <= iter->start
     //                     if(segPtr->rangeEnd >= iter->end){
-    //                         holes.erase(iter);
+    //                         dataHoles.erase(iter);
     //                     }else if(segPtr->rangeEnd > iter->start){
     //                         iter->start = segPtr->rangeEnd;
     //                     } else {
@@ -443,32 +556,32 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
     //TODO don't do this in requester because of RTO
     //
     if(isMidnode){
-        if(rightBound==-1 || current-rightBoundTs>INTCP_SEQHOLE_TIMEOUT){
-            rightBound = segPtr->sn+1;
-            byteRightBound = segPtr->rangeEnd;
-            rightBoundTs = current;
-            holes.clear();
+        if(dataSnRightBound==-1 || current-dataRightBoundTs>INTCP_SEQHOLE_TIMEOUT){
+            dataSnRightBound = segPtr->sn+1;
+            dataByteRightBound = segPtr->rangeEnd;
+            dataRightBoundTs = current;
+            dataHoles.clear();
         }else{
-            // locate the position of seg in holes
+            // locate the position of seg in dataHoles
             list<Hole>::iterator iter,next;
-            for(iter=holes.begin(); iter!=holes.end();iter=next){
+            for(iter=dataHoles.begin(); iter!=dataHoles.end();iter=next){
                 next=iter;next++;
                 if(current-iter->ts>INTCP_SEQHOLE_TIMEOUT){
-                    holes.erase(iter);
+                    dataHoles.erase(iter);
                 } else if(segPtr->sn >= iter->end){
                     iter->count++;
                     if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
-                        LOG(TRACE,"----hole [%d,%d) current %u----", iter->byteStart, iter->byteEnd, current);
                         if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*mss){
                             LOG(DEBUG, "abnormal! ignore this hole");
                         } else {
+                            LOG(DEBUG,"---- data hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
                             // keypoint
                             int sentEnd = responseInt(iter->byteStart,iter->byteEnd);
                             if(sentEnd<iter->byteEnd){
                                 IntcpSeg* newseg = createSeg(0);
                                 assert(newseg);
                                 newseg->len = 0;
-                                newseg->sn = 0; // no need to use sn in interest
+                                newseg->sn = snd_nxt_int++;
                                 newseg->cmd = INTCP_CMD_INT;
                                 newseg->wnd = getRwnd();
                                 // resendts and rto will be set before output
@@ -488,12 +601,12 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                             }
                         }
                         // parseInt(iter->byteStart,iter->byteEnd,current);
-                        holes.erase(iter);
+                        dataHoles.erase(iter);
                     }
                 } else if(segPtr->sn >= iter->start){
                     if(segPtr->sn == iter->start){
                         if(segPtr->sn == iter->end-1){ // hole is fixed
-                            holes.erase(iter);
+                            dataHoles.erase(iter);
                         } else {
                             iter->start++;
                             iter->byteStart = segPtr->rangeEnd;
@@ -510,7 +623,7 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                         newHole.byteStart = segPtr->rangeEnd;
                         newHole.byteEnd = iter->byteEnd;
                         newHole.ts = current;
-                        holes.insert(next, newHole);
+                        dataHoles.insert(next, newHole);
 
                         iter->end = segPtr->sn;
                         iter->byteEnd = segPtr->rangeEnd;
@@ -521,41 +634,41 @@ void IntcpTransCB::parseData(IntcpSeg *segPtr)
                     break;
                 }
             }
-            if(segPtr->sn >= rightBound){
-                if(segPtr->sn > rightBound && (segPtr->rangeStart>byteRightBound)){
+            if(segPtr->sn >= dataSnRightBound){
+                if(segPtr->sn > dataSnRightBound && (segPtr->rangeStart>dataByteRightBound)){
                     // add a new hole
                     Hole newHole;
-                    newHole.start = rightBound;
+                    newHole.start = dataSnRightBound;
                     newHole.end = segPtr->sn;
-                    newHole.byteStart = byteRightBound;
+                    newHole.byteStart = dataByteRightBound;
                     newHole.byteEnd = segPtr->rangeStart;
                     newHole.ts = current;
                     newHole.count = 1;
-                    holes.push_back(newHole);
-                    LOG(DEBUG,"new hole [%d,%d) current %u",newHole.byteStart, newHole.byteEnd, current);
+                    dataHoles.push_back(newHole);
+                    LOG(TRACE,"new hole [%d,%d) current %u",newHole.byteStart, newHole.byteEnd, current);
                 }
-                rightBound = segPtr->sn+1;
-                byteRightBound = segPtr->rangeEnd;
-                rightBoundTs = current;
+                dataSnRightBound = segPtr->sn+1;
+                dataByteRightBound = segPtr->rangeEnd;
+                dataRightBoundTs = current;
             }
             
         }
-        if(!holes.empty()){
+        if(!dataHoles.empty()){
             char tmp[100];
             string str;
-            for(auto ho:holes){
+            for(auto ho:dataHoles){
                 snprintf(tmp,100,"   [ st %d end %d bSt %d bEnd %d ]",ho.start,ho.end,ho.byteStart,ho.byteEnd);
                 str += tmp;
             }
-            LOG(TRACE,"sn %d holes: %ld %s",
-                    segPtr->sn,holes.size(),str.c_str());
+            LOG(TRACE,"sn %d dataHoles: %ld %s",
+                    segPtr->sn,dataHoles.size(),str.c_str());
         }
     }
 
     // if(!isMidnode){
     // if(true){
     //     LOG(DEBUG,"rcv data [%d,%d)",segPtr->rangeStart,segPtr->rangeEnd);
-    //     for(auto hole: holes){
+    //     for(auto hole: dataHoles){
     //         LOG(DEBUG,"hole [%d,%d)",hole.byteStart,hole.byteEnd);
     //     }
     // }
@@ -732,7 +845,8 @@ int IntcpTransCB::input(char *data, int size)
 
         if(cmd==INTCP_CMD_INT){
             // LOG(DEBUG, "recv int [%d,%d)",rangeStart,rangeEnd);
-            parseInt(rangeStart,rangeEnd,ts);
+            detectIntHole(rangeStart,rangeEnd,sn);
+            parseInt(rangeStart,rangeEnd);
         } else if (cmd == INTCP_CMD_PUSH) {
             // LOG(DEBUG, "input data sn %d [%d,%d)", sn, rangeStart,rangeEnd);
         
@@ -978,6 +1092,7 @@ void IntcpTransCB::flushInt(){
             segPtr->ts = current;
             segPtr->wnd = rwnd;
             segPtr->xmit++;
+            segPtr->sn = snd_nxt_int++;
 			sizeToSend = (int)(sendEnd - tmpBuffer);
             if (sizeToSend + (int)INTCP_OVERHEAD > (int)mtu) {
                 output(tmpBuffer, sizeToSend, INTCP_RESPONSER);

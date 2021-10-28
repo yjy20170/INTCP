@@ -115,7 +115,8 @@ private:
     IUINT32 mtu, mss;
     
 	IUINT32 snd_nxt, rcv_nxt;    //still need rcv_nxt, snd_una & snd_nxt  may be discarded
-	int xmit;
+	IUINT32 snd_nxt_int; // sn of interest, for interest seq hole detection
+    int xmit;
     
     int nodelay, nocwnd; // about rto caclulation
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
@@ -146,8 +147,10 @@ private:
 	// midnode solution 2 ---- one TransCB
 	bool isMidnode;
     //seqhole
-    IUINT32 rightBound, byteRightBound, rightBoundTs;
-    list<Hole> holes;
+    IUINT32 dataSnRightBound, dataByteRightBound, dataRightBoundTs;
+    IUINT32 intSnRightBound, intByteRightBound, intRightBoundTs;
+    list<Hole> dataHoles, intHoles;
+    void detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
     
     void *user;
     int (*outputFunc)(const char *buf, int len, void *user, int dstRole);
@@ -177,7 +180,7 @@ private:
     void updateRTT(IINT32 rtt);
 
     // after input
-    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd,IUINT32 ts);
+    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd);
 	int responseInt(IUINT32 rangeStart, IUINT32 rangeEnd);
     // returns below zero for error
     int sendData(const char *buffer, IUINT32 start, IUINT32 end);

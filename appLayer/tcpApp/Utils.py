@@ -5,7 +5,7 @@ from decimal import Decimal
 
 # Unit: xxx.xxxx sec
 def getStrTime():
-    return '%08.4f' % (time.time() % 1000)
+    return '%.4f' % (time.time() % 1000)
 # Unit: msec
 def timeDelta(strTimeA,strTimeB):
     return '%.1f' % ((float(strTimeA)-float(strTimeB))*1000)

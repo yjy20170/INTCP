@@ -7,10 +7,11 @@ import time
 import Utils
 import argparse
 
-DataLen = 1400
+DataLen = 16
 
 def sendFunc(tcp_socket):
-    lastTime = -1
+    lastTsAfterSend = -1
+    idxPkt = 0
     while 1:
         # 8 bytes
         strTime = Utils.getStrTime()
@@ -18,10 +19,17 @@ def sendFunc(tcp_socket):
         strPadded = Utils.padStr(strTime, DataLen)
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
-        cur = float(strTime)
-        if lastTime!=-1 and cur-lastTime > 0.008:
-            print(cur-lastTime,strTime)
-        lastTime = cur
+
+        # tsBeforeSend = float(strTime)
+        # tsAfterSend = float(Utils.getStrTime())
+        # if tsAfterSend-tsBeforeSend > 0.002:
+        #     if lastTsAfterSend != -1:
+        #         print('cur %.4f'%tsAfterSend, 'use %.4f'%(tsAfterSend-tsBeforeSend),'intv %.4f'%(tsBeforeSend-lastTsAfterSend))
+        #     lastTsAfterSend = tsAfterSend
+
+        idxPkt += 1
+        print(idxPkt)
+
         time.sleep(0.005)
 
 def recvFunc(tcp_socket,limit):
