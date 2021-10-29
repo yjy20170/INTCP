@@ -232,7 +232,7 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
     for curve in curves:
         found = False
         for group in curveGroups:
-            if curve[0].compareKeys(group[0][0], tpSet.keysPlotDiff):#TODO DEBUG
+            if curve[0].compareKeys(group[0][0], tpSet.keysPlotDiff):
                 found = True
                 group.append(curve)
                 break

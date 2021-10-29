@@ -24,7 +24,7 @@ Cache::Cache(int nameLen):KeyLen(nameLen+sizeof(IUINT32)){
 }
 
 shared_ptr<Block> Cache::addBlock(const char* keyChars){
-    shared_ptr<Block> blockPtr(new Block); //TODO
+    shared_ptr<Block> blockPtr(new Block);
     dataMap.setValue(keyChars, KeyLen, blockPtr);
     // cout<<"[Cache::addBlock] dataMap.setValue "<<checksum(keyChars)<<endl;
     
@@ -111,8 +111,12 @@ int Cache::insert(const char* name, IUINT32 dataStart, IUINT32 dataEnd, const ch
                     }
                 }
                 if(overflow){
+                    int pos = (blockPtr->lastPos+1) % BLOCK_SEG_NUM;
+                    blockPtr->lastPos = pos;
+                    blockPtr->ranges[pos*2]=newRangeStart;
+                    blockPtr->ranges[pos*2+1]=newRangeEnd;
                     lock.unlock();
-                    return -1; //TODO deal with such case in app layer
+                    return 0;
                 }
             }
         }

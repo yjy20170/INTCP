@@ -12,7 +12,7 @@ def splitLoss(loss,n):
 def createNet(testParam):
     topo=Topo()
 
-    #TODO only suitable for chain topo with less than 100 nodes
+    #NOTE only suitable for chain topo with less than 100 nodes
     nodes = testParam.absTopoParam.nodes
     topo.addHost(nodes[0], cls=TbNode)
     for i in range(1,len(nodes)):

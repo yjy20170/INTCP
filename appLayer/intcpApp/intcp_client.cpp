@@ -54,24 +54,13 @@ void *onNewSess(void* _sessPtr){
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+                // printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);
-            /*
-            if(recvTime<1000){
-                printf("recv [%d,%d) xmit %u rto %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,rto,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
-                //printf("%d %d %d\n",pos,start,end);
-                fflush(stdout);
-            
-            }
-            */
             pos += REQ_LEN;
         }
-        
-
     }
-
     return nullptr;
 }
 
