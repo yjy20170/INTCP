@@ -15,16 +15,12 @@ void *onNewSess(void* _sessPtr){
     );
     
     char recvBuf[MaxBufSize];
+    IUINT32 start,end;
     while(1){
-        //printf("intcpm loop\n");
-        //fflush(stdout);
-        //sleep(1);
-        int ret;
-        IUINT32 start,end;
-        ret = sessPtr->recvData(recvBuf, MaxBufSize, &start, &end);
-        if(ret >= 0){
+        while(sessPtr->recvData(recvBuf, MaxBufSize, &start, &end) == 0){
             sessPtr->cachePtr->insert(sessPtr->nameChars,start,end,recvBuf);
         }
+        usleep(1000);
     }
     
     return nullptr;

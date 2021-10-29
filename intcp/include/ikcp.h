@@ -123,7 +123,7 @@ private:
     int fastRetransThre, fastRetransCountLimit;
     IUINT32 snd_wnd, rcv_wnd, rmt_wnd, cwnd, ssthresh;
     
-	IUINT32 current, updated, updateInterval, nextFlushTs;
+	IUINT32 updated, updateInterval, nextFlushTs;
     IUINT32 ts_probe, probe_wait, probe;
 
     //requester
@@ -204,12 +204,12 @@ public:
     // when you received a low level packet (eg. UDP packet), call it
     int input(char *data, int size);
 
-    void notifyNewData(IUINT32 start, IUINT32 end, IUINT32 ts);
+    void notifyNewData(const char *buffer, IUINT32 start, IUINT32 end);
 
     // update state (call it repeatedly, every 10ms-100ms), or you can ask 
     // ikcp_check when to call it again (without ikcp_input/_send calling).
     // 'current' - current timestamp in millisec. 
-    void update(IUINT32 current);
+    void update();
 
     // Determine when should you invoke ikcp_update:
     // returns when you should invoke ikcp_update in millisec, if there 

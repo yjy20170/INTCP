@@ -23,6 +23,7 @@ struct Node{
 struct Block {
     char dataPtr[BLOCK_LEN];
     IUINT32 ranges[BLOCK_SEG_NUM*2];
+    IUINT32 lastPos = -1;
     list<Node>::iterator nodeIter;
 };
 // struct BlockInfo {

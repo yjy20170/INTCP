@@ -242,7 +242,7 @@ void IntcpSess::insertData(const char *sendBuf, int start, int end){
     assert(ret==0);
     //WARNING: input -> parseInt -> onUnsatInt -> insertData, lock is occupied by input()
     // lock.lock();
-    transCB->notifyNewData(start,end,getMillisec());
+    transCB->notifyNewData(sendBuf,start,end);
     // lock.unlock();
 }
 void* TransUpdateLoop(void *args){
@@ -259,7 +259,7 @@ void* TransUpdateLoop(void *args){
             //     LOG(DEBUG,"update interval %d", now - lastUpdateTime);
             // }
             // lastUpdateTime = now;
-            sessPtr->transCB->update(now);
+            sessPtr->transCB->update();
             sessPtr->lock.unlock();
         } else {
             sessPtr->lock.unlock();
@@ -386,7 +386,6 @@ void *udpRecvLoop(void *_args){
             responserAddr = sendAddr;
         } else {
             LOG(WARN,"recv not-INTCP packet");
-            //TODO forward to recvAddr;
             //TODO dst of some pkts can be midnode in future.
             continue;
         }
@@ -404,6 +403,7 @@ void *udpRecvLoop(void *_args){
             LOG(TRACE,"establish: %s:%d", sendIPstr, ntohs(sendAddr.sin_port));
             if(isEndp){
                 //new responser session
+                //TODO when to release session?
                 sessPtr = shared_ptr<IntcpSess>(new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess, args->onUnsatInt));
             } else {
                 //new midnode session

@@ -42,13 +42,13 @@ def generateBw(policy, meanbw,varbw, prd=10):
 @threadFunc(NormalThread)
 def LinkUpdate(mn, testParam, logPath):
     
-    #TODO we should make sure thar the dynamic network params configuring wil not impact the value of other unchanged params 
+    #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
         cmds = []
         if bw:
             bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
             cmds += bwcmds
-        #TODO
+        #TODO add rtt and loss
         if rtt:
             pass
         if loss:
