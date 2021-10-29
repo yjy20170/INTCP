@@ -550,7 +550,6 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
     //     }
     // }
 
-    moveToRcvQueue();
 
     // //no rcv_wnd should be maintained on midnode
     // if (!isMidnode &&
@@ -640,7 +639,10 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                 }
             }
         }
+    } else {
+        rcv_buf.push_back(segPtr);
     }
+    moveToRcvQueue();
     //TODO CC
 }
 
@@ -651,7 +653,9 @@ void IntcpTransCB::moveToRcvQueue(){
     
     while (!rcv_buf.empty()) {
         if(isMidnode){
-            rcv_queue.splice(rcv_queue.end(),rcv_buf,rcv_buf.begin(),rcv_buf.end());
+            if(rcv_queue.size() < rcv_wnd){
+                rcv_queue.splice(rcv_queue.end(),rcv_buf,rcv_buf.begin(),rcv_buf.end());
+            }
         }else{
             shared_ptr<IntcpSeg> seg = *rcv_buf.begin();
             if (seg->rangeStart == rcv_nxt && rcv_queue.size() < rcv_wnd) {
