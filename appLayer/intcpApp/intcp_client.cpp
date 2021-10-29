@@ -77,7 +77,7 @@ void *onNewSess(void* _sessPtr){
 
 int main(){
     Cache cache(QUAD_STR_LEN);
-    ByteMap<IntcpSess*> sessMap;
+    ByteMap<shared_ptr<IntcpSess>> sessMap;
     printf("entering intcpc\n");
     startRequester(&cache,&sessMap,onNewSess,
         "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);

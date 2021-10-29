@@ -46,7 +46,7 @@ void *onNewSess(void* _sessPtr){
 
 int main(){
     Cache cache(QUAD_STR_LEN);
-    ByteMap<IntcpSess*> sessMap;
+    ByteMap<shared_ptr<IntcpSess>> sessMap;
     printf("entering intcps\n");
     fflush(stdout);
     startResponser(&cache,&sessMap,onNewSess,provideData,

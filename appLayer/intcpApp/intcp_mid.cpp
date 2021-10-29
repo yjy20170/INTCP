@@ -32,7 +32,7 @@ void *onNewSess(void* _sessPtr){
 
 int main(){
     Cache cache(QUAD_STR_LEN);
-    ByteMap<IntcpSess*> sessMap;
+    ByteMap<shared_ptr<IntcpSess>> sessMap;
     printf("entering intcpm\n");
     fflush(stdout);
     startMidnode(&cache,&sessMap,onNewSess,DEFAULT_MID_PORT);
