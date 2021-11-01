@@ -30,7 +30,7 @@ void *onNewSess(void* _sessPtr){
     
     thread t(request_func,sessPtr);
     t.detach();
-    
+    int rcn = 0;
     while(1){
         usleep(10);//sleep 0.1ms
         
@@ -38,7 +38,12 @@ void *onNewSess(void* _sessPtr){
         
         if(ret<0)
             continue;
-        
+        if(start!=rcn){
+            LOG(DEBUG,"%d %d",start,end);
+            abort();
+        }else{
+            rcn = end;
+        }
         recvBuf[end-start]='\0';
         
         int pos = _round_up(start,REQ_LEN);
@@ -54,7 +59,7 @@ void *onNewSess(void* _sessPtr){
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-                // printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);

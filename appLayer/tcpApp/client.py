@@ -28,7 +28,7 @@ def sendFunc(tcp_socket):
         #     lastTsAfterSend = tsAfterSend
 
         idxPkt += 1
-        print(idxPkt)
+        # print(idxPkt)
 
         time.sleep(0.005)
 
@@ -72,6 +72,7 @@ if __name__=='__main__':
     print("limit:",args.l)
     # create socket
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # tcp_socket.setblocking(False)
     tcp_socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
 
     server_addr = ("10.0.100.2", 3000)
