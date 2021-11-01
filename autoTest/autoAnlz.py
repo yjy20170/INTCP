@@ -51,7 +51,71 @@ def getRetranThreshold(tp):
         return rtt_total*0.5 + rtt_min
     else:
         return rtt_total*1.5
-                
+
+def getTCDelay(tp):
+    sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
+    for name in tp.linkParams.keys():
+        if sender in name:
+            return tp.linkParams[name].rtt/4
+            
+def parseLine(line,protocol):
+    if protocol=="TCP":
+        p1 = line.find("length")
+        p2 = line.find("time")
+        seq = int(line[4:p1-1])
+        time = float(line[p2+5:])
+        return seq,time
+    elif protocol=="INTCP":
+        p1 = line.find("rangeStart")
+        p2 = line.find("rangeEnd")
+        p3 = line.find("time")
+        rs = int(line[p1+11:p2-1])
+        time = float(line[p3+5:])
+        return rs,time
+        
+def generateLog(logPath,tpSet):
+    for tp in tpSet.testParams:
+        senderLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"send")
+        receiverLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"recv")
+        logFilePath = '%s/%s.txt'%(logPath,tp.name)
+        sendTimeDict = {}
+        recvTimeDict = {}
+        owdDict = {}
+        tcDelay = getTCDelay(tp)
+        #load sender
+        with open(senderLogFilePath,"r") as f:
+            lines = f.readlines()
+            for line in lines:
+                try:
+                    seq,time = parseLine(line,tp.appParam.protocol)
+                    if not seq in sendTimeDict.keys():
+                        sendTimeDict[seq] = time
+                except:
+                    continue
+                    
+        #load receiver            
+        with open(receiverLogFilePath,"r") as f:
+            lines = f.readlines()
+            for line in lines:
+                try:
+                    seq,time = parseLine(line,tp.appParam.protocol)
+                    if not seq in recvTimeDict.keys():
+                        recvTimeDict[seq] = time
+                except:
+                    continue
+                    
+        for seq in sendTimeDict.keys():
+            if seq in recvTimeDict.keys():
+                owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
+            else:
+                print(seq,end=',')  
+        print("\n----%s------"%(tp.name))         
+        with open(logFilePath,"w") as f:
+            for seq,owd in owdDict.items():
+                f.write("seq %d owd_obs %f\n"%(seq,owd)) 
+        #print(sendTimeDict.keys())
+        #print(recvTimeDict.keys())    
+              
 def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=False):
     result = {}
     for tp in tpSet.testParams:
@@ -282,8 +346,9 @@ def getCdfParam(tp):
     loss_dict = {10:"blue",5:"green",2:"orangered"}
     nodes_dict = {1:"blue",2:"green",3:"orangered"}
     midcc_dict = {'pep':"green",'nopep':'orangered'}
-    color = loss_dict[tp.appParam.total_loss]
-    #color = nodes_dict[tp.appParam.midNodes]
+    
+    #color = loss_dict[tp.appParam.total_loss]
+    color = nodes_dict[tp.appParam.midNodes]
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     
@@ -307,26 +372,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
     x_min  = 0
     #DEBUG
     #x_max = min(x_max,2000)
-    x_max = 5000
+    x_max = 1000
     x = np.linspace(x_min,x_max,num=500)
     #plt.ylim((0.8,1))
-    '''
-    if retranPacketOnly:
-        for tp in tpSet.testParams:
-            prev_owd = 0
-            retran_packet_owds = []
-            limit = getRetranThreshold(tp)
-            print("limit",limit)
-            for owd in mapNeToResult[tp]:
-                if prev_owd<owd and owd>limit:
-                    retran_packet_owds.append(owd)
-                prev_owd = owd
-            mapNeToResult[tp] = retran_packet_owds
-            print(tp.name,len(retran_packet_owds))
-            if len(retran_packet_owds)==0:
-                return
-            #print("min",min(mapNeToResult[tp]))
-    '''
+
        
     #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
@@ -376,8 +425,7 @@ def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
      
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
-    mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
-
+    
     createFolder(resultPath)
 
     #mapNeToResult = loadLog(logPath, neSet, isDetail=False)
@@ -392,12 +440,22 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
         #print('entering rtt analyse')
-        drawSeqGraph(tpSet,mapTpToResult, resultPath)
+        
+        generateLog(logPath,tpSet)
+        
+        mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
+        
         drawCDF(tpSet,mapTpToResult,resultPath)
-        mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
-        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
-        mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=True)
-        drawCDF(tpSet,mapTpToResult,resultPath,intcpRtt = True)
+        
+        #drawSeqGraph(tpSet,mapTpToResult, resultPath)
+        
+        #retranPacketOnly
+        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
+        #drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
+        
+        #intcpRtt
+        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=True)
+        #drawCDF(tpSet,mapTpToResult,resultPath,intcpRtt = True)
     fixOwnership(resultPath,'r')
 
 """

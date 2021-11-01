@@ -33,22 +33,22 @@ def getTestParamSet(tpsetName):
 
     if tpsetName == "expr":
         absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
-        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=1,midCC='pep')
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=30,sendRound=1,isRttTest=1,midCC='pep')
         
         linkParams = {
-                'h1-pep':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0),
-                'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0)
+                'h1-pep':Param.LinkParam(loss=5, rtt=100, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=5, rtt=100, bw=20, varBw=0)
         }
         tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
 
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['total_loss','protocol'],keysPlotDiff=[])
         
-        losses = [5,5,10]
+        losses = [2,10]
         for loss in losses:
             tpSet.add({
-                'total_loss':loss,
-                'h1-pep.loss':[splitLoss(loss,2)],
-                'pep-h2.loss':[splitLoss(loss,2)],
+                'total_loss':[loss],
+                'h1-pep.loss':splitLoss(loss,2),
+                'pep-h2.loss':splitLoss(loss,2),
                 'protocol':["INTCP","TCP"]
             })
         #tpSet.add({
@@ -113,22 +113,22 @@ def getTestParamSet(tpsetName):
         return tpSet
     
     if tpsetName == "expr4":
-        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=120,sendRound=1,isRttTest=1,midCC='pep')
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=30,sendRound=1,isRttTest=1,midCC='pep')
         absTopoParam_1 = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
         absTopoParam_2 = Param.AbsTopoParam(name='net_hmmmh',nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
         linkParams_1 = {
-                'h1-pep':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0),
-                'pep-h2':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0)
+                'h1-pep':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0)
         }
         linkParams_2 = {
-                'h1-pep1':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0),
-                'pep1-pep2':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0),
-                'pep2-pep3':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0),
-                'pep3-h2':Param.LinkParam(loss=0.2, rtt=100, bw=20, varBw=0)
+                'h1-pep1':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0),
+                'pep1-pep2':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0),
+                'pep2-pep3':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0),
+                'pep3-h2':Param.LinkParam(loss=2, rtt=100, bw=20, varBw=0)
         }
         tpTemplate = Param.TestParam(absTopoParam=absTopoParam_1,linkParams=linkParams_1,appParam=appParam)
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep2-h2.rtt',keysCurveDiff=['midNodes','protocol'],keysPlotDiff=[])
-        #tpSet.add({'absTopoParam':absTopoParam_2,'linkParams':linkParams_2,'protocol':["INTCP","TCP"],'midNodes':[3]})
+        tpSet.add({'absTopoParam':absTopoParam_2,'linkParams':linkParams_2,'protocol':["INTCP","TCP"],'midNodes':[3]})
         tpSet.add({'absTopoParam':absTopoParam_1,'linkParams':linkParams_1,'protocol':["INTCP","TCP"],'midNodes':[1]})
         return tpSet
         

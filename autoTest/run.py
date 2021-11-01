@@ -31,7 +31,7 @@ if __name__=='__main__':
     #         print(Thread)
 
 
-    tpSetNames = ["expr5"]#"mot_itm_test"
+    tpSetNames = ["expr4"]#"mot_itm_test"
 
 
     isAnlz = getArgsFromCli().a
