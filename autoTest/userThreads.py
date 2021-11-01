@@ -78,18 +78,24 @@ def RttTest(mn, testParam, logPath):
         return
     print("rtt test begin...")
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+    senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
+    receiverLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"recv")
+    
     delFile(logFilePath)
+    delFile(senderLogFilePath)
+    delFile(receiverLogFilePath)
     
     #if testParam.midCC != 'nopep':
     #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
         
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(testParam.rttTestPacket,testParam.rttTotal,logFilePath))
-    if testParam.appParam.get('protocol')=="TCP":
-        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py > %s &'%(logFilePath))
-        limit = 0     
-        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(limit))
+    if testParam.appParam.get('protocol')=="TCP":   # h1->h2
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
+        
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
         time.sleep(testParam.appParam.sendTime)
-        #time.sleep(testParam.rttTestPacket*testParam.rttTotal/1000+10)
         
     elif testParam.appParam.get('protocol')=="INTCP":
         
@@ -105,8 +111,11 @@ def RttTest(mn, testParam, logPath):
                     #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
 
         #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
+        
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
-        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
         time.sleep(testParam.appParam.sendTime)
         return
 

@@ -40,13 +40,89 @@ def mean(values, method='all'):
             del values[values.index(max(values))]
             del values[values.index(min(values))]
         return sum(values)/len(values)
+
+def getRetranThreshold(tp):
+    rtt_total = 0
+    rtt_min = 10000
+    for lp in tp.linkParams.values():
+        rtt_total += lp.rtt
+        rtt_min = min(rtt_min,lp.rtt)
+    if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
+        return rtt_total*0.5 + rtt_min
+    else:
+        return rtt_total*1.5
+
+def getTCDelay(tp):
+    sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
+    for name in tp.linkParams.keys():
+        if sender in name:
+            return tp.linkParams[name].rtt/4
+            
+def parseLine(line,protocol):
+    if protocol=="TCP":
+        p1 = line.find("length")
+        p2 = line.find("time")
+        seq = int(line[4:p1-1])
+        time = float(line[p2+5:])
+        return seq,time
+    elif protocol=="INTCP":
+        p1 = line.find("rangeStart")
+        p2 = line.find("rangeEnd")
+        p3 = line.find("time")
+        rs = int(line[p1+11:p2-1])
+        time = float(line[p3+5:])
+        return rs,time
         
-def loadLog(logPath, tpSet, isDetail=False):
+def generateLog(logPath,tpSet):
+    for tp in tpSet.testParams:
+        senderLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"send")
+        receiverLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"recv")
+        logFilePath = '%s/%s.txt'%(logPath,tp.name)
+        sendTimeDict = {}
+        recvTimeDict = {}
+        owdDict = {}
+        tcDelay = getTCDelay(tp)
+        #load sender
+        with open(senderLogFilePath,"r") as f:
+            lines = f.readlines()
+            for line in lines:
+                try:
+                    seq,time = parseLine(line,tp.appParam.protocol)
+                    if not seq in sendTimeDict.keys():
+                        sendTimeDict[seq] = time
+                except:
+                    continue
+                    
+        #load receiver            
+        with open(receiverLogFilePath,"r") as f:
+            lines = f.readlines()
+            for line in lines:
+                try:
+                    seq,time = parseLine(line,tp.appParam.protocol)
+                    if not seq in recvTimeDict.keys():
+                        recvTimeDict[seq] = time
+                except:
+                    continue
+                    
+        for seq in sendTimeDict.keys():
+            if seq in recvTimeDict.keys():
+                owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
+            else:
+                print(seq,end=',')  
+        print("\n----%s------"%(tp.name))         
+        with open(logFilePath,"w") as f:
+            for seq,owd in owdDict.items():
+                f.write("seq %d owd_obs %f\n"%(seq,owd)) 
+        #print(sendTimeDict.keys())
+        #print(recvTimeDict.keys())    
+              
+def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=False):
     result = {}
     for tp in tpSet.testParams:
         logFilePath = '%s/%s.txt'%(logPath,tp.name)
-        print(tp.name)
+        #print(tp.name)
         thrps = []
+        result[tp] = thrps
         with open(logFilePath,'r') as f:
             lines = f.readlines()
             if not tpSet.tpTemplate.appParam.isRttTest:
@@ -57,43 +133,45 @@ def loadLog(logPath, tpSet, isDetail=False):
                         thrps.append(num)
                         print(num)
             else:
-                print("load rtt log")
-                #rttTotal = tp.rttTotal
-                #total_packets = 0
-                #retran_packets = 0
-                if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
+                #print("load rtt log")
+                if intcpRtt:
+                    if not tp.appParam.protocol=="INTCP":
+                        continue
                     for line in lines:
-                        if "owd_obs" in line:
-                            pos_obs = line.find("owd_obs")
+                        if "intcpRtt" in line:
+                            p1 = line.find("intcpRtt")
                             try:
-                                num = float(line[pos_obs+8:])
+                                p2 = line.find("owd_noOrder")
+                                num = float(line[p1+9:p2-1])
                                 thrps.append(num)
                             except:
                                 continue
-                        '''
-                    total_packets += 1
-                    if "owd_c2s" in line:
-                        pos1 = line.find("owd_c2s")
-                        pos2 = line.find("owd_s2c")
-                        num = float(line[pos1+8:pos2])
-                        thrps.append(num)
-                        if num>threhold:
-                            thrps.append(num)
-                            print(num)
-                        pos = line.find("deltaTime")
-                        num = float(line[pos+10:-3])
-                        if(num>rttTotal):
-                            retran_packets += 1
-                            thrps.append(num)
-                            print(num)
-                    '''
-                #thrps.append(retran_packets/total_packets)
-        if isDetail or tpSet.tpTemplate.appParam.isRttTest:
+                else:
+                    prev_owd = 0
+                    limit = getRetranThreshold(tp)
+                    if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
+                        for line in lines:
+                            if "owd_obs" in line:
+                                pos_obs = line.find("owd_obs")
+                                try:
+                                    owd = float(line[pos_obs+8:])
+                                    if not retranPacketOnly:
+                                        thrps.append(owd)
+                                    else:
+                                        if owd>limit and owd>prev_owd:
+                                            thrps.append(owd)
+                                        prev_owd = owd
+                                except:
+                                    continue
+
+        if isDetail or tpSet.tpTemplate.appParam.isRttTest:    
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
     for k in result:
-       print(k,result[k][:5])    
+       #print(k.name)     
+       print(k.name,result[k][:5])
+    print("---end loading---")    
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -258,16 +336,6 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
         plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
 
-def getRetranThreshold(tp):
-    rtt_total = 0
-    rtt_min = 10000
-    for lp in tp.linkParams.values():
-        rtt_total += lp.rtt
-        rtt_min = min(rtt_min,lp.rtt)
-    if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
-        return rtt_total*0.5 + rtt_min
-    else:
-        return rtt_total*1.5
 
 def getCdfParam(tp):
     if tp.appParam.protocol=="INTCP":
@@ -275,15 +343,16 @@ def getCdfParam(tp):
     else:
         linestyle = '-'
     
-    loss_dict = {1:"blue",5:"green",0.1:"orangered"}
+    loss_dict = {10:"blue",5:"green",2:"orangered"}
     nodes_dict = {1:"blue",2:"green",3:"orangered"}
     midcc_dict = {'pep':"green",'nopep':'orangered'}
+    
     #color = loss_dict[tp.appParam.total_loss]
-    #color = nodes_dict[tp.appParam.midNodes]
-    color = midcc_dict[tp.appParam.midCC]
+    color = nodes_dict[tp.appParam.midNodes]
+    #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     
-def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
+def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=False):
     plt.figure(figsize=(8,5),dpi = 320)
     x_min = -1
     x_max = -1
@@ -303,24 +372,10 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
     x_min  = 0
     #DEBUG
     #x_max = min(x_max,2000)
-    x_max = 3000
+    x_max = 1000
     x = np.linspace(x_min,x_max,num=500)
-    
-    if retranPacketOnly:
-        for tp in tpSet.testParams:
-            prev_owd = 0
-            retran_packet_owds = []
-            limit = getRetranThreshold(tp)
-            print("limit",limit)
-            for owd in mapNeToResult[tp]:
-                if prev_owd<owd and owd>limit:
-                    retran_packet_owds.append(owd)
-                prev_owd = owd
-            mapNeToResult[tp] = retran_packet_owds
-            print(tp.name,len(retran_packet_owds))
-            if len(retran_packet_owds)==0:
-                return
-            #print("min",min(mapNeToResult[tp]))
+    #plt.ylim((0.8,1))
+
        
     #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
@@ -336,13 +391,16 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
+    if intcpRtt:
+        title += "_intcpRtt"
+    elif retranPacketOnly:
+        title += "_retran"
+    else:
+        title += "_all"
     plt.legend(legends)
     plt.title(title)
     plt.xlabel('one way delay(ms)',size=12)
-    if retranPacketOnly:
-        plt.savefig('%s/%s_%s.png' % (resultPath, title,"retran"))
-    else:
-        plt.savefig('%s/%s_%s.png' % (resultPath, title,"all"))
+    plt.savefig('%s/%s.png' % (resultPath, title))
     #plt.show()
 
 def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
@@ -367,12 +425,11 @@ def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
      
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
-    mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
-
+    
     createFolder(resultPath)
 
     #mapNeToResult = loadLog(logPath, neSet, isDetail=False)
-    print('-----')
+    #print('-----')
     #plotByGroup(tpSet, mapTpToResult, resultPath)
     if not tpSet.tpTemplate.appParam.isRttTest:
         print('-----')
@@ -382,10 +439,23 @@ def anlz(tpSet, logPath, resultPath):
         writeText('%s/summary.txt'%(resultPath), summaryString)
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     else:
-        print('entering rtt analyse')
-        drawSeqGraph(tpSet,mapTpToResult, resultPath)
-        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = False)
-        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
+        #print('entering rtt analyse')
+        
+        generateLog(logPath,tpSet)
+        
+        mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
+        
+        drawCDF(tpSet,mapTpToResult,resultPath)
+        
+        #drawSeqGraph(tpSet,mapTpToResult, resultPath)
+        
+        #retranPacketOnly
+        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
+        #drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
+        
+        #intcpRtt
+        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=True)
+        #drawCDF(tpSet,mapTpToResult,resultPath,intcpRtt = True)
     fixOwnership(resultPath,'r')
 
 """

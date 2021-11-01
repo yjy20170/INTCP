@@ -29,7 +29,10 @@ if __name__=='__main__':
     # for name, obj in inspect.getmembers(userThreads):
     #     if inspect.isclass(Thread):
     #         print(Thread)
-    tpSetNames = ['expr3']#["intcp_split_test"]
+
+
+    tpSetNames = ["expr4"]#"mot_itm_test"
+
 
     isAnlz = getArgsFromCli().a
     isManual = getArgsFromCli().m

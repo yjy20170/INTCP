@@ -20,6 +20,7 @@ def sendFunc(tcp_socket):
         bytesToSend = strPadded.encode('utf8')
         Utils.sendData(tcp_socket.send, bytesToSend)
 
+
         # tsBeforeSend = float(strTime)
         # tsAfterSend = float(Utils.getStrTime())
         # if tsAfterSend-tsBeforeSend > 0.002:
