@@ -2,6 +2,10 @@
 #undef LOG_LEVEL
 #define LOG_LEVEL SILENT
 
+//DEBUG
+#include <iostream>
+using namespace std;
+
 // allocate a new intcp segment
 shared_ptr<IntcpSeg> IntcpTransCB::createSeg(int size)
 {
@@ -101,7 +105,6 @@ char* IntcpTransCB::encodeSeg(char *ptr, const IntcpSeg *seg)
 //---------------------------------------------------------------------
 int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr)
 {
-    // //DEBUG
     // int i=0;
     // for(list<IntcpSeg*>::iterator tmp=rcv_queue.begin(); tmp != rcv_queue.end(); tmp++) {
     //     LOG(DEBUG,"rcv_queue seg %d [%d,%d)",i++,(*tmp)->rangeStart,(*tmp)->rangeEnd);
@@ -439,7 +442,12 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                     iter->count++;
                     if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
                         if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*mss){
-                            LOG(DEBUG, "abnormal! ignore this hole");
+                            LOG(DEBUG, "abnormal hole! [%d,%d) sn [%d,%d)",
+                                    iter->byteStart, iter->byteEnd,iter->start,iter->end);
+                            for(auto kh:dataHoles){
+                                cout<<kh.byteStart<<','<<kh.byteEnd<<' ';
+                            }
+                            cout<<endl;
                         } else {
                             // LOG(DEBUG,"---- data hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
                             int sentEnd;
@@ -450,7 +458,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                                 // if the range of this hole could cover an interest in int_buf, modify the resendts of interest
                                 for(auto intseg:int_buf){
                                     if(intseg->rangeStart>=iter->byteStart && intseg->rangeEnd<=iter->byteEnd){
-                                        LOG(DEBUG, "hole[%d,%d) cover RTO[%d,%d)", iter->byteStart, iter->byteEnd,intseg->rangeStart,intseg->rangeEnd);
+                                        LOG(TRACE, "hole[%d,%d) cover RTO[%d,%d)", iter->byteStart, iter->byteEnd,intseg->rangeStart,intseg->rangeEnd);
                                         intseg->resendts = _getMillisec() + intseg->rto;
                                     }
                                 }
@@ -518,11 +526,10 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                     newHole.end = segPtr->sn;
                     newHole.byteStart = dataByteRightBound;
                     newHole.byteEnd = segPtr->rangeStart;
-                    LOG(DEBUG,"---- data hole [%d,%d) cur %u----", newHole.byteStart, newHole.byteEnd, current);
+                    LOG(TRACE,"---- data hole [%d,%d) cur %u----", newHole.byteStart, newHole.byteEnd, current);
                     newHole.ts = current;
                     newHole.count = 1;
                     dataHoles.push_back(newHole);
-                    LOG(TRACE,"new hole [%d,%d) current %u",newHole.byteStart, newHole.byteEnd, current);
                 }
                 dataSnRightBound = segPtr->sn+1;
                 dataByteRightBound = _imax_(dataByteRightBound,segPtr->rangeEnd);
@@ -958,13 +965,15 @@ void IntcpTransCB::flushInt(){
         if (needsend) {
             //clear hole
             if(!isMidnode){
+            //DEBUG
+            // if(false){
                 list<Hole>::iterator iter,next;
                 for(iter=dataHoles.begin(); iter!=dataHoles.end();iter=next){
                     next=iter;next++;
                     IUINT32 maxStart = _imax_(segPtr->rangeStart,iter->byteStart);
                     IUINT32 minEnd = _imin_(segPtr->rangeEnd, iter->byteEnd);
                     if(maxStart < minEnd){
-                        LOG(DEBUG, "RTO[%d,%d) cover hole [%d,%d)", segPtr->rangeStart, segPtr->rangeEnd, iter->byteStart, iter->byteEnd);
+                        LOG(TRACE, "RTO[%d,%d) cover hole [%d,%d)", segPtr->rangeStart, segPtr->rangeEnd, iter->byteStart, iter->byteEnd);
                         if(maxStart == iter->byteStart){
                             if(minEnd == iter->byteEnd){ // hole is fixed
                                 dataHoles.erase(iter);
@@ -983,7 +992,6 @@ void IntcpTransCB::flushInt(){
                             newHole.ts = iter->ts;
                             dataHoles.insert(next, newHole);
 
-                            iter->end = segPtr->sn;
                             iter->byteEnd = maxStart;
                         }
                     }
@@ -1005,9 +1013,9 @@ void IntcpTransCB::flushInt(){
             sendEnd = encodeSeg(sendEnd, segPtr.get());
             if (segPtr->xmit >= dead_link) {
                 state = (IUINT32)-1;
+                abort();//DEBUG
             }
 
-            //DEBUG
             if(isMidnode){
                 int_buf.erase(p);
             }
@@ -1068,16 +1076,6 @@ void IntcpTransCB::flushData(){
             dataOutputLimit -= segPtr->len;
         }
 
-        // //EXPR
-        // //simulate packet loss
-        // if(!isMidnode){
-        //     if(segPtr->sn%10==8){
-        //         LOG(DEBUG,"drop sn %d [%d,%d)", segPtr->sn, segPtr->rangeStart, segPtr->rangeEnd);
-        //         snd_queue.erase(p);
-        //         continue;
-        //     }
-        // }
-
 		// responser doesn't need to tell requester its rwnd.
 		// segPtr->wnd = seg.wnd;
 		sizeToSend = (int)(sendEnd - tmpBuffer.get());
@@ -1086,7 +1084,7 @@ void IntcpTransCB::flushData(){
             sendEnd = tmpBuffer.get();
         }
 
-        LOG(TRACE,"output data sn %d [%d,%d) cur %u",segPtr->sn,segPtr->rangeStart,segPtr->rangeEnd,_getMillisec());
+        LOG(TRACE,"sn %d [%d,%d) cur %u ts %u",segPtr->sn,segPtr->rangeStart,segPtr->rangeEnd,_getMillisec(),segPtr->ts);
         sendEnd = encodeSeg(sendEnd, segPtr.get());
         if (segPtr->len > 0) {
             memcpy(sendEnd, segPtr->data, segPtr->len);

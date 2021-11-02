@@ -98,8 +98,9 @@ def getTestParamSet(tpsetName):
 
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['protocol'],keysPlotDiff=[])
         
+
         tpSet.add({'protocol':['INTCP','TCP']})
-       
+
         return tpSet
     
     if tpsetName == "expr4":

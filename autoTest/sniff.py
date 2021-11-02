@@ -53,6 +53,7 @@ def Callback_tcp(packet):
         return 
 
 if __name__=="__main__":
+    print('begin to catch packets..',flush=True)
     args = getArgsFromCli()
     if args.t:
         sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server

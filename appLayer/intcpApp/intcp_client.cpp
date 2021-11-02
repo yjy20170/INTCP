@@ -30,21 +30,24 @@ void *onNewSess(void* _sessPtr){
     
     thread t(request_func,sessPtr);
     t.detach();
+
     IUINT32 rcn=0;
+
     while(1){
         usleep(10);//sleep 0.1ms
         
         ret = sessPtr->recvData(recvBuf,MaxBufSize,&start,&end);
-        if(start!=rcn){
-            LOG(DEBUG,"%d %d",start,end);
-            break;
-        }else{
-            rcn=end;
-        }
         
         if(ret<0)
             continue;
-        
+        /*
+        if(start!=rcn){
+            LOG(DEBUG,"%d %d",start,end);
+            abort();
+        }else{
+            rcn = end;
+        }
+        */
         recvBuf[end-start]='\0';
         
         int pos = _round_up(start,REQ_LEN);

@@ -72,20 +72,21 @@ const IUINT32 INTCP_SEQHOLE_THRESHOLD = 3; // if three segs
 struct IntcpSeg
 {
     IUINT32 cmd;    //need send,1B
-    IUINT32 wnd;    //need send,2B //TODO for CC
+    IUINT32 wnd;    //need send,2B
     IUINT32 ts;        //need send,4B
-    IUINT32 firstTs;        //don't send
     IUINT32 sn;        //need send,4B
     IUINT32 len;    //need send,4B
-    IUINT32 resendts;
-    IUINT32 rto;
-    IUINT32 xmit;
-    
     //intcp
     IUINT32 rangeStart;    //need send,4B 
     IUINT32 rangeEnd;    //need send,4B 
     
-    char data[1];
+    IUINT32 firstTs;
+    IUINT32 resendts;
+    IUINT32 rto;
+    IUINT32 xmit;
+    
+    
+    char data[1];    //need send
 };
 
 struct IntRange
