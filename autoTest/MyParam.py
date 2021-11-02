@@ -86,9 +86,9 @@ def getTestParamSet(tpsetName):
         tpSet.add({'absTopoParam':[absTopoParam2],'linkParams':[linkParams2],'protocol':["INTCP","TCP"],'midNodes':2})
         return tpSet
     
-    if tpsetName == "expr3":
+    if tpsetName == "no_loss_test":
         absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
-        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=120,sendRound=1,isRttTest=1,midCC='pep')
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=30,sendRound=1,isRttTest=1,midCC='pep')
         
         linkParams = {
                 'h1-pep':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0),
@@ -96,20 +96,10 @@ def getTestParamSet(tpsetName):
         }
         tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
 
-        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['total_loss','protocol'],keysPlotDiff=[])
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['protocol'],keysPlotDiff=[])
         
-        # splitLoss(loss,2)
-        losses = [2]
-        for loss in losses:
-            tpSet.add({
-                'total_loss':-1,
-                'h1-pep.loss':loss,
-                'pep-h2.loss':loss,
-                'protocol':["INTCP","TCP"]
-            })
-        #tpSet.add({
-        #    'pep-h2.rtt':[100,200]
-        #})
+        tpSet.add({'protocol':['INTCP','TCP']})
+       
         return tpSet
     
     if tpsetName == "expr4":

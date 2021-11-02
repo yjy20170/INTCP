@@ -104,8 +104,8 @@ def generateLog(logPath,tpSet):
                 except:
                     continue
                     
-        for seq in sendTimeDict.keys():
-            if seq in recvTimeDict.keys():
+        for seq in recvTimeDict.keys():
+            if seq in sendTimeDict.keys():
                 owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
             else:
                 print(seq,end=',')  
