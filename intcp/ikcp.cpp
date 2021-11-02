@@ -125,6 +125,7 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
             *startPtr = firstSeg->rangeStart;
             *endPtr = firstSeg->rangeEnd;
             memcpy(buffer, firstSeg->data, firstSeg->len);
+            rcv_queue.pop_front();
         }
         //TODO else split
     } else {
@@ -444,10 +445,10 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                         if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*mss){
                             LOG(DEBUG, "abnormal hole! [%d,%d) sn [%d,%d)",
                                     iter->byteStart, iter->byteEnd,iter->start,iter->end);
-                            for(auto kh:dataHoles){
-                                cout<<kh.byteStart<<','<<kh.byteEnd<<' ';
-                            }
-                            cout<<endl;
+                            // for(auto kh:dataHoles){
+                            //     cout<<kh.byteStart<<','<<kh.byteEnd<<' ';
+                            // }
+                            // cout<<endl;
                         } else {
                             // LOG(DEBUG,"---- data hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
                             int sentEnd;
@@ -660,8 +661,11 @@ void IntcpTransCB::moveToRcvQueue(){
     
     while (!rcv_buf.empty()) {
         if(isMidnode){
+            // LOG(DEBUG,"rq size %ld rw %u",rcv_queue.size(), rcv_wnd);
             if(rcv_queue.size() < rcv_wnd){
                 rcv_queue.splice(rcv_queue.end(),rcv_buf,rcv_buf.begin(),rcv_buf.end());
+            }else{
+                break;
             }
         }else{
             shared_ptr<IntcpSeg> seg = *rcv_buf.begin();
@@ -720,7 +724,7 @@ int IntcpTransCB::input(char *data, int size)
             return -3;
 
         if(cmd==INTCP_CMD_INT){
-            // LOG(DEBUG, "recv int [%d,%d)",rangeStart,rangeEnd);
+            LOG(TRACE, "recv int [%d,%d)",rangeStart,rangeEnd);
             detectIntHole(rangeStart,rangeEnd,sn);
             parseInt(rangeStart,rangeEnd);
         } else if (cmd == INTCP_CMD_PUSH) {
