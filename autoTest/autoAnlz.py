@@ -41,17 +41,19 @@ def mean(values, method='all'):
             del values[values.index(min(values))]
         return sum(values)/len(values)
 
-def getRetranThreshold(tp):
+def getOwdTotal(tp):
     rtt_total = 0
     rtt_min = 10000
     for lp in tp.linkParams.values():
         rtt_total += lp.rtt
         rtt_min = min(rtt_min,lp.rtt)
+    owd_total = rtt_total*0.5
     if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
-        return rtt_total*0.5 + rtt_min
+        retran_threshold = rtt_total*0.5 + rtt_min
     else:
-        return rtt_total*1.5
-
+        retran_threshold = rtt_total*1.5
+    return owd_total,retran_threshold
+    
 def getTCDelay(tp):
     sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
     for name in tp.linkParams.keys():
@@ -104,8 +106,8 @@ def generateLog(logPath,tpSet):
                 except:
                     continue
                     
-        for seq in recvTimeDict.keys():
-            if seq in sendTimeDict.keys():
+        for seq in sendTimeDict.keys():
+            if seq in recvTimeDict.keys():
                 owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
             else:
                 print(seq,end=',')  
@@ -134,7 +136,7 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                         print(num)
             else:
                 #print("load rtt log")
-                if intcpRtt:
+                if intcpRtt:    #false
                     if not tp.appParam.protocol=="INTCP":
                         continue
                     for line in lines:
@@ -147,8 +149,9 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                             except:
                                 continue
                 else:
-                    prev_owd = 0
-                    limit = getRetranThreshold(tp)
+                    #prev_owd = 0
+                    owd_total,retran_threshold = getOwdTotal(tp)
+                    limit = min(owd_total+50,retran_threshold)
                     if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
                         for line in lines:
                             if "owd_obs" in line:
@@ -158,9 +161,9 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                                     if not retranPacketOnly:
                                         thrps.append(owd)
                                     else:
-                                        if owd>limit and owd>prev_owd:
+                                        if owd>limit:
                                             thrps.append(owd)
-                                        prev_owd = owd
+                                        #prev_owd = owd
                                 except:
                                     continue
 
@@ -343,12 +346,12 @@ def getCdfParam(tp):
     else:
         linestyle = '-'
     
-    loss_dict = {10:"blue",5:"green",2:"orangered"}
-    nodes_dict = {1:"blue",2:"green",3:"orangered"}
+    loss_dict = {0.5:"blue",5:"green",2:"orangered"}
+    nodes_dict = {1:"blue",2:"orangered",3:"green"}
     midcc_dict = {'pep':"green",'nopep':'orangered'}
     
-    #color = loss_dict[tp.appParam.total_loss]
-    color = nodes_dict[tp.appParam.midNodes]
+    color = loss_dict[tp.appParam.total_loss]
+    #color = nodes_dict[tp.appParam.midNodes]
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     
@@ -374,8 +377,8 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
     #x_max = min(x_max,2000)
     x_max = 1000
     x = np.linspace(x_min,x_max,num=500)
-    #plt.ylim((0.8,1))
-
+    #plt.ylim((0.8,1.01))
+    plt.xlim((0,1000))
        
     #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
@@ -450,8 +453,8 @@ def anlz(tpSet, logPath, resultPath):
         #drawSeqGraph(tpSet,mapTpToResult, resultPath)
         
         #retranPacketOnly
-        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
-        #drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
+        mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
         
         #intcpRtt
         #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=True)

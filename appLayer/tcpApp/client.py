@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import struct
 import socket
 from threading import Thread
 import time
@@ -30,7 +31,9 @@ def sendFunc(tcp_socket):
 
         idxPkt += 1
         # print(idxPkt)
-
+        fmt="B"*7+"I"*21
+        x = struct.unpack(fmt,tcp_socket.getsockopt(socket.IPPROTO_TCP,socket.TCP_INFO,92))
+        print(x)
         time.sleep(0.005)
 
 def recvFunc(tcp_socket,limit):
