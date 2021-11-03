@@ -151,19 +151,16 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                 else:
                     #prev_owd = 0
                     owd_total,retran_threshold = getOwdTotal(tp)
-                    limit = min(owd_total+50,retran_threshold)
+                    #limit = min(owd_total+50,retran_threshold) if retranPacketOnly else owd_total
+                    limit = retran_threshold if retranPacketOnly else owd_total
                     if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
                         for line in lines:
                             if "owd_obs" in line:
                                 pos_obs = line.find("owd_obs")
                                 try:
                                     owd = float(line[pos_obs+8:])
-                                    if not retranPacketOnly:
+                                    if owd>limit:
                                         thrps.append(owd)
-                                    else:
-                                        if owd>limit:
-                                            thrps.append(owd)
-                                        #prev_owd = owd
                                 except:
                                     continue
 
@@ -377,14 +374,15 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
     #x_max = min(x_max,2000)
     x_max = 1000
     x = np.linspace(x_min,x_max,num=500)
-    #plt.ylim((0.8,1.01))
+    
     plt.xlim((0,1000))
-       
+    if not retranPacketOnly:
+        plt.ylim((0.8,1.01)) 
     #plt.xlim((x_min,x_max))
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
-        #print(tp,len(mapNeToResult[tp]))
+        print(tp.name,min(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
             color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
