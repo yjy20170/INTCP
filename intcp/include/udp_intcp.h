@@ -21,7 +21,7 @@
 #define DEFAULT_SERVER_PORT 5000
 #define DEFAULT_MID_PORT 6000
 #define DEFAULT_CLIENT_PORT 7000
-
+#define REUSE_PORT_RANGE 1000
 
 using namespace std;
 
@@ -36,8 +36,7 @@ struct sockaddr_in toAddr(in_addr_t IP, uint16_t port);
 bool addrCmp(struct sockaddr_in addr1, struct sockaddr_in addr2);
 void writeIPstr(char *ret, in_addr_t address);
 
-int createSocket(in_addr_t IP, uint16_t port);
-int createSocket(in_addr_t IP, uint16_t port, int portRange, uint16_t *finalPort);
+int createSocket(in_addr_t IP, uint16_t port, bool reusePort, uint16_t *finalPort);
 
 /***************** INTCP session *****************/
 
@@ -91,7 +90,7 @@ public:
 void* TransUpdateLoop(void *args);
 int udpSend(const char* buf,int len, void* user, int dstRole);
 int fetchData(char *buf, IUINT32 start, IUINT32 end, void *user);
-shared_ptr<IntcpTransCB> createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user));
+shared_ptr<IntcpTransCB> createTransCB(const IntcpSess *sessPtr, int nodeRole, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user));
 
 /***************** multi-session management *****************/
 

@@ -22,9 +22,12 @@
         }else{ \
             ptrL++; \
         } \
-        printf("[%s|%s@%s, %d]\n", \
-                #level, __func__, ptrL, \
-                __LINE__); \
+        int limit = 30; \
+        char prefix[limit+4]; \
+        memset(prefix,' ',limit+4); \
+        snprintf(prefix, limit+1, "%s@%s,%d", \
+                __func__, ptrL, __LINE__); \
+        printf("%s\n",prefix); \
     }
 
 #define LOG(level, format, ...) \

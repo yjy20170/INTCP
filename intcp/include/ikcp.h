@@ -38,9 +38,8 @@ using namespace std;
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 
-const IUINT32 INTCP_RTO_NDL = 10;        // no delay min rto
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 3000; //500
+const IUINT32 INTCP_RTO_DEF = 1000; //500
 const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_FACTOR = 1.05;
 
@@ -56,7 +55,7 @@ const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 const IUINT32 INTCP_MTU_DEF = 1400; //EXPR 1400
 const IUINT32 INTCP_ACK_FAST = 3;
 const IUINT32 INTCP_INTERVAL = 1; //EXPR 100 -> 5
-const IUINT32 INTCP_DEADLINK = 20;
+const IUINT32 INTCP_DEADLINK = 8;
 const IUINT32 INTCP_THRESH_INIT = 2;
 const IUINT32 INTCP_THRESH_MIN = 2;
 const IUINT32 INTCP_PROBE_INIT = 7000;        // 7 secs to probe window size
@@ -146,12 +145,13 @@ private:
 	// bool isUnreliable;
 
 	// midnode solution 2 ---- one TransCB
-	bool isMidnode;
+	int nodeRole;
     //seqhole
     IUINT32 dataSnRightBound, dataByteRightBound, dataRightBoundTs;
     IUINT32 intSnRightBound, intByteRightBound, intRightBoundTs;
     list<Hole> dataHoles, intHoles;
     void detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
+    void detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
     
     void *user;
     int (*outputFunc)(const char *buf, int len, void *user, int dstRole);
@@ -169,16 +169,17 @@ private:
     // flush pending data
     void flush();
     void flushWndProbe();
-    void flushInt();
+    void flushIntQueue();
+    void flushIntBuf();
     void flushData();
     int output(const void *data, int size, int dstRole);
     void updateRTT(IINT32 rtt);
 
     // after input
-    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd);
-	int responseInt(IUINT32 rangeStart, IUINT32 rangeEnd);
+    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd,IUINT32 ts, IUINT32 wnd);
+
     // returns below zero for error
-    int sendData(const char *buffer, IUINT32 start, IUINT32 end);
+    int sendData(const char *buffer, IUINT32 start, IUINT32 end, IUINT32 tsEcho);
 
     void parseData(shared_ptr<IntcpSeg> newseg);
     void moveToRcvQueue();
@@ -193,7 +194,7 @@ public:
 			int (*_fetchDataFunc)(char *buf, IUINT32 start, IUINT32 end, void *user),
 			int (*_onUnsatInt)(IUINT32 start, IUINT32 end, void *user),
 			// bool _isUnreliable,
-			bool _isMidnode
+			int _nodeRole
 	);
     IntcpTransCB(){}
     // release kcp control object
@@ -229,21 +230,6 @@ public:
 //---------------------------------------------------------------------
 // rarely use
 //---------------------------------------------------------------------
-    // change MTU size, default is 1400
-    int setMtu(int mtu);
-
-    // set maximum window size: sndwnd=32, rcvwnd=32 by default
-    int setWndSize(int sndwnd, int rcvwnd);
-
-    int setInterval(int interval);
-
-    // fastest: nodelay(kcp, 1, 20, 2, 1)
-    // nodelay: 0:disable(default), 1:enable
-    // interval: internal update timer interval in millisec, default is 100ms 
-    // resend: 0:disable fast resend(default), 1:enable fast resend
-    // nc: 0:normal congestion control(default), 1:disable congestion control
-    int setNoDelay(int nodelay, int interval, int resend, int nc);
-
     // get how many packet is waiting to be sent
     int getWaitSnd();
 
