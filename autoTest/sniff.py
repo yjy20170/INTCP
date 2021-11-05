@@ -51,6 +51,7 @@ def Callback_tcp(packet):
             return
         length = len(packet[TCP].payload.original)
         print('seq',packet[TCP].seq,'length',length,'time',Utils.getStrTime())
+        #print(packet[IP].src,":",packet[TCP].sport,'-->',packet[IP].dst,":",packet[TCP].dport)
     except:
         return 
 
