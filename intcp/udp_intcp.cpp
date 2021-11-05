@@ -108,33 +108,33 @@ bool Quad::operator == (Quad const& quad2) const {
 
 /***************** INTCP session *****************/
 
-int createSocket(in_addr_t IP, uint16_t port){
-    return createSocket(IP, port, 1, nullptr);
-}
-int createSocket(in_addr_t IP, uint16_t port, int portRange, uint16_t *finalPort){
+int createSocket(in_addr_t IP, uint16_t port, bool reusePort, uint16_t *finalPort){
     int socketFd = -1;
     if((socketFd=socket(AF_INET,SOCK_DGRAM,0))<0){
         LOG(ERROR, "create socket fail");
         return -1;
     }
     int optval=1;
-    setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+    if(reusePort){
+        setsockopt(socketFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+    }
     setsockopt(socketFd, SOL_IP, IP_TRANSPARENT, &optval, sizeof(int));
     setsockopt(socketFd, SOL_IP, IP_RECVORIGDSTADDR, &optval, sizeof(int));
     sockaddr_in selfAddr;
     selfAddr.sin_family = AF_INET;
     selfAddr.sin_addr.s_addr = IP;
     uint16_t realPortH = ntohs(port);
-    for(;realPortH < ntohs(port)+portRange; realPortH++){
+    for(;realPortH < ntohs(port)+REUSE_PORT_RANGE; realPortH++){
         selfAddr.sin_port = htons(realPortH);
         if(bind(socketFd, (struct sockaddr *)&selfAddr, AddrLen) != -1){
+            LOG(TRACE,"%d",realPortH);
             break;
         }
     }
     // which means all the ports in portRange bind fail
-    if(realPortH == ntohs(port)+portRange){
+    if(realPortH == ntohs(port)+REUSE_PORT_RANGE){
         LOG(ERROR, "bind fail");
-        return -1;
+        abort();
     }
 
     if(finalPort != nullptr)
@@ -151,7 +151,7 @@ nodeRole(INTCP_REQUESTER),
 cachePtr(_cachePtr)
 {
     uint16_t reqAddrPort;
-    socketFd_toResp = createSocket(reqAddrIP, htons(DEFAULT_CLIENT_PORT), 1000, &reqAddrPort);
+    socketFd_toResp = createSocket(reqAddrIP, htons(DEFAULT_CLIENT_PORT), false, &reqAddrPort);
     if(socketFd_toResp == -1){
         abort();
     }
@@ -164,7 +164,7 @@ cachePtr(_cachePtr)
     Quad quad(requesterAddr,responserAddr);
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, nullptr);
+    transCB = createTransCB(this, nodeRole, nullptr);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -187,7 +187,7 @@ cachePtr(_cachePtr)
 
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, onUnsatInt);
+    transCB = createTransCB(this, nodeRole, onUnsatInt);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -204,12 +204,12 @@ cachePtr(_cachePtr)
     requesterAddr = quad.getReqAddr();
     responserAddr = quad.getRespAddr();
     
-    socketFd_toReq = createSocket(responserAddr.sin_addr.s_addr, responserAddr.sin_port);
-    socketFd_toResp = createSocket(requesterAddr.sin_addr.s_addr, requesterAddr.sin_port);
+    socketFd_toReq = createSocket(responserAddr.sin_addr.s_addr, responserAddr.sin_port, true, nullptr);
+    socketFd_toResp = createSocket(requesterAddr.sin_addr.s_addr, requesterAddr.sin_port, true, nullptr);
     if(socketFd_toReq==-1 || socketFd_toResp)
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
-    transCB = createTransCB(this, nodeRole==INTCP_MIDNODE, nullptr);
+    transCB = createTransCB(this, nodeRole, nullptr);
     lock.unlock();
     pthread_create(&transUpdaterThread, NULL, TransUpdateLoop, this);
     pthread_create(&onNewSessThread, NULL, onNewSess, this);
@@ -269,13 +269,13 @@ void* TransUpdateLoop(void *args){
     }
     return nullptr;
 }
-shared_ptr<IntcpTransCB> createTransCB(const IntcpSess *sessPtr, bool isMidnode, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)){
+shared_ptr<IntcpTransCB> createTransCB(const IntcpSess *sessPtr, int nodeRole, int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)){
    
     //set transCB paramaters
     // transCB->setNoDelay(1, 5, 2, 1);
     // transCB->setWndSize(10,128);
     // transCB->setMtu(20);
-    return shared_ptr<IntcpTransCB>(new IntcpTransCB((void*)sessPtr, udpSend, fetchData, onUnsatInt, isMidnode));
+    return shared_ptr<IntcpTransCB>(new IntcpTransCB((void*)sessPtr, udpSend, fetchData, onUnsatInt, nodeRole));
 }
 
 int udpSend(const char* buf,int len, void* user, int dstRole){
@@ -335,7 +335,7 @@ void *udpRecvLoop(void *_args){
     int listenFd;
     if (args->listenFd == -1){
         listenFd = createSocket(
-                args->listenAddr.sin_addr.s_addr, args->listenAddr.sin_port);
+                args->listenAddr.sin_addr.s_addr, args->listenAddr.sin_port, false, nullptr);
     } else {
         listenFd = args->listenFd;
     }
