@@ -443,7 +443,14 @@ void IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                     } else {
                         LOG(DEBUG,"---- data hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
                         parseInt(iter->byteStart,iter->byteEnd, -1, -1);//TODO priority
-
+                        list<shared_ptr<IntcpSeg>>::iterator iter2;
+                        for(iter2=int_buf.begin();iter2!=int_buf.end();iter2++){
+                            // only if intSeg is fully covered
+                            if(iter->byteStart<=(*iter2)->rangeStart
+                                    && iter->byteEnd>=(*iter2)->rangeEnd){
+                                (*iter2)->resendts = _getMillisec() + (*iter2)->rto;
+                            }
+                        }
                     }
                     dataHoles.erase(iter);
                 }
@@ -585,7 +592,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                 // }
                 if(segPtr->ts != -1){
                     updateRTT(_itimediff(current, segPtr->ts));
-                    LOG(DEBUG,"rtt %ld srtt %d rto %d",_itimediff(current, intSeg->ts),rx_srtt,rx_rto);
+                    LOG(TRACE,"rtt %ld srtt %d rto %d",_itimediff(current, intSeg->ts),rx_srtt,rx_rto);
                 }
                 //------------------------------
                 // update int_buf
