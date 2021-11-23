@@ -11,14 +11,16 @@ class MyAppParam(Param.AppParam):
             'e2eCC', 'midCC','protocol',
             'max_queue_size', 'txqueuelen',
             'sendTime', 'sendRound', 
-            'isRttTest', 'rttTestPacket','total_loss','midNodes'
+            'isRttTest', 'rttTestPacket','total_loss','midNodes',
+            'isPerformTest','convs'
     ]
     SegDefault = {'name':'xxx',
         'isManual':0,
         'e2eCC':'cubic', 'midCC':'nopep','protocol':'INTCP',
         'max_queue_size':1000,'txqueuelen':1000,
         'sendTime':120, 'sendRound':3, 
-        'isRttTest':0, 'rttTestPacket':0,'total_loss':0,'midNodes':1
+        'isRttTest':0, 'rttTestPacket':0,'total_loss':0,'midNodes':1,
+        'isPerformTest':0,'convs':1
     }
     # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
     # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
@@ -43,7 +45,7 @@ def getTestParamSet(tpsetName):
 
         tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['total_loss','protocol'],keysPlotDiff=[])
         
-        losses = [5]
+        losses = [0,2,5]
         for loss in losses:
             tpSet.add({
                 'total_loss':[loss],

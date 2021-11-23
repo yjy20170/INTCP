@@ -17,7 +17,7 @@ void request_func(IntcpSess * _sessPtr){
     }
 }
 
-int _round_up(int x,int y){
+IUINT32 _round_up(IUINT32 x,IUINT32 y){
     return ((x+y-1)/y)*y;
 }
 
@@ -50,9 +50,9 @@ void *onNewSess(void* _sessPtr){
         */
         recvBuf[end-start]='\0';
         
-        int pos = _round_up(start,REQ_LEN);
+        IUINT32 pos = _round_up(start,REQ_LEN);
         while(1){
-            if(end-pos<sizeof(IUINT32)*2)
+            if(pos+sizeof(IUINT32)*2>end)
                 break;
             //printf("%d %d %d\n",pos,start,end);
             IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
@@ -63,7 +63,7 @@ void *onNewSess(void* _sessPtr){
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n", pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);

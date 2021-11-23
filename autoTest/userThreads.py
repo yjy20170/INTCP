@@ -116,8 +116,17 @@ def RttTest(mn, testParam, logPath):
         atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
         
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
-        #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
-        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
+        #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
         time.sleep(testParam.appParam.sendTime)
         return
 
+# for intcp only
+'''
+@threadFunc(LatchThread)
+def PerformTest(mn, testParam, logPath):
+    if testParam.appParam.get('isManual') or not testParam.appParam.get('isPerformTest') or nottestParam.appParam.get('protocol')=="INTCP":
+        return
+    print("performance test begin")
+    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+'''
