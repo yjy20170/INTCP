@@ -57,7 +57,22 @@ def getTestParamSet(tpsetName):
         #    'pep-h2.rtt':[100,200]
         #})
         return tpSet
+        
+    if tpsetName == "simple_multi_nodes":
+        absTopoParam2 = Param.AbsTopoParam(name='net_hmmh',nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=1,midCC='pep')
+        linkParams2 = {
+                'h1-pep1':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
+                'pep1-pep2':Param.LinkParam(loss=0, rtt=60, bw=20, varBw=0),
+                'pep2-h2':Param.LinkParam(loss=0, rtt=70, bw=20, varBw=0)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam2,linkParams=linkParams2,appParam=appParam)
 
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep2-h2.rtt',keysCurveDiff=['midNodes','protocol'],keysPlotDiff=[])
+
+        tpSet.add({'absTopoParam':[absTopoParam2],'linkParams':[linkParams2],'protocol':["INTCP","TCP"],'midNodes':2})
+        return tpSet
+        
     if tpsetName == "expr2":
         total_loss = 5
         absTopoParam2 = Param.AbsTopoParam(name='net_hmmh',nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])

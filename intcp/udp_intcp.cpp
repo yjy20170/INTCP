@@ -1,4 +1,5 @@
 #include "./include/udp_intcp.h"
+#include <iostream>
 #undef LOG_LEVEL
 #define LOG_LEVEL DEBUG
 
@@ -341,7 +342,11 @@ void *udpRecvLoop(void *_args){
     }
 
     // prepare for udp recv
-    struct sockaddr_in sendAddr, recvAddr, requesterAddr, responserAddr;
+    struct sockaddr_in sendAddr, recvAddr;
+    struct sockaddr_in requesterAddr;
+    struct sockaddr_in responserAddr;
+    //struct sockaddr_in &requesterAddr= sendAddr;
+    //struct sockaddr_in &responserAddr= recvAddr;
     char cmbuf[100];
 
     struct iovec iov;
@@ -377,7 +382,6 @@ void *udpRecvLoop(void *_args){
 
         bool isEndp = addrCmp(recvAddr, args->listenAddr);
         int segDstRole = IntcpTransCB::judgeSegDst(recvBuf, recvLen);
-        
         if(segDstRole == INTCP_RESPONSER){
             requesterAddr = sendAddr;
             responserAddr = recvAddr;
@@ -389,11 +393,14 @@ void *udpRecvLoop(void *_args){
             //TODO dst of some pkts can be midnode in future.
             continue;
         }
+        
         Quad quad(requesterAddr, responserAddr);
+     
         int ret = args->sessMapPtr->readValue(quad.chars, QUAD_STR_LEN, &sessPtr);
         if (ret == -1){
             //if the endpoint receives a intcp DATA packet from unknown session, ignores it.
             if(isEndp && segDstRole==INTCP_REQUESTER){
+          
                 LOG(WARN,"requester recvs an unknown packet");
                 continue;
             }

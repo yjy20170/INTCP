@@ -48,6 +48,9 @@ const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
 const IUINT32 INTCP_CMD_WASK = 83;        // cmd: window probe (ask)
 const IUINT32 INTCP_CMD_WINS = 84;        // cmd: window size (tell)
 
+const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
+const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
+
 const IUINT32 INTCP_ASK_SEND = 1;        // need to send INTCP_CMD_WASK
 const IUINT32 INTCP_ASK_TELL = 2;        // need to send INTCP_CMD_WINS
 const IUINT32 INTCP_WND_SND = 32;
@@ -120,12 +123,14 @@ private:
     
     int nodelay, nocwnd; // about rto caclulation
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
+    int hop_rttval, hop_srtt;
     int fastRetransThre, fastRetransCountLimit;
     IUINT32 snd_wnd, rcv_wnd, rmt_wnd, cwnd, ssthresh;
     
 	IUINT32 updated, updateInterval, nextFlushTs;
     IUINT32 ts_probe, probe_wait, probe;
-
+    IUINT32 ts_hop_rtt_probe,hop_rtt_probe_wait;
+    
     //requester
     list<IntRange> int_queue;
     list<shared_ptr<IntcpSeg>> int_buf;
@@ -172,8 +177,11 @@ private:
     void flushIntQueue();
     void flushIntBuf();
     void flushData();
+    void flushHopRttAsk();
+    
     int output(const void *data, int size, int dstRole);
     void updateRTT(IINT32 rtt);
+    void updateHopRtt(IUINT32 ts);
 
     // after input
     void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd,IUINT32 ts, IUINT32 wnd);
@@ -182,6 +190,9 @@ private:
     int sendData(const char *buffer, IUINT32 start, IUINT32 end, IUINT32 tsEcho);
 
     void parseData(shared_ptr<IntcpSeg> newseg);
+    
+    void parseHopRttAsk(IUINT32 ts);
+    
     void moveToRcvQueue();
 
 //---------------------------------------------------------------------

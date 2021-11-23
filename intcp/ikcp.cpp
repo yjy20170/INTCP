@@ -58,6 +58,8 @@ rx_srtt(0),
 rx_rttval(0),
 rx_rto(INTCP_RTO_DEF),
 rx_minrto(INTCP_RTO_MIN),
+hop_srtt(0),
+hop_rttval(0),
 updateInterval(INTCP_INTERVAL),
 nextFlushTs(INTCP_INTERVAL),
 nodelay(0),
@@ -73,7 +75,9 @@ dataByteRightBound(-1),
 dataRightBoundTs(-1),
 intSnRightBound(-1),
 intByteRightBound(-1),
-intRightBoundTs(-1)
+intRightBoundTs(-1),
+ts_hop_rtt_probe(0),
+hop_rtt_probe_wait(1000)
 {
     void *tmp = malloc((mtu + INTCP_OVERHEAD) * 3);
     assert(tmp != NULL);
@@ -229,6 +233,24 @@ void IntcpTransCB::updateRTT(IINT32 rtt)
     rx_rto = _ibound_(rx_minrto, rto, INTCP_RTO_MAX);
 }
 
+void IntcpTransCB::updateHopRtt(IUINT32 ts){
+    // to do
+    IUINT32 current = _getMillisec();
+    IINT32 hop_rtt = _itimediff(current,ts);
+    if(hop_srtt ==0){
+        hop_srtt = hop_rtt;
+        hop_rttval = hop_rtt/2; 
+    }
+    else{
+        long delta = hop_rtt - hop_srtt;
+        if (delta < 0) delta = -delta;
+        hop_rttval = (3 * hop_rttval + delta) / 4;
+        hop_srtt = (7 * hop_srtt + hop_rtt) / 8;
+        if (hop_srtt < 1) hop_srtt = 1;
+    }
+    LOG(TRACE,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
+    //printf("***hopRtt=%d\n",hop_rtt);
+}
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
     // if(isMidnode){
@@ -515,6 +537,22 @@ void IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                 sn,dataHoles.size(),str.c_str());
     }
 }
+
+void IntcpTransCB::parseHopRttAsk(IUINT32 ts){
+    IntcpSeg seg;
+    seg.cmd = INTCP_CMD_HOP_RTT_TELL;
+    seg.len = 0;
+    seg.sn = 0;
+    seg.ts = ts;
+    //seg.rangeStart = 0;
+    //seg.rangeEnd = 0;
+    
+    char *sendEnd=tmpBuffer.get();
+    sendEnd = encodeSeg(tmpBuffer.get(),&seg);
+    output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_REQUESTER);
+    return;
+}
+
 void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
 {
 
@@ -699,7 +737,8 @@ int IntcpTransCB::input(char *data, int size)
         if ((long)size < (long)len || (int)len < 0) return -2;
         
         if (cmd != INTCP_CMD_PUSH && cmd != INTCP_CMD_INT &&
-            cmd != INTCP_CMD_WASK && cmd != INTCP_CMD_WINS) 
+            cmd != INTCP_CMD_WASK && cmd != INTCP_CMD_WINS &&
+            cmd != INTCP_CMD_HOP_RTT_ASK && cmd!= INTCP_CMD_HOP_RTT_TELL) 
             return -3;
 
         if(cmd==INTCP_CMD_INT){
@@ -751,6 +790,16 @@ int IntcpTransCB::input(char *data, int size)
         }
         else if (cmd == INTCP_CMD_WINS) {
             // do nothing
+        }
+        
+        else if (cmd == INTCP_CMD_HOP_RTT_ASK){
+            LOG(TRACE,"recv hop rtt ask");
+            parseHopRttAsk(ts);
+        }
+        
+        else if (cmd == INTCP_CMD_HOP_RTT_TELL){
+            LOG(TRACE,"recv hop rtt tell");
+            updateHopRtt(ts);
         }
         else {
             return -3;
@@ -838,6 +887,24 @@ void IntcpTransCB::flushWndProbe(){
 		output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_RESPONSER);
     }
 	return;
+}
+
+void IntcpTransCB::flushHopRttAsk(){    //responder don't need
+    IUINT32 current = _getMillisec();
+	char *sendEnd=tmpBuffer.get();
+	if (ts_hop_rtt_probe==0||_itimediff(current, ts_hop_rtt_probe) >= 0){
+	    IntcpSeg seg;
+        seg.wnd = getRwnd();
+        seg.len = 0;
+        seg.sn = 0;
+        seg.ts = current;
+        seg.cmd = INTCP_CMD_HOP_RTT_ASK;
+        //seg.cmd = INTCP_CMD_PUSH;
+        sendEnd = encodeSeg(tmpBuffer.get(), &seg);
+        output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_RESPONSER);
+        LOG(TRACE,"send hop rtt flush");
+	    ts_hop_rtt_probe = current+hop_rtt_probe_wait;
+	}
 }
 
 void IntcpTransCB::flushIntQueue(){
@@ -1073,11 +1140,17 @@ void IntcpTransCB::flushData(){
 
 void IntcpTransCB::flush(){
     // 'update' haven't been called. 
+    
     if (updated == 0) return;
-
+    
+    
+    
 	//TODO flushWndProbe();
     if(nodeRole == INTCP_REQUESTER){
         flushIntQueue();
+    }
+    if(nodeRole != INTCP_RESPONSER){
+        flushHopRttAsk();
     }
 	flushIntBuf();
 	flushData();
@@ -1178,7 +1251,7 @@ int IntcpTransCB::judgeSegDst(const char *data, long size){
     IUINT8 cmd;
     // have to use a typecasting here, not good
 	decode8u((char*)data, &cmd);
-	if(cmd==INTCP_CMD_INT || cmd==INTCP_CMD_WINS){
+	if(cmd==INTCP_CMD_INT || cmd==INTCP_CMD_WINS || cmd==INTCP_CMD_HOP_RTT_ASK){
 		return INTCP_RESPONSER;
 	} else {
 		return INTCP_REQUESTER;

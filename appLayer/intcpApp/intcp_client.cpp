@@ -22,6 +22,7 @@ IUINT32 _round_up(IUINT32 x,IUINT32 y){
 }
 
 void *onNewSess(void* _sessPtr){
+    printf("test\n");
     IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
     
     int ret;
@@ -63,7 +64,7 @@ void *onNewSess(void* _sessPtr){
             LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-                printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+             //printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);
