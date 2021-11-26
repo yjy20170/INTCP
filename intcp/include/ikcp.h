@@ -39,7 +39,7 @@ using namespace std;
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 1000; //500
+const IUINT32 INTCP_RTO_DEF = 1000;      //500
 const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_FACTOR = 1.05;
 
@@ -59,8 +59,8 @@ const IUINT32 INTCP_MTU_DEF = 1400; //EXPR 1400
 const IUINT32 INTCP_ACK_FAST = 3;
 const IUINT32 INTCP_INTERVAL = 1; //EXPR 100 -> 5
 const IUINT32 INTCP_DEADLINK = 8;
-const IUINT32 INTCP_THRESH_INIT = 2;
-const IUINT32 INTCP_THRESH_MIN = 2;
+const IUINT32 INTCP_THRESH_INIT = 2;     //2 mtu
+const IUINT32 INTCP_THRESH_MIN = 2;       //2 mtu
 const IUINT32 INTCP_PROBE_INIT = 7000;        // 7 secs to probe window size
 const IUINT32 INTCP_PROBE_LIMIT = 120000;    // up to 120 secs to probe window
 const IUINT32 INTCP_FASTACK_LIMIT = 5;        // max times to trigger fastRetrans
@@ -68,6 +68,10 @@ const IUINT32 INTCP_FASTACK_LIMIT = 5;        // max times to trigger fastRetran
 const IUINT32 INTCP_SEQHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
 const IUINT32 INTCP_SEQHOLE_THRESHOLD = 3; // if three segs 
 
+const IUINT32 INTCP_HOP_RTT_PROBE_INIT = 1000;  //1s to probe hop rtt
+
+const int SLOW_START=0;
+const int CONGESTION_AVOID=1;   //for cc
 //=====================================================================
 // SEGMENT
 //=====================================================================
@@ -123,9 +127,9 @@ private:
     
     int nodelay, nocwnd; // about rto caclulation
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
-    int hop_rttval, hop_srtt;
+    int hop_rttval, hop_srtt,rmt_hop_rtt;
     int fastRetransThre, fastRetransCountLimit;
-    IUINT32 snd_wnd, rcv_wnd, rmt_wnd, cwnd, ssthresh;
+    IUINT32 snd_wnd, rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
     
 	IUINT32 updated, updateInterval, nextFlushTs;
     IUINT32 ts_probe, probe_wait, probe;
@@ -156,7 +160,7 @@ private:
     IUINT32 intSnRightBound, intByteRightBound, intRightBoundTs;
     list<Hole> dataHoles, intHoles;
     void detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
-    void detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
+    bool detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
     
     void *user;
     int (*outputFunc)(const char *buf, int len, void *user, int dstRole);
@@ -191,10 +195,15 @@ private:
 
     void parseData(shared_ptr<IntcpSeg> newseg);
     
-    void parseHopRttAsk(IUINT32 ts);
+    void parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd);
     
     void moveToRcvQueue();
-
+    
+    int getSendLimit();
+    
+    void updateCwnd(bool is_hole,IUINT32 dataLen);
+    
+    IUINT32 getCwnd();
 //---------------------------------------------------------------------
 // interface
 //---------------------------------------------------------------------

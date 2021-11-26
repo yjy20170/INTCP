@@ -48,8 +48,9 @@ ts_probe(0),
 probe_wait(0),
 snd_wnd(INTCP_WND_SND),
 rcv_wnd(INTCP_WND_RCV),
-rmt_wnd(INTCP_WND_RCV),
-cwnd(0),
+rmt_wnd(-1),             // INTCP_WND_RCV
+cwnd(1),    //initialize with mtu
+incr(INTCP_MTU_DEF),
 probe(0),
 mtu(INTCP_MTU_DEF),
 mss(mtu - INTCP_OVERHEAD),
@@ -65,7 +66,7 @@ nextFlushTs(INTCP_INTERVAL),
 nodelay(0),
 nocwnd(0),
 updated(0),
-ssthresh(INTCP_THRESH_INIT),
+ssthresh(INTCP_THRESH_INIT),    //cc
 fastRetransThre(0),
 fastRetransCountLimit(INTCP_FASTACK_LIMIT),
 xmit(0),
@@ -77,7 +78,9 @@ intSnRightBound(-1),
 intByteRightBound(-1),
 intRightBoundTs(-1),
 ts_hop_rtt_probe(0),
-hop_rtt_probe_wait(1000)
+hop_rtt_probe_wait(INTCP_HOP_RTT_PROBE_INIT),
+rmt_hop_rtt(0),
+rmt_cwnd(0)
 {
     void *tmp = malloc((mtu + INTCP_OVERHEAD) * 3);
     assert(tmp != NULL);
@@ -438,7 +441,8 @@ void IntcpTransCB::notifyNewData(const char *buffer, IUINT32 dataStart, IUINT32 
 //---------------------------------------------------------------------
 // parse data
 //---------------------------------------------------------------------
-void IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
+bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){        //return true when find a new hole
+    bool find_new_hole = false;
     IUINT32 current = _getMillisec();
     if(dataSnRightBound==-1 || current-dataRightBoundTs>INTCP_SEQHOLE_TIMEOUT){
         dataSnRightBound = sn+1;
@@ -519,6 +523,7 @@ void IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                 newHole.ts = current;
                 newHole.count = 1;
                 dataHoles.push_back(newHole);
+                find_new_hole = true;
             }
             dataSnRightBound = sn+1;
             dataByteRightBound = _imax_(dataByteRightBound,rangeEnd);
@@ -536,9 +541,13 @@ void IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
         LOG(TRACE,"sn %d dataHoles: %ld %s",
                 sn,dataHoles.size(),str.c_str());
     }
+    return find_new_hole;
 }
 
-void IntcpTransCB::parseHopRttAsk(IUINT32 ts){
+void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
+    rmt_hop_rtt = (int)sn;
+    rmt_cwnd = wnd;
+    LOG(TRACE,"receive rmt hop rtt %d, rmt cwnd %d",rmt_hop_rtt,rmt_cwnd);
     IntcpSeg seg;
     seg.cmd = INTCP_CMD_HOP_RTT_TELL;
     seg.len = 0;
@@ -745,6 +754,8 @@ int IntcpTransCB::input(char *data, int size)
             LOG(TRACE, "recv int [%d,%d)",rangeStart,rangeEnd);
             detectIntHole(rangeStart,rangeEnd,sn);
             parseInt(rangeStart,rangeEnd,ts,wnd);//TODO more CC information mighe be added.
+            //rmt_wnd = wnd;
+            //printf("remote window=%d\n",rmt_wnd);
         } else if (cmd == INTCP_CMD_PUSH) {
             // LOG(DEBUG, "input data sn %d [%d,%d)", sn, rangeStart,rangeEnd);
         
@@ -769,7 +780,8 @@ int IntcpTransCB::input(char *data, int size)
             //         && _itimediff(sn, rcv_nxt) >= 0)
             //         ) {
             if(true){
-                detectDataHole(rangeStart,rangeEnd,sn);
+                bool find_new_hole = detectDataHole(rangeStart,rangeEnd,sn);
+                updateCwnd(find_new_hole,len);     //cc
                 seg = createSeg(len);
                 seg->cmd = cmd;
                 seg->wnd = wnd;
@@ -794,7 +806,7 @@ int IntcpTransCB::input(char *data, int size)
         
         else if (cmd == INTCP_CMD_HOP_RTT_ASK){
             LOG(TRACE,"recv hop rtt ask");
-            parseHopRttAsk(ts);
+            parseHopRttAsk(ts,sn,wnd);
         }
         
         else if (cmd == INTCP_CMD_HOP_RTT_TELL){
@@ -894,9 +906,9 @@ void IntcpTransCB::flushHopRttAsk(){    //responder don't need
 	char *sendEnd=tmpBuffer.get();
 	if (ts_hop_rtt_probe==0||_itimediff(current, ts_hop_rtt_probe) >= 0){
 	    IntcpSeg seg;
-        seg.wnd = getRwnd();
+        seg.wnd = getCwnd();
         seg.len = 0;
-        seg.sn = 0;
+        seg.sn = hop_srtt;      //sn carry hop rtt, only for test
         seg.ts = current;
         seg.cmd = INTCP_CMD_HOP_RTT_ASK;
         //seg.cmd = INTCP_CMD_PUSH;
@@ -917,7 +929,10 @@ void IntcpTransCB::flushIntQueue(){
         newseg->len = 0;
         newseg->sn = 0; // no need to use sn in interest
         newseg->cmd = INTCP_CMD_INT;
+        
         newseg->wnd = getRwnd();
+        //newseg->wnd = getCwnd();    //cc
+        
         // resendts and rto will be set before output
         // newseg->resendts = current;
         // newseg->rto = rx_rto;
@@ -963,7 +978,7 @@ void IntcpTransCB::flushIntBuf(){
     // calculate resent
     int rtomin = (nodelay == 0)? (rx_rto >> 3) : 0;
 	int rwnd = getRwnd();
-
+    //int rwnd = getCwnd();
     int change = 0;
     int lost = 0;
 	char *sendEnd=tmpBuffer.get();
@@ -1099,18 +1114,22 @@ void IntcpTransCB::flushIntBuf(){
 void IntcpTransCB::flushData(){
     LOG(TRACE,"sendqueue len %lu",snd_queue.size());
     //TODO CC -- cwnd/sendingRate; design token bucket
-    // int dataOutputLimit = getDataSwnd();
-    int dataOutputLimit = 65536;
+    static int dataOutputLimit = 0;
+    dataOutputLimit += getSendLimit();
+    LOG(SILENT,"dataOutputLimit %d bytes",dataOutputLimit);
+    //int dataOutputLimit = 65536;
 
 	char *sendEnd=tmpBuffer.get();
 	int sizeToSend=0;
 
-	list<shared_ptr<IntcpSeg>>::iterator p, next;
+    bool reach_limit = false;
+    list<shared_ptr<IntcpSeg>>::iterator p, next;
 	shared_ptr<IntcpSeg> segPtr;
 	for (p = snd_queue.begin(); p != snd_queue.end(); p=next){
 		next = p; next++;
 		segPtr = *p;
         if(dataOutputLimit<segPtr->len){
+            reach_limit = true;
             break;
         }else{
             dataOutputLimit -= segPtr->len;
@@ -1132,6 +1151,8 @@ void IntcpTransCB::flushData(){
         snd_queue.erase(p);
 	}
 	// flush remain segments
+	if(!reach_limit)                //if cwnd is not enough for data, the remain wnd can use for next loop
+	    dataOutputLimit = 0;
     sizeToSend = (int)(sendEnd - tmpBuffer.get());
     if (sizeToSend > 0) {
         output(tmpBuffer.get(), sizeToSend, INTCP_REQUESTER);
@@ -1265,4 +1286,64 @@ int IntcpTransCB::peekSize()
     if (rcv_queue.empty()) return -1;    //recv_queue
 
     return (*rcv_queue.begin())->len;
+}
+
+//cc when send data
+int IntcpTransCB::getSendLimit(){
+    //return 65536;
+    int limit;
+    if(rmt_wnd==-1||rmt_hop_rtt==0||rmt_cwnd==0){    //haven't receive feedback
+        limit =  INTCP_MTU_DEF;
+    }        
+    else{
+        limit = (rmt_cwnd*INTCP_MTU_DEF*INTCP_INTERVAL)/rmt_hop_rtt;
+        //LOG(TRACE,"wnd %d mtu %d interval %d hop rtt %d,send limit is %d bytes",rmt_wnd,INTCP_MTU_DEF,INTCP_INTERVAL,rmt_hop_rtt,limit);
+        
+    }
+    return limit;
+}
+
+//cc
+void IntcpTransCB::updateCwnd(bool is_hole,IUINT32 dataLen){
+    static int cc_status = SLOW_START;
+    static int ca_data_len = 0;     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
+    //LOG(SILENT,"cwnd %d mtu\n",cwnd);
+    if(cc_status==SLOW_START){      //slow start
+        if(is_hole){                //??
+            cwnd = cwnd/2;
+            if(cwnd<1)
+                cwnd=1;
+            ssthresh = max(cwnd,INTCP_THRESH_MIN);
+            incr = cwnd*INTCP_MTU_DEF;
+            cc_status == CONGESTION_AVOID;
+        }
+        else{
+            incr += dataLen;        //window expand 1mss when receive 1mss data
+            cwnd = incr/INTCP_MTU_DEF;
+            if(cwnd>=ssthresh){     //entering ca
+                ssthresh = cwnd;
+                cc_status = CONGESTION_AVOID;
+            }
+        }
+    }
+    else if(cc_status==CONGESTION_AVOID){
+        if(is_hole){
+            ssthresh = max(ssthresh/2,INTCP_THRESH_MIN);
+            cwnd = ssthresh;
+            ca_data_len = 0;
+        }
+        else{
+            ca_data_len += dataLen;
+            if(ca_data_len>cwnd*INTCP_MTU_DEF){
+                cwnd ++;
+                ssthresh ++;
+                incr += INTCP_MTU_DEF;
+                ca_data_len = 0;
+            }
+        }
+    }
+}
+
+IUINT32 IntcpTransCB::getCwnd(){
+    return cwnd;
 }
