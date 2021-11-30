@@ -39,14 +39,14 @@
         }else{ \
             ptrL++; \
         } \
-        int limit = 30; \
-        char prefix[limit+4]; \
-        memset(prefix,' ',limit+4); \
-        snprintf(prefix, limit+1, "%s@%s,%d", \
+        int limit_for_log_h = 30; \
+        char prefix[limit_for_log_h+4]; \
+        memset(prefix,' ',limit_for_log_h+4); \
+        snprintf(prefix, limit_for_log_h+1, "%s@%s,%d", \
                 __func__, ptrL, __LINE__); \
         prefix[strlen(prefix)]=' '; \
-        prefix[limit+1] = '|'; \
-        prefix[limit+3] = '\0'; \
+        prefix[limit_for_log_h+1] = '|'; \
+        prefix[limit_for_log_h+3] = '\0'; \
         printf("%s" format "\n",prefix,##__VA_ARGS__); \
     }
 

@@ -34,7 +34,7 @@ void startRequester(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr,
     shared_ptr<IntcpSess> sessPtr(new IntcpSess(inet_addr(ipStrReq), inet_addr(ipStrResp), ntohs(respPortH), 
             cachePtr, onNewSess));
     //NOTE manually add to sessMapPtr
-    Quad quad(sessPtr->requesterAddr, sessPtr->responserAddr);
+    Quad quad(sessPtr->requesterAddr, sessPtr->responderAddr);
     sessMapPtr->setValue(quad.chars, QUAD_STR_LEN, sessPtr);
 
     struct udpRecvLoopArgs args;
@@ -49,7 +49,7 @@ void startRequester(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr,
     pthread_join(listener, nullptr);
 }
 
-void startResponser(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr, 
+void startResponder(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr, 
         void *(*onNewSess)(void* _sessPtr), int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user),
         const char* ipStr, uint16_t respPortH){
     int ret;

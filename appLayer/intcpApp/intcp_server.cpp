@@ -16,7 +16,7 @@ int provideData(IUINT32 start, IUINT32 end, void *_sessPtr){
     while(1){
         if(pos+REQ_LEN>end-start)
             break;
-        *((IUINT32 *)(dataBuf+pos)) = getMillisec();
+        *((IUINT32 *)(dataBuf+pos)) = _getMillisec();
         pos+=REQ_LEN;
     }
     sessPtr->insertData(dataBuf,start,end);
@@ -49,7 +49,7 @@ int main(){
     ByteMap<shared_ptr<IntcpSess>> sessMap;
     printf("entering intcps\n");
     fflush(stdout);
-    startResponser(&cache,&sessMap,onNewSess,provideData,
+    startResponder(&cache,&sessMap,onNewSess,provideData,
             "10.0.100.2", DEFAULT_SERVER_PORT);
 
     // udpRecvLoop(&args);

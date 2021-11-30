@@ -2,8 +2,6 @@
 cd `dirname $0`
 # set iptables
 
-# [ -r ../my.conf ] && . ../my.conf
-
 # clear existing rules
 sudo iptables -t mangle -F
 

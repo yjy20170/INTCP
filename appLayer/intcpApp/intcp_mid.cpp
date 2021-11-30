@@ -6,12 +6,12 @@ void *onNewSess(void* _sessPtr){
     IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
     char reqIP[30],respIP[30];
     writeIPstr(reqIP, sessPtr->requesterAddr.sin_addr.s_addr);
-    writeIPstr(respIP, sessPtr->responserAddr.sin_addr.s_addr);
+    writeIPstr(respIP, sessPtr->responderAddr.sin_addr.s_addr);
     LOG(DEBUG,"new sess req %s:%d resp %s:%d",
             reqIP,
             ntohs(sessPtr->requesterAddr.sin_port),
             respIP,
-            ntohs(sessPtr->responserAddr.sin_port)
+            ntohs(sessPtr->responderAddr.sin_port)
     );
     
     char recvBuf[MaxBufSize];

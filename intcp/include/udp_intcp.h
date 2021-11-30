@@ -30,8 +30,6 @@ const socklen_t AddrLen = (socklen_t)(sizeof(struct sockaddr_in));
 
 /***************** util functions *****************/
 
-void get_current_time(long *sec, long *usec);
-IUINT32 getMillisec();
 struct sockaddr_in toAddr(in_addr_t IP, uint16_t port);
 bool addrCmp(struct sockaddr_in addr1, struct sockaddr_in addr2);
 void writeIPstr(char *ret, in_addr_t address);
@@ -50,7 +48,7 @@ public:
     
     char chars[QUAD_STR_LEN];
     Quad(in_addr_t _reqAddrIP, uint16_t _reqAddrPort, in_addr_t _respAddrIP, uint16_t _respAddrPort);
-    Quad(struct sockaddr_in requesterAddr, struct sockaddr_in responserAddr);
+    Quad(struct sockaddr_in requesterAddr, struct sockaddr_in responderAddr);
     Quad reverse();
     void toChars();
     struct sockaddr_in getReqAddr();
@@ -61,7 +59,7 @@ public:
 class IntcpSess{
 public:
     int socketFd_toReq, socketFd_toResp;
-    struct sockaddr_in requesterAddr, responserAddr;
+    struct sockaddr_in requesterAddr, responderAddr;
     char nameChars[QUAD_STR_LEN];
     int nodeRole;
     shared_ptr<IntcpTransCB> transCB;
@@ -75,7 +73,7 @@ public:
     IntcpSess(in_addr_t reqAddrIP, in_addr_t respAddrIP, 
         uint16_t respAddrPort, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr));
-    //responser
+    //responder
     IntcpSess(Quad quad, int listenFd, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr),int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user));
     //midnode

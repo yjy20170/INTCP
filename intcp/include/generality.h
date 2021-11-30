@@ -266,4 +266,12 @@ static IUINT32 _getMillisec(){
     return (IUINT32)(res & 0xfffffffful);
 }
 
+static IUINT32 _getUsec(){
+    long sec,usec;
+    IINT64 res;
+    _get_current_time(&sec,&usec);
+    res = ((IINT64)sec) * 1000000 + usec;
+    return (IUINT32)(res & 0xfffffffful);
+}
+
 #endif

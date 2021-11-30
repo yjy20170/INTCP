@@ -6,22 +6,6 @@
 
 /***************** util functions *****************/
 
-void get_current_time(long *sec, long *usec)
-{
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    if (sec) *sec = time.tv_sec;
-    if (usec) *usec = time.tv_usec;
-}
-
-IUINT32 getMillisec(){
-    long sec,usec;
-    IINT64 res;
-    get_current_time(&sec,&usec);
-    res = ((IINT64)sec) * 1000 + (usec / 1000);
-    return (IUINT32)(res & 0xfffffffful);
-}
-
 struct sockaddr_in toAddr(in_addr_t IP, uint16_t port) {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -53,8 +37,8 @@ respAddrPort(_respAddrPort)
 {
     toChars();
 }
-Quad::Quad(struct sockaddr_in requesterAddr, struct sockaddr_in responserAddr):
-        reqAddrIP(requesterAddr.sin_addr.s_addr), reqAddrPort(requesterAddr.sin_port), respAddrIP(responserAddr.sin_addr.s_addr), respAddrPort(responserAddr.sin_port){
+Quad::Quad(struct sockaddr_in requesterAddr, struct sockaddr_in responderAddr):
+        reqAddrIP(requesterAddr.sin_addr.s_addr), reqAddrPort(requesterAddr.sin_port), respAddrIP(responderAddr.sin_addr.s_addr), respAddrPort(responderAddr.sin_port){
     toChars();
 }
 
@@ -159,10 +143,10 @@ cachePtr(_cachePtr)
     socketFd_toReq = -1;
 
     requesterAddr = toAddr(reqAddrIP, reqAddrPort);
-    responserAddr = toAddr(respAddrIP, respAddrPort);
+    responderAddr = toAddr(respAddrIP, respAddrPort);
 
     //general
-    Quad quad(requesterAddr,responserAddr);
+    Quad quad(requesterAddr,responderAddr);
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
     lock.lock();
     transCB = createTransCB(this, nodeRole, nullptr);
@@ -172,15 +156,15 @@ cachePtr(_cachePtr)
     return;
 }
 
-// this is for [responser]
+// this is for [responder]
 // this is called when receiving a new Quad
 IntcpSess::IntcpSess(Quad quad, int listenFd, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr), int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)):
-nodeRole(INTCP_RESPONSER),
+nodeRole(INTCP_RESPONDER),
 cachePtr(_cachePtr)
 {
     requesterAddr = quad.getReqAddr();
-    responserAddr = quad.getRespAddr();
+    responderAddr = quad.getRespAddr();
     
     socketFd_toReq = listenFd;
     socketFd_toResp = -1;
@@ -203,9 +187,9 @@ nodeRole(INTCP_MIDNODE),
 cachePtr(_cachePtr)
 {
     requesterAddr = quad.getReqAddr();
-    responserAddr = quad.getRespAddr();
+    responderAddr = quad.getRespAddr();
     
-    socketFd_toReq = createSocket(responserAddr.sin_addr.s_addr, responserAddr.sin_port, true, nullptr);
+    socketFd_toReq = createSocket(responderAddr.sin_addr.s_addr, responderAddr.sin_port, true, nullptr);
     socketFd_toResp = createSocket(requesterAddr.sin_addr.s_addr, requesterAddr.sin_port, true, nullptr);
     if(socketFd_toReq==-1 || socketFd_toResp)
     memcpy(nameChars, quad.chars, QUAD_STR_LEN);
@@ -252,9 +236,9 @@ void* TransUpdateLoop(void *args){
     // IUINT32 lastUpdateTime = -1;
     IUINT32 now, updateTime;
     while(1){
-        now = getMillisec();
         sessPtr->lock.lock();
-        updateTime = sessPtr->transCB->check(now);
+        updateTime = sessPtr->transCB->check();
+        now = _getUsec();
         if (updateTime <= now) {
             // if(lastUpdateTime!=-1){
             //     LOG(DEBUG,"update interval %d", now - lastUpdateTime);
@@ -264,7 +248,7 @@ void* TransUpdateLoop(void *args){
             sessPtr->lock.unlock();
         } else {
             sessPtr->lock.unlock();
-            usleep((updateTime - now + 1)*1000);
+            usleep(updateTime - now);
             continue;
         }
     }
@@ -288,11 +272,11 @@ int udpSend(const char* buf,int len, void* user, int dstRole){
     }
     struct sockaddr_in *dstAddrPtr;
     int outputFd;
-    if(dstRole==INTCP_RESPONSER){
-        dstAddrPtr = &sess->responserAddr;
+    if(dstRole==INTCP_RESPONDER){
+        dstAddrPtr = &sess->responderAddr;
         outputFd = sess->socketFd_toResp;
     }else if(dstRole==INTCP_REQUESTER){
-        //in midnode, udpSend_default send to requester and udpSend_toResp send to responser
+        //in midnode, udpSend_default send to requester and udpSend_toResp send to responder
         dstAddrPtr = &sess->requesterAddr;
         outputFd = sess->socketFd_toReq;
     } else {
@@ -344,9 +328,9 @@ void *udpRecvLoop(void *_args){
     // prepare for udp recv
     struct sockaddr_in sendAddr, recvAddr;
     struct sockaddr_in requesterAddr;
-    struct sockaddr_in responserAddr;
+    struct sockaddr_in responderAddr;
     //struct sockaddr_in &requesterAddr= sendAddr;
-    //struct sockaddr_in &responserAddr= recvAddr;
+    //struct sockaddr_in &responderAddr= recvAddr;
     char cmbuf[100];
 
     struct iovec iov;
@@ -382,19 +366,19 @@ void *udpRecvLoop(void *_args){
 
         bool isEndp = addrCmp(recvAddr, args->listenAddr);
         int segDstRole = IntcpTransCB::judgeSegDst(recvBuf, recvLen);
-        if(segDstRole == INTCP_RESPONSER){
+        if(segDstRole == INTCP_RESPONDER){
             requesterAddr = sendAddr;
-            responserAddr = recvAddr;
+            responderAddr = recvAddr;
         } else if (segDstRole == INTCP_REQUESTER) {
             requesterAddr = recvAddr;
-            responserAddr = sendAddr;
+            responderAddr = sendAddr;
         } else {
             LOG(WARN,"recv not-INTCP packet");
             //TODO dst of some pkts can be midnode in future.
             continue;
         }
         
-        Quad quad(requesterAddr, responserAddr);
+        Quad quad(requesterAddr, responderAddr);
      
         int ret = args->sessMapPtr->readValue(quad.chars, QUAD_STR_LEN, &sessPtr);
         if (ret == -1){
@@ -409,7 +393,7 @@ void *udpRecvLoop(void *_args){
             writeIPstr(sendIPstr, sendAddr.sin_addr.s_addr);
             LOG(TRACE,"establish: %s:%d", sendIPstr, ntohs(sendAddr.sin_port));
             if(isEndp){
-                //new responser session
+                //new responder session
                 //TODO when to release session?
                 sessPtr = shared_ptr<IntcpSess>(new IntcpSess(quad, listenFd, args->cachePtr, args->onNewSess, args->onUnsatInt));
             } else {

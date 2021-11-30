@@ -29,7 +29,7 @@
 using namespace std;
 
 #define INTCP_REQUESTER 10
-#define INTCP_RESPONSER 11
+#define INTCP_RESPONDER 11
 #define INTCP_MIDNODE 12
 
 //=====================================================================
@@ -37,41 +37,41 @@ using namespace std;
 //=====================================================================
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
+const IUINT32 INTCP_MTU = 1400; //EXPR 1400
+const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 
-const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 1000;      //500
-const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_FACTOR = 1.05;
+const IUINT32 INTCP_UPDATE_INTERVAL = 1000; //Unit: usec //EXPR 100 -> 5
+const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
 const IUINT32 INTCP_CMD_WASK = 83;        // cmd: window probe (ask)
 const IUINT32 INTCP_CMD_WINS = 84;        // cmd: window size (tell)
-
 const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
 const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
 
 const IUINT32 INTCP_ASK_SEND = 1;        // need to send INTCP_CMD_WASK
 const IUINT32 INTCP_ASK_TELL = 2;        // need to send INTCP_CMD_WINS
-const IUINT32 INTCP_WND_SND = 32;
-const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
-const IUINT32 INTCP_MTU_DEF = 1400; //EXPR 1400
-const IUINT32 INTCP_ACK_FAST = 3;
-const IUINT32 INTCP_INTERVAL = 1; //EXPR 100 -> 5
-const IUINT32 INTCP_DEADLINK = 8;
-const IUINT32 INTCP_THRESH_INIT = 2;     //2 mtu
-const IUINT32 INTCP_THRESH_MIN = 2;       //2 mtu
 const IUINT32 INTCP_PROBE_INIT = 7000;        // 7 secs to probe window size
 const IUINT32 INTCP_PROBE_LIMIT = 120000;    // up to 120 secs to probe window
-const IUINT32 INTCP_FASTACK_LIMIT = 5;        // max times to trigger fastRetrans
 
+// Retransmission
+const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
+const IUINT32 INTCP_RTO_DEF = 1000;      //500
+const IUINT32 INTCP_RTO_MAX = 60000;
+const float INTCP_RTO_FACTOR = 1.05;
 const IUINT32 INTCP_SEQHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
 const IUINT32 INTCP_SEQHOLE_THRESHOLD = 3; // if three segs 
 
-const IUINT32 INTCP_HOP_RTT_PROBE_INIT = 1000;  //1s to probe hop rtt
+// Congestion control
+const int INTCP_CC_SLOW_START=0;
+const int INTCP_CC_CONG_AVOID=1;
+const IUINT32 INTCP_SSTHRESH_INIT = 300;
+const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
+const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
+const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 
-const int SLOW_START=0;
-const int CONGESTION_AVOID=1;   //for cc
+
 //=====================================================================
 // SEGMENT
 //=====================================================================
@@ -86,11 +86,10 @@ struct IntcpSeg
     IUINT32 rangeStart;    //need send,4B 
     IUINT32 rangeEnd;    //need send,4B 
     
-    IUINT32 firstTs;
-    IUINT32 resendts;
+    IUINT32 firstTs; //first time this interest is sent. ts >= firstTs
+    IUINT32 resendts; // time to resend. resendts = ts+rto
     IUINT32 rto;
-    IUINT32 xmit;
-    
+    IUINT32 xmit; // send time count
     
     char data[1];    //need send
 };
@@ -118,42 +117,29 @@ class IntcpTransCB
 {
 private:
 	int state, dead_link;
-
-    IUINT32 mtu, mss;
     
 	IUINT32 snd_nxt, rcv_nxt;    //still need rcv_nxt, snd_una & snd_nxt  may be discarded
 	IUINT32 snd_nxt_int; // sn of interest, for interest seq hole detection
     int xmit;
     
-    int nodelay, nocwnd; // about rto caclulation
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
     int hop_rttval, hop_srtt,rmt_hop_rtt;
-    int fastRetransThre, fastRetransCountLimit;
-    IUINT32 snd_wnd, rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
+    IUINT32 rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
     
 	IUINT32 updated, updateInterval, nextFlushTs;
     IUINT32 ts_probe, probe_wait, probe;
-    IUINT32 ts_hop_rtt_probe,hop_rtt_probe_wait;
+    IUINT32 ts_hop_rtt_probe;
     
     //requester
     list<IntRange> int_queue;
     list<shared_ptr<IntcpSeg>> int_buf;
     list<shared_ptr<IntcpSeg>> rcv_buf;
     list<shared_ptr<IntcpSeg>> rcv_queue;
-    //responser
+    //responder
     list<IntRange> recvedInts;
     list<shared_ptr<IntcpSeg>> snd_queue;
 
-	// midnode solution 1 ---- one session has two unreliable TransCB
-	// for requester
-	// no timeout: interest in intlist will be directly output, thus no timeout detection.
-	// still detects seq hole: when a seq hole is found, request it
-	// for responser
-	// no realignment: data will be directly push to rcv_queue
-	// no PIT: unsatisfied interest will not be stored in recvedInts
-	// bool isUnreliable;
 
-	// midnode solution 2 ---- one TransCB
 	int nodeRole;
     //seqhole
     IUINT32 dataSnRightBound, dataByteRightBound, dataRightBoundTs;
@@ -204,8 +190,9 @@ private:
     void updateCwnd(bool is_hole,IUINT32 dataLen);
     
     IUINT32 getCwnd();
+
 //---------------------------------------------------------------------
-// interface
+// API
 //---------------------------------------------------------------------
 public:
     // from the same connection. 'user' will be passed to the output callback
@@ -240,7 +227,7 @@ public:
     // Important to reduce unnacessary ikcp_update invoking. use it to 
     // schedule ikcp_update (eg. implementing an epoll-like mechanism, 
     // or optimize ikcp_update when handling massive kcp connections)
-    IUINT32 check(IUINT32 current);
+    IUINT32 check();
 
     // user/upper level recv: returns size, returns below zero for EAGAIN
     int recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr);
