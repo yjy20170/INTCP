@@ -241,7 +241,7 @@ void IntcpTransCB::updateHopRtt(IUINT32 ts){
         hop_srtt = (7 * hop_srtt + hop_rtt) / 8;
         if (hop_srtt < 1) hop_srtt = 1;
     }
-    LOG(DEBUG,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
+    LOG(TRACE,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
 }
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
@@ -954,6 +954,7 @@ void IntcpTransCB::flushIntQueue(){
 }
 
 void IntcpTransCB::flushIntBuf(){
+static IUINT32 lastIntSent = _getMillisec();
     // calculate window size
     // IUINT32 cwnd = _imin_(snd_wnd, rmt_wnd);
     //TODO CC
