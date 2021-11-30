@@ -39,6 +39,7 @@ using namespace std;
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 const IUINT32 INTCP_MTU = 1400; //EXPR 1400
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
+const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
 const IUINT32 INTCP_UPDATE_INTERVAL = 1000; //Unit: usec //EXPR 100 -> 5
 const IUINT32 INTCP_DEADLINK = 8;
@@ -68,7 +69,7 @@ const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 300;
 const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
-const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
+const IUINT32 INTCP_HOP_RTT_INTERVAL = 100;  //1s to probe hop rtt
 const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 
 
@@ -187,7 +188,7 @@ private:
     
     int getSendLimit();
     
-    void updateCwnd(bool is_hole,IUINT32 dataLen);
+    void updateCwnd(bool found_new_loss,IUINT32 dataLen);
     
     IUINT32 getCwnd();
 

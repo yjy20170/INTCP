@@ -7,6 +7,10 @@
 
 using namespace std;
 
+IUINT32 _round_up(IUINT32 x,IUINT32 y){
+    return ((x+y-1)/y)*y;
+}
+
 void request_func(IntcpSess * _sessPtr){
     int sendStart = 0;
     while(1){
@@ -17,37 +21,22 @@ void request_func(IntcpSess * _sessPtr){
     }
 }
 
-IUINT32 _round_up(IUINT32 x,IUINT32 y){
-    return ((x+y-1)/y)*y;
-}
-
 void *onNewSess(void* _sessPtr){
     IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
+
+    thread t(request_func,sessPtr);
+    t.detach();
     
     int ret;
     char recvBuf[MaxBufSize];
     IUINT32 start,end;
-    
-    thread t(request_func,sessPtr);
-    t.detach();
-
     IUINT32 rcn=0;
-
     while(1){
         usleep(10);//sleep 0.1ms
         
         ret = sessPtr->recvData(recvBuf,MaxBufSize,&start,&end);
-        
         if(ret<0)
             continue;
-        /*
-        if(start!=rcn){
-            LOG(DEBUG,"%d %d",start,end);
-            abort();
-        }else{
-            rcn = end;
-        }
-        */
         recvBuf[end-start]='\0';
         
         IUINT32 pos = _round_up(start,REQ_LEN);
@@ -60,10 +49,10 @@ void *onNewSess(void* _sessPtr){
             IUINT32 recvTime = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*2));
             IUINT32 firstTs = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*3));
             IUINT32 curTime = _getMillisec();
-            LOG(TRACE, "recv [%d,%d)\n", start, end);
+            // LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-            //  printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+            // printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);

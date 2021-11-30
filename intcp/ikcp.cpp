@@ -228,7 +228,6 @@ void IntcpTransCB::updateRTT(IINT32 rtt)
 }
 
 void IntcpTransCB::updateHopRtt(IUINT32 ts){
-    // to do
     IUINT32 current = _getMillisec();
     IINT32 hop_rtt = _itimediff(current,ts);
     if(hop_srtt ==0){
@@ -242,7 +241,7 @@ void IntcpTransCB::updateHopRtt(IUINT32 ts){
         hop_srtt = (7 * hop_srtt + hop_rtt) / 8;
         if (hop_srtt < 1) hop_srtt = 1;
     }
-    LOG(TRACE,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
+    LOG(DEBUG,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
 }
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
@@ -264,7 +263,7 @@ void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 s
                 } else if(sn >= iter->end){
                     iter->count++;
                     if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
-                        if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*INTCP_MSS){
+                        if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*INTCP_INT_RANGE_LIMIT){
                             LOG(DEBUG, "abnormal! ignore this hole");
                         } else {
                             LOG(DEBUG,"---- int hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
@@ -334,7 +333,10 @@ void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 s
     }
 }
 void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts, IUINT32 wnd){
-    //TODO deal with CC info, like wnd
+    if(rangeEnd <= rangeStart){
+        LOG(TRACE,"rangeEnd <= rangeStart");
+        return;
+    }
 
     IUINT32 sentEnd=rangeStart;
     if(nodeRole != INTCP_REQUESTER) {
@@ -372,25 +374,37 @@ void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 ts, IU
             recvedInts.push_back(ir);
             LOG(TRACE,"unsat [%d,%d)",sentEnd,rangeEnd);
             onUnsatInt(sentEnd, rangeEnd, user);
-        }else if(nodeRole == INTCP_REQUESTER){
-            // requester found hole, what to do?
-            // // if the range of this hole could cover an interest in int_buf, modify the resendts of interest
-            // for(auto intseg:int_buf){
-            //     if(intseg->rangeStart>=iter->byteStart && intseg->rangeEnd<=iter->byteEnd){
-            //         LOG(TRACE, "hole[%d,%d) cover RTO[%d,%d)", iter->byteStart, iter->byteEnd,intseg->rangeStart,intseg->rangeEnd);
-            //         intseg->resendts = _getMillisec() + intseg->rto;
-            //     }
-            // }
-        }else{
-            shared_ptr<IntcpSeg> newseg = createSeg(0);
-            newseg->len = 0;
-            newseg->cmd = INTCP_CMD_INT;
-            newseg->xmit = 0;
-            newseg->ts = ts;
-            newseg->rangeStart = sentEnd;
-            newseg->rangeEnd = rangeEnd;
-            int_buf.push_back(newseg);
+        }else{ //INTCP_MIDNODE & INTCP_REQUESTER
+            //TODO check if requester can use the same code as midnode
+            //TODO should be pushed to int_queue for rangeLimiting
+            //TODO priority
+
+            // shared_ptr<IntcpSeg> newseg = createSeg(0);
+            // newseg->len = 0;
+            // newseg->cmd = INTCP_CMD_INT;
+            // newseg->xmit = 0;
+            // newseg->ts = ts;
+            // newseg->rangeStart = sentEnd;
+            // newseg->rangeEnd = rangeEnd;
+            // int_buf.push_back(newseg); 
+
             // request(sentEnd, rangeEnd);
+
+            // neither pushed to int_queue nor to int_buf, send it directly
+            shared_ptr<IntcpSeg> segPtr = createSeg(0);
+            segPtr->len = 0;
+            segPtr->cmd = INTCP_CMD_INT;
+            segPtr->rangeStart = sentEnd;
+            segPtr->rangeEnd = rangeEnd;
+            if(nodeRole == INTCP_REQUESTER){
+                segPtr->ts = _getMillisec();
+            } else {
+                segPtr->ts = -1;
+            }
+            // segPtr->wnd = rwnd; // for CC
+            segPtr->sn = snd_nxt_int++;
+            char *sendEnd = encodeSeg(tmpBuffer.get(), segPtr.get());
+            output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_RESPONDER);
         }
     }
 }
@@ -432,7 +446,7 @@ void IntcpTransCB::notifyNewData(const char *buffer, IUINT32 dataStart, IUINT32 
 // parse data
 //---------------------------------------------------------------------
 bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){        //return true when find a new hole
-    bool find_new_hole = false;
+    bool found_new_loss = false;
     IUINT32 current = _getMillisec();
     if(dataSnRightBound==-1 || current-dataRightBoundTs>INTCP_SEQHOLE_TIMEOUT){
         dataSnRightBound = sn+1;
@@ -449,6 +463,7 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
             } else if(sn >= iter->end){
                 iter->count++;
                 if(iter->count >= INTCP_SEQHOLE_THRESHOLD){
+                    found_new_loss = true;
                     if(iter->byteEnd - iter->byteStart > (iter->end - iter->start)*INTCP_MSS){
                         LOG(DEBUG, "abnormal hole! [%d,%d) sn [%d,%d)",
                                 iter->byteStart, iter->byteEnd,iter->start,iter->end);
@@ -458,8 +473,9 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                         // cout<<endl;
                     } else {
                         LOG(DEBUG,"---- data hole [%d,%d) cur %u----", iter->byteStart, iter->byteEnd, current);
-                        parseInt(iter->byteStart,iter->byteEnd, -1, -1);//TODO priority
+                        parseInt(iter->byteStart,iter->byteEnd, -1, -1);
                         list<shared_ptr<IntcpSeg>>::iterator iter2;
+                        // if the range of this hole could cover an interest in int_buf, modify the resendts of interest
                         for(iter2=int_buf.begin();iter2!=int_buf.end();iter2++){
                             // only if intSeg is fully covered
                             if(iter->byteStart<=(*iter2)->rangeStart
@@ -513,7 +529,6 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                 newHole.ts = current;
                 newHole.count = 1;
                 dataHoles.push_back(newHole);
-                find_new_hole = true;
             }
             dataSnRightBound = sn+1;
             dataByteRightBound = _imax_(dataByteRightBound,rangeEnd);
@@ -531,13 +546,14 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
         LOG(TRACE,"sn %d dataHoles: %ld %s",
                 sn,dataHoles.size(),str.c_str());
     }
-    return find_new_hole;
+    return found_new_loss;
 }
 
 void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
     rmt_hop_rtt = (int)sn;
+    int wndChange = wnd - rmt_cwnd;
     rmt_cwnd = wnd;
-    LOG(DEBUG,"receive rmt hop rtt %u, rmt cwnd %u",rmt_hop_rtt,rmt_cwnd);
+    LOG(TRACE,"receive rmt hop rtt %u, rmt cwnd %u",rmt_hop_rtt,rmt_cwnd);
     IntcpSeg seg;
     seg.cmd = INTCP_CMD_HOP_RTT_TELL;
     seg.len = 0;
@@ -549,29 +565,15 @@ void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
     char *sendEnd=tmpBuffer.get();
     sendEnd = encodeSeg(tmpBuffer.get(),&seg);
     output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_REQUESTER);
+
+    LOG(DEBUG,"wnd %u(%s%d) hop_rtt %d limit %d sndq %ld",
+            rmt_cwnd, (wndChange>=0?"+":""),wndChange,
+            rmt_hop_rtt,getSendLimit(), snd_queue.size());
     return;
 }
 
 void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
 {
-
-                
-    // if(!isMidnode){
-    // if(true){
-    //     LOG(DEBUG,"rcv data [%d,%d)",segPtr->rangeStart,segPtr->rangeEnd);
-    //     for(auto hole: dataHoles){
-    //         LOG(DEBUG,"hole [%d,%d)",hole.byteStart,hole.byteEnd);
-    //     }
-    // }
-
-
-    // //no rcv_wnd should be maintained on midnode
-    // if (!isMidnode &&
-    //         (_itimediff(sn, rcv_nxt + rcv_wnd) >= 0 ||
-    //         _itimediff(sn, rcv_nxt) < 0)) {
-    //     LOG(WARN,"recv a data seg out of rcv window");
-    //     return;
-    // }
     if(nodeRole == INTCP_REQUESTER){
         list<shared_ptr<IntcpSeg>>::iterator intIter, intNext;
         //in requester, need to delete range of int_buf
@@ -602,6 +604,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                 memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
                 memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
                 memcpy(intsecDataSeg->data+sizeof(IUINT32)*3, &intSeg->firstTs, sizeof(IUINT32));
+                
                 if(rcv_buf.empty()){
                     rcv_buf.push_back(intsecDataSeg);
                 }else{
@@ -770,8 +773,8 @@ int IntcpTransCB::input(char *data, int size)
             //         && _itimediff(sn, rcv_nxt) >= 0)
             //         ) {
             if(true){
-                bool find_new_hole = detectDataHole(rangeStart,rangeEnd,sn);
-                updateCwnd(find_new_hole,len);     //cc
+                bool found_new_loss = detectDataHole(rangeStart,rangeEnd,sn);
+                updateCwnd(found_new_loss,len);     //cc
                 seg = createSeg(len);
                 seg->cmd = cmd;
                 // seg->wnd = wnd;
@@ -904,41 +907,36 @@ void IntcpTransCB::flushHopRttAsk(){    //responder don't need
         //seg.cmd = INTCP_CMD_PUSH;
         sendEnd = encodeSeg(tmpBuffer.get(), &seg);
         output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_RESPONDER);
-        LOG(DEBUG,"send hop rtt flush %u", hop_srtt);
+        LOG(TRACE,"send hop rtt flush %u", hop_srtt);
         ts_hop_rtt_probe = current+INTCP_HOP_RTT_INTERVAL;
     }
 }
 
 void IntcpTransCB::flushIntQueue(){
-    //TODO CC
-    // int intRangeLimit = calcSendingWnd();
-    int intRangeLimit = 65536;
-    while(intRangeLimit>0 && !int_queue.empty()){
+    while(!int_queue.empty()){
         shared_ptr<IntcpSeg> newseg = createSeg(0);
         assert(newseg);
         newseg->len = 0;
-        newseg->sn = 0; // no need to use sn in interest
+        newseg->sn = 0;
         newseg->cmd = INTCP_CMD_INT;
         
         // resendts and rto will be set before output
-        // newseg->resendts = current;
-        // newseg->rto = rx_rto;
         newseg->xmit = 0;
         newseg->firstTs = _getMillisec();
-        // LOG(DEBUG,"real cur %u int_cur %u",_getMillisec(),current);
+        
         bool first = true;
         //NOTE assume that rangeEnd of interest in int_queue is in order
         for(list<IntRange>::iterator iter=int_queue.begin();iter!=int_queue.end();){
             if(first){
                 newseg->rangeStart = iter->start;
-                newseg->rangeEnd = _imin_(iter->end, newseg->rangeStart+intRangeLimit);
+                newseg->rangeEnd = _imin_(iter->end, newseg->rangeStart+INTCP_INT_RANGE_LIMIT);
                 first = false;
             } else {
-                if(iter->start <= newseg->rangeEnd){
+                if(iter->start == newseg->rangeEnd){
                     LOG(TRACE,"%u %u %u %u",newseg->rangeStart,newseg->rangeEnd,iter->start,iter->end);
-                    newseg->rangeStart = _imin_(iter->start,newseg->rangeStart);
-                    newseg->rangeEnd = _imin_(_imax_(newseg->rangeEnd, iter->end),
-                            newseg->rangeStart+intRangeLimit);
+                    // newseg->rangeStart = _imin_(iter->start,newseg->rangeStart);
+                    newseg->rangeEnd = _imin_(iter->end,
+                            newseg->rangeStart+INTCP_INT_RANGE_LIMIT);
                 } else {
                     break;
                 }
@@ -950,11 +948,8 @@ void IntcpTransCB::flushIntQueue(){
                 break;
             }
         }
-        intRangeLimit -= newseg->rangeEnd-newseg->rangeStart;
+        // intRangeLimit -= newseg->rangeEnd-newseg->rangeStart;
         int_buf.push_back(newseg);
-        // if(newseg->rangeEnd-newseg->rangeStart > 64){
-        //     LOG(DEBUG,"%d %d",newseg->rangeStart,newseg->rangeEnd);
-        // }
     }
 }
 
@@ -1028,7 +1023,6 @@ void IntcpTransCB::flushIntBuf(){
                     }
                 }
             }
-            int need;
             if(nodeRole == INTCP_REQUESTER){
                 segPtr->ts = current;
             }
@@ -1145,20 +1139,16 @@ void IntcpTransCB::flushData(){
 
 void IntcpTransCB::flush(){
     // 'update' haven't been called. 
-    
     if (updated == 0) return;
     
-    
-    
     //TODO flushWndProbe();
-    if(nodeRole == INTCP_REQUESTER){
-        flushIntQueue();
-    }
+    flushIntQueue();
+    flushIntBuf();
+    flushData();
+
     if(nodeRole != INTCP_RESPONDER){
         flushHopRttAsk();
     }
-    flushIntBuf();
-    flushData();
 }
 
 
@@ -1276,23 +1266,21 @@ int IntcpTransCB::peekSize()
 int IntcpTransCB::getSendLimit(){
     int limit;
     if(rmt_hop_rtt==0||rmt_cwnd==0){    //haven't receive feedback
-        limit =  INTCP_UPDATE_INTERVAL; // 8Kbps
+        limit =  _imin_(1,INTCP_UPDATE_INTERVAL/1000); // 8Kbps
     }else{
-        limit = (rmt_cwnd*INTCP_MSS*INTCP_UPDATE_INTERVAL)/rmt_hop_rtt;
-        LOG(DEBUG,"wnd %u hop rtt %d,send limit is %d bytes",rmt_cwnd,rmt_hop_rtt,limit);
-        // printf("wnd %u hop rtt %d,send limit is %d bytes\n",rmt_cwnd,rmt_hop_rtt,limit);
+        limit = (rmt_cwnd*INTCP_MSS*INTCP_UPDATE_INTERVAL/1000)/rmt_hop_rtt;
     }
     return limit;
 }
 
 //cc
-void IntcpTransCB::updateCwnd(bool is_hole,IUINT32 dataLen){
+void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
     IUINT32 cwndOld = cwnd;//DEBUG
     static int cc_status = INTCP_CC_SLOW_START;
     static int ca_data_len = 0;     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
     if(cc_status==INTCP_CC_SLOW_START){      //slow start
-        if(is_hole){                //??
+        if(found_new_loss){                //??
             cwnd = cwnd/2;
             if(cwnd<1)
                 cwnd=1;
@@ -1310,7 +1298,7 @@ void IntcpTransCB::updateCwnd(bool is_hole,IUINT32 dataLen){
         }
     }
     else if(cc_status==INTCP_CC_CONG_AVOID){
-        if(is_hole){
+        if(found_new_loss){
             ssthresh = max(ssthresh/2,INTCP_SSTHRESH_MIN);
             cwnd = ssthresh;
             ca_data_len = 0;
@@ -1326,7 +1314,7 @@ void IntcpTransCB::updateCwnd(bool is_hole,IUINT32 dataLen){
         }
     }
     if(cwndOld != cwnd){
-        LOG(DEBUG,"cwnd %u %u",_getMillisec(),cwnd);
+        // LOG(DEBUG,"cwnd %u %u",_getMillisec(),cwnd);
     }
 }
 
