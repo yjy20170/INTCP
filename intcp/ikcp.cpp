@@ -72,8 +72,12 @@ intByteRightBound(-1),
 intRightBoundTs(-1),
 ts_hop_rtt_probe(0),
 rmt_hop_rtt(0),
-rmt_cwnd(0)
+rmt_cwnd(0),
+cc_status(INTCP_CC_SLOW_START),
+ca_data_len(0),
+dataOutputLimit(0)
 {
+    ssid = _getMillisec()%10000;
     void *tmp = malloc(INTCP_MTU * 3);
     assert(tmp != NULL);
     tmpBuffer = shared_ptr<char>(static_cast<char*>(tmp));
@@ -198,6 +202,7 @@ int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end, IUINT
 
 //add (rangeStart,rangeEnd) to int_queue
 void IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
+    // LOG(DEBUG,"%ld",int_buf.size());//DEBUG
     if(rangeEnd <= rangeStart){
         LOG(WARN,"rangeStart %d rangeEnd %d",rangeStart,rangeEnd);
         return;
@@ -241,7 +246,11 @@ void IntcpTransCB::updateHopRtt(IUINT32 ts){
         hop_srtt = (7 * hop_srtt + hop_rtt) / 8;
         if (hop_srtt < 1) hop_srtt = 1;
     }
-    LOG(TRACE,"hop_rtt=%d,hop_srtt=%d",hop_rtt,hop_srtt);
+    LOG(DEBUG,"hop_rtt %d int_buf %ld rcv_buf %ld",hop_rtt,int_buf.size(),rcv_buf.size());
+    // if(rcv_nxt > 10000000){
+    //     LOG(DEBUG,"-----------------clear hole-------------");
+    //     dataHoles.clear();
+    // }
 }
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
@@ -565,10 +574,9 @@ void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
     char *sendEnd=tmpBuffer.get();
     sendEnd = encodeSeg(tmpBuffer.get(),&seg);
     output(tmpBuffer.get(), (int)(sendEnd - tmpBuffer.get()), INTCP_REQUESTER);
-
-    LOG(DEBUG,"wnd %u(%s%d) hop_rtt %d limit %d sndq %ld",
-            rmt_cwnd, (wndChange>=0?"+":""),wndChange,
-            rmt_hop_rtt,getSendLimit(), snd_queue.size());
+    LOG(DEBUG,"%d wnd %u(%s%d) owd %d hop_rtt %d limit %d sndq %ld",
+            ssid, rmt_cwnd, (wndChange>=0?"+":""),wndChange,
+            _getMillisec()-ts,rmt_hop_rtt,getSendLimit(), snd_queue.size());
     return;
 }
 
@@ -731,7 +739,7 @@ int IntcpTransCB::input(char *data, int size)
         data = decode32u(data, &len);
         // if(len+INTCP_OVERHEAD<size){
         //     LOG(WARN, "input size %d > seg size %d",size,len+INTCP_OVERHEAD);
-        // }
+        // } 
         data = decode32u(data, &rangeStart);
         data = decode32u(data, &rangeEnd);
         size -= INTCP_OVERHEAD;
@@ -954,11 +962,7 @@ void IntcpTransCB::flushIntQueue(){
 }
 
 void IntcpTransCB::flushIntBuf(){
-static IUINT32 lastIntSent = _getMillisec();
-    // calculate window size
-    // IUINT32 cwnd = _imin_(snd_wnd, rmt_wnd);
     //TODO CC
-
     char *sendEnd=tmpBuffer.get();
     int sizeToSend=0;
     // from int_buf to udp
@@ -1084,9 +1088,7 @@ static IUINT32 lastIntSent = _getMillisec();
 // snd_queue -> send straightforward;
 void IntcpTransCB::flushData(){
     LOG(TRACE,"sendqueue len %lu",snd_queue.size());
-    //TODO CC -- cwnd/sendingRate; design token bucket
-    static int dataOutputLimit = 0;
-    
+    //TODO CC -- cwnd/sendingRate; design token bucket    
     dataOutputLimit += getSendLimit();
     //DEBUG
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,snd_queue.size());
@@ -1277,8 +1279,6 @@ int IntcpTransCB::getSendLimit(){
 //cc
 void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
     IUINT32 cwndOld = cwnd;//DEBUG
-    static int cc_status = INTCP_CC_SLOW_START;
-    static int ca_data_len = 0;     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
     if(cc_status==INTCP_CC_SLOW_START){      //slow start
         if(found_new_loss){                //??

@@ -78,7 +78,6 @@
     
     
     
-    #TODO add isRttTest to several testParamSet in getTpset()
     #4.1
     elif tpsetName == "mot_retran_3":
         tpSet = TestParamSet(tpsetName, TestParam(loss=0.1,sendTime=180,bw=20, varBw=0),keyX="rttSat",keysCurveDiff=["e2eCC","midCC"])

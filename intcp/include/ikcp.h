@@ -69,7 +69,7 @@ const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 300;
 const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
-const IUINT32 INTCP_HOP_RTT_INTERVAL = 100;  //1s to probe hop rtt
+const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
 const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
 
 
@@ -117,6 +117,7 @@ struct Hole
 class IntcpTransCB
 {
 private:
+    int ssid;
 	int state, dead_link;
     
 	IUINT32 snd_nxt, rcv_nxt;    //still need rcv_nxt, snd_una & snd_nxt  may be discarded
@@ -127,6 +128,11 @@ private:
     int hop_rttval, hop_srtt,rmt_hop_rtt;
     IUINT32 rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
     
+    int cc_status;
+    //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
+    int ca_data_len;
+    int dataOutputLimit;
+
 	IUINT32 updated, updateInterval, nextFlushTs;
     IUINT32 ts_probe, probe_wait, probe;
     IUINT32 ts_hop_rtt_probe;

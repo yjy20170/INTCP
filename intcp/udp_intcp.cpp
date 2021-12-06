@@ -362,8 +362,17 @@ void *udpRecvLoop(void *_args){
         }
         LOG(TRACE, "recv udp len=%d",recvLen);
 
-        // now we get: data in recvBuf, recvLen, sendAddr, recvAddr
+        //DEBUG
+        // IUINT8 cmd;
+        // decode8u(recvBuf, &cmd);
+        // if(cmd == INTCP_CMD_HOP_RTT_TELL){
+        //     IUINT32 tsInPkt;
+        //     decode32u(recvBuf+3, &tsInPkt);
+        //     LOG(DEBUG,"delta: %u",_getMillisec()-tsInPkt);
+        // }
 
+        // now we get: data in recvBuf, recvLen, sendAddr, recvAddr
+        //
         bool isEndp = addrCmp(recvAddr, args->listenAddr);
         int segDstRole = IntcpTransCB::judgeSegDst(recvBuf, recvLen);
         if(segDstRole == INTCP_RESPONDER){
