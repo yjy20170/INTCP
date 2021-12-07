@@ -203,7 +203,11 @@ cachePtr(_cachePtr)
 
 
 int IntcpSess::inputUDP(char *recvBuf, int recvLen){
+    IUINT32 ts=_getMillisec();
     lock.lock();
+    if(_getMillisec()-ts>10){
+        // LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
+    }
     int ret;
     ret = transCB->input(recvBuf, recvLen);
     lock.unlock();
@@ -212,12 +216,20 @@ int IntcpSess::inputUDP(char *recvBuf, int recvLen){
 
 void IntcpSess::request(int rangeStart, int rangeEnd){
     lock.lock();
+    IUINT32 ts = _getMillisec();
     transCB->request(rangeStart,rangeEnd);
+        if(_getMillisec()-ts>10){
+            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
+        }
     lock.unlock();
 }
 int IntcpSess::recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr){
     lock.lock();
+    IUINT32 ts = _getMillisec();
     int ret = transCB->recv(recvBuf,maxBufSize, startPtr, endPtr);
+        if(_getMillisec()-ts>10){
+            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
+        }
     lock.unlock();
     return ret;
 }
@@ -237,6 +249,7 @@ void* TransUpdateLoop(void *args){
     IUINT32 now, updateTime;
     while(1){
         sessPtr->lock.lock();
+        IUINT32 ts=_getMillisec();
         updateTime = sessPtr->transCB->check();
         now = _getUsec();
         if (updateTime <= now) {
@@ -245,8 +258,14 @@ void* TransUpdateLoop(void *args){
             // }
             // lastUpdateTime = now;
             sessPtr->transCB->update();
+        if(_getMillisec()-ts>10){
+            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
+        }
             sessPtr->lock.unlock();
         } else {
+        if(_getMillisec()-ts>10){
+            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
+        }
             sessPtr->lock.unlock();
             usleep(updateTime - now);
             continue;
@@ -345,7 +364,15 @@ void *udpRecvLoop(void *_args){
     mhdr.msg_iov = &iov;
 
     shared_ptr<IntcpSess> sessPtr;
+    IUINT32 lastLoop = _getMillisec(), timeSum1=0, timeSum2=0, timeSum3=0, timeTmp;
+
     while(1){
+        timeTmp = _getMillisec();
+        if(timeTmp-lastLoop > 20){
+            LOG(DEBUG,"%5u %5u %5u %5u", timeTmp-lastLoop,timeSum1,timeSum2,timeSum3);
+        }
+        lastLoop = timeTmp;
+
         // int recvLen = recvfrom(
         //     listenFd,
         //     recvBuf,sizeof(recvBuf),
@@ -355,13 +382,13 @@ void *udpRecvLoop(void *_args){
         // );
 
         recvLen = recvmsg(listenFd, &mhdr, 0);
-        //LOGL(DEBUG);
         for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&mhdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&mhdr, cmsg)){
             if(cmsg->cmsg_level != SOL_IP || cmsg->cmsg_type != IP_ORIGDSTADDR) continue;
             memcpy(&recvAddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         }
         LOG(TRACE, "recv udp len=%d",recvLen);
-
+        timeSum1 = _getMillisec()-timeTmp;
+        timeTmp = _getMillisec();
         //DEBUG
         // IUINT8 cmd;
         // decode8u(recvBuf, &cmd);
@@ -412,7 +439,10 @@ void *udpRecvLoop(void *_args){
              //nodeRole=server
             args->sessMapPtr->setValue(quad.chars, QUAD_STR_LEN, sessPtr);
         }
+        timeSum2 = _getMillisec()-timeTmp;
+        timeTmp = _getMillisec();
         sessPtr->inputUDP(recvBuf, recvLen);
+        timeSum3 = _getMillisec()-timeTmp;
     }
 
     return nullptr;
