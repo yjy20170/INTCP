@@ -71,7 +71,8 @@ const IUINT32 INTCP_SSTHRESH_INIT = 300;
 const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
 const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
 const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
-
+const IUINT32 INTCP_SNDQ_MAX = 5000;
+const IUINT32 INTCP_INTB_MAX = 5000;
 
 //=====================================================================
 // SEGMENT
@@ -127,6 +128,7 @@ private:
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
     int hop_rttval, hop_srtt,rmt_hop_rtt;
     IUINT32 rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
+    IUINT32 rmt_sndq_rest;
     
     int cc_status;
     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++

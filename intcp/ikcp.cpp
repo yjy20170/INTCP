@@ -75,7 +75,8 @@ rmt_hop_rtt(0),
 rmt_cwnd(0),
 cc_status(INTCP_CC_SLOW_START),
 ca_data_len(0),
-dataOutputLimit(0)
+dataOutputLimit(0),
+rmt_sndq_rest(INTCP_SNDQ_MAX)
 {
     ssid = _getMillisec()%10000;
     void *tmp = malloc(INTCP_MTU * 3);
@@ -207,7 +208,7 @@ int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
         LOG(WARN,"rangeStart %d rangeEnd %d",rangeStart,rangeEnd);
         return -2;
     }
-    if(int_queue.size()+int_buf.size() >= 5000){//TODO make it a parameter
+    if(int_queue.size()+int_buf.size() >= INTCP_INTB_MAX){//TODO make it a parameter
         return -1;
     }
     IntRange intr;
@@ -570,7 +571,7 @@ void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
     IntcpSeg seg;
     seg.cmd = INTCP_CMD_HOP_RTT_TELL;
     seg.len = 0;
-    seg.sn = 0;
+    seg.sn = INTCP_SNDQ_MAX - _imin_(INTCP_SNDQ_MAX,(IUINT32)snd_queue.size());
     seg.ts = ts;
     //seg.rangeStart = 0;
     //seg.rangeEnd = 0;
@@ -816,6 +817,7 @@ int IntcpTransCB::input(char *data, int size)
         
         else if (cmd == INTCP_CMD_HOP_RTT_TELL){
             LOG(TRACE,"recv hop rtt tell");
+            rmt_sndq_rest = sn;
             updateHopRtt(ts);
         }
         else {
@@ -981,17 +983,23 @@ void IntcpTransCB::flushIntBuf(){
         shared_ptr<IntcpSeg> segPtr = *p;
         int needsend = 0;
         if(nodeRole == INTCP_MIDNODE){
+            if(rmt_sndq_rest== 0) break;
+            rmt_sndq_rest--;
             needsend = 1;
         } else {
             // RTO mechanism
             if (segPtr->xmit >= 2) {cntXmit++;}
             if (segPtr->xmit == 0) {
+                if(rmt_sndq_rest== 0) break;
+                rmt_sndq_rest--;
                 needsend = 1;
                 segPtr->rto = IUINT32(rx_rto*INTCP_RTO_FACTOR);
                 // segPtr->resendts = current + segPtr->rto + rx_rto >> 3;
                 LOG(TRACE,"request [%d,%d) rto %d",segPtr->rangeStart,segPtr->rangeEnd, IUINT32(segPtr->rto*INTCP_RTO_FACTOR));
                 segPtr->resendts = current + segPtr->rto;// + rx_rto >> 3;
             } else if (_itimediff(current, segPtr->resendts) >= 0) {
+                if(rmt_sndq_rest== 0) break;
+                rmt_sndq_rest--;
                 cntRTO++;
                 LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                         segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),segPtr->rto);
