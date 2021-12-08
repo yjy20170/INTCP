@@ -201,16 +201,20 @@ int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end, IUINT
 
 
 //add (rangeStart,rangeEnd) to int_queue
-void IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
+int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
     // LOG(DEBUG,"%ld",int_buf.size());//DEBUG
     if(rangeEnd <= rangeStart){
         LOG(WARN,"rangeStart %d rangeEnd %d",rangeStart,rangeEnd);
-        return;
+        return -2;
+    }
+    if(int_queue.size()+int_buf.size() >= 5000){//TODO make it a parameter
+        return -1;
     }
     IntRange intr;
     intr.start = rangeStart;
     intr.end = rangeEnd;
     int_queue.push_back(intr);
+    return 0;
 }
 //---------------------------------------------------------------------
 // update rtt(call when receive data)
@@ -246,7 +250,7 @@ void IntcpTransCB::updateHopRtt(IUINT32 ts){
         hop_srtt = (7 * hop_srtt + hop_rtt) / 8;
         if (hop_srtt < 1) hop_srtt = 1;
     }
-    LOG(DEBUG,"hop_rtt %d int_buf %ld rcv_buf %ld",hop_rtt,int_buf.size(),rcv_buf.size());
+    LOG(DEBUG,"%.3f: %dms intB %ld rcvB %ld rnxt %u",double(_getMillisec())/1000, hop_rtt,int_buf.size(),rcv_buf.size(),rcv_nxt);
     // if(rcv_nxt > 10000000){
     //     LOG(DEBUG,"-----------------clear hole-------------");
     //     dataHoles.clear();
@@ -967,7 +971,10 @@ void IntcpTransCB::flushIntBuf(){
     int sizeToSend=0;
     // from int_buf to udp
     list<shared_ptr<IntcpSeg>>::iterator p,next;
+    //DEBUG
+    int cnt=0,cntRTO=0,cntXmit=0;
     for (p = int_buf.begin(); p != int_buf.end(); p=next) {
+        cnt++;
         next=p;next++;
         IUINT32 current = _getMillisec();
         //TODO write segPtr->ts here??
@@ -977,6 +984,7 @@ void IntcpTransCB::flushIntBuf(){
             needsend = 1;
         } else {
             // RTO mechanism
+            if (segPtr->xmit >= 2) {cntXmit++;}
             if (segPtr->xmit == 0) {
                 needsend = 1;
                 segPtr->rto = IUINT32(rx_rto*INTCP_RTO_FACTOR);
@@ -984,6 +992,7 @@ void IntcpTransCB::flushIntBuf(){
                 LOG(TRACE,"request [%d,%d) rto %d",segPtr->rangeStart,segPtr->rangeEnd, IUINT32(segPtr->rto*INTCP_RTO_FACTOR));
                 segPtr->resendts = current + segPtr->rto;// + rx_rto >> 3;
             } else if (_itimediff(current, segPtr->resendts) >= 0) {
+                cntRTO++;
                 LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                         segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),segPtr->rto);
                 needsend = 1; //1 -> 0
@@ -1051,6 +1060,7 @@ void IntcpTransCB::flushIntBuf(){
             }
         }
     }
+    LOG(TRACE,"RTO %d %d/%d/%d",rx_rto,cntRTO,cntXmit,cnt);
 
     // flush remain segments
     sizeToSend = (int)(sendEnd - tmpBuffer.get());
@@ -1087,10 +1097,8 @@ void IntcpTransCB::flushIntBuf(){
 
 // snd_queue -> send straightforward;
 void IntcpTransCB::flushData(){
-    LOG(TRACE,"sendqueue len %lu",snd_queue.size());
     //TODO CC -- cwnd/sendingRate; design token bucket    
     dataOutputLimit += getSendLimit();
-    //DEBUG
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,snd_queue.size());
     //int dataOutputLimit = 65536;
 
@@ -1145,10 +1153,13 @@ void IntcpTransCB::flush(){
     if (updated == 0) return;
     
     //TODO flushWndProbe();
-    flushIntQueue();
-    flushIntBuf();
-    flushData();
-
+    if(nodeRole != INTCP_RESPONDER){
+        flushIntQueue();
+        flushIntBuf();
+    }
+    if(nodeRole != INTCP_REQUESTER){
+        flushData();
+    }
     if(nodeRole != INTCP_RESPONDER){
         flushHopRttAsk();
     }
@@ -1195,38 +1206,26 @@ void IntcpTransCB::update()
 IUINT32 IntcpTransCB::check()
 {
     IUINT32 currentU = _getUsec();
-    IUINT32 _ts_flush = nextFlushTs;
-    IINT32 tm_flush = 0x7fffffff;
-    IINT32 tm_packet = 0x7fffffff;
-    IUINT32 minimal = 0;
-    list<shared_ptr<IntcpSeg>>::const_iterator p;
-
     if (updated == 0) {
         return currentU;
     }
-
-    if (_itimediff(currentU, _ts_flush) >= 10000000 ||
+    IUINT32 _ts_flush = nextFlushTs;
+    if (_itimediff(currentU, _ts_flush) >= 0 ||
         _itimediff(currentU, _ts_flush) < -10000000) {
-        _ts_flush = currentU;
-    }
-
-    if (_itimediff(currentU, _ts_flush) >= 0) {
         return currentU;
     }
 
-    tm_flush = _itimediff(_ts_flush, currentU);
+    IUINT32 tmin = _ts_flush; //_ts_flush>currentU is guaranteed
+    //calculate most near rto
+    // for (auto p = int_buf.begin(); p != int_buf.end(); p++) {
+    //     if (_itimediff((*p)->resendts*1000, currentU)<=0) {
+    //         return currentU;
+    //     }
+    //     tmin = _imin_(tmin,(*p)->resendts*1000);
+    // }
 
-    for (p = int_buf.begin(); p != int_buf.end(); p++) {
-        IINT32 diff = _itimediff((*p)->resendts*1000, currentU);
-        if (diff <= 0) {
-            return currentU;
-        }
-        if (diff < tm_packet) tm_packet = diff;
-    }
-
-    minimal = (IUINT32)(tm_packet < tm_flush ? tm_packet : tm_flush);
-    if (minimal >= updateInterval) minimal = updateInterval;
-    return currentU + minimal;
+    tmin = _imin_(tmin,currentU+INTCP_UPDATE_INTERVAL);
+    return tmin;
 }
 
 
@@ -1271,7 +1270,7 @@ int IntcpTransCB::getSendLimit(){
     if(rmt_hop_rtt==0||rmt_cwnd==0){    //haven't receive feedback
         limit =  _imin_(1,INTCP_UPDATE_INTERVAL/1000); // 8Kbps
     }else{
-        limit = (rmt_cwnd*INTCP_MSS*INTCP_UPDATE_INTERVAL/1000)/rmt_hop_rtt;
+        limit = int(float(rmt_cwnd)*INTCP_MSS*INTCP_UPDATE_INTERVAL/1000)/rmt_hop_rtt;
     }
     return limit;
 }

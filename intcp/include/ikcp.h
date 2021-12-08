@@ -41,7 +41,7 @@ const IUINT32 INTCP_MTU = 1400; //EXPR 1400
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
-const IUINT32 INTCP_UPDATE_INTERVAL = 1000; //Unit: usec //EXPR 100 -> 5
+const IUINT32 INTCP_UPDATE_INTERVAL = 5000; //Unit: usec //EXPR 100 -> 5
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -215,7 +215,7 @@ public:
     // ~IntcpTransCB();
 
     // intcp user/upper level request
-    void request(IUINT32 rangeStart,IUINT32 rangeEnd);
+    int request(IUINT32 rangeStart,IUINT32 rangeEnd);
 
     // when you received a low level packet (eg. UDP packet), call it
     int input(char *data, int size);

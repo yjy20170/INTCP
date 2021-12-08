@@ -214,14 +214,11 @@ int IntcpSess::inputUDP(char *recvBuf, int recvLen){
     return ret;
 }
 
-void IntcpSess::request(int rangeStart, int rangeEnd){
+int IntcpSess::request(int rangeStart, int rangeEnd){
     lock.lock();
-    IUINT32 ts = _getMillisec();
-    transCB->request(rangeStart,rangeEnd);
-        if(_getMillisec()-ts>10){
-            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
-        }
+    int ret = transCB->request(rangeStart,rangeEnd);
     lock.unlock();
+    return ret;
 }
 int IntcpSess::recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr){
     lock.lock();
@@ -242,14 +239,23 @@ void IntcpSess::insertData(const char *sendBuf, int start, int end){
     transCB->notifyNewData(sendBuf,start,end);
     // lock.unlock();
 }
+
 void* TransUpdateLoop(void *args){
     IntcpSess *sessPtr = (IntcpSess*)args;
 
     // IUINT32 lastUpdateTime = -1;
     IUINT32 now, updateTime;
+    int cnt=0,cntSleep=0;
+    IUINT32 sumSleep=0,startTime=_getMillisec(),tmp,updateUseTime;
     while(1){
+        if(++cnt==1000){
+            LOG(DEBUG,"intv %f mean sleep %f %d/%d",double(_getMillisec()-startTime)/cnt,double(sumSleep)/cntSleep/1000,cntSleep,cnt);
+            startTime=_getMillisec();
+            cnt=0;
+            sumSleep=0;
+            cntSleep=0;
+        }
         sessPtr->lock.lock();
-        IUINT32 ts=_getMillisec();
         updateTime = sessPtr->transCB->check();
         now = _getUsec();
         if (updateTime <= now) {
@@ -258,17 +264,12 @@ void* TransUpdateLoop(void *args){
             // }
             // lastUpdateTime = now;
             sessPtr->transCB->update();
-        if(_getMillisec()-ts>10){
-            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
-        }
             sessPtr->lock.unlock();
         } else {
-        if(_getMillisec()-ts>10){
-            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
-        }
             sessPtr->lock.unlock();
             usleep(updateTime - now);
-            continue;
+            sumSleep += updateTime - now;
+            cntSleep++;
         }
     }
     return nullptr;
@@ -369,7 +370,7 @@ void *udpRecvLoop(void *_args){
     while(1){
         timeTmp = _getMillisec();
         if(timeTmp-lastLoop > 20){
-            LOG(DEBUG,"%5u %5u %5u %5u", timeTmp-lastLoop,timeSum1,timeSum2,timeSum3);
+            LOG(TRACE,"%5u %5u %5u %5u", timeTmp-lastLoop,timeSum1,timeSum2,timeSum3);
         }
         lastLoop = timeTmp;
 

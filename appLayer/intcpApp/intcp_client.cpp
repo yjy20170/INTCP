@@ -12,11 +12,15 @@ IUINT32 _round_up(IUINT32 x,IUINT32 y){
 }
 
 void request_func(IntcpSess * _sessPtr){
-    int sendStart = 0;
-    while(1){ 
-        _sessPtr->request(sendStart, sendStart+REQ_LEN);
-        LOG(TRACE,"request range [%d,%d)",sendStart,sendStart+REQ_LEN);
-        sendStart += REQ_LEN;
+    int sendStart = 0, ret;
+    while(1){
+        ret = _sessPtr->request(sendStart, sendStart+REQ_LEN);
+        if(ret == -1){// int_buf is full
+            LOG(TRACE,"int_buf is full");
+        } else {
+            LOG(TRACE,"request range [%d,%d)",sendStart,sendStart+REQ_LEN);
+            sendStart += REQ_LEN;
+        }
         usleep(1000*REQ_INTV);
     }
 }
