@@ -553,7 +553,8 @@ void IntcpTransCB::parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd){
     rmt_hop_rtt = (int)sn;
     int wndChange = wnd - rmt_cwnd;
     rmt_cwnd = wnd;
-    LOG(TRACE,"receive rmt hop rtt %u, rmt cwnd %u",rmt_hop_rtt,rmt_cwnd);
+    LOG(DEBUG,"receive rmt hop rtt %u, rmt cwnd %u, owd %u",rmt_hop_rtt,rmt_cwnd,_getMillisec()-ts);
+    
     IntcpSeg seg;
     seg.cmd = INTCP_CMD_HOP_RTT_TELL;
     seg.len = 0;
@@ -632,7 +633,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                 // }
                 if(segPtr->ts != -1){
                     updateRTT(_itimediff(current, segPtr->ts));
-                    LOG(TRACE,"rtt %ld srtt %d rto %d",_itimediff(current, intSeg->ts),rx_srtt,rx_rto);
+                    LOG(DEBUG,"rtt %ld srtt %d rto %d",_itimediff(current, intSeg->ts),rx_srtt,rx_rto);
                 }
                 //------------------------------
                 // update int_buf
