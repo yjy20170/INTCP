@@ -245,16 +245,16 @@ void* TransUpdateLoop(void *args){
 
     // IUINT32 lastUpdateTime = -1;
     IUINT32 now, updateTime;
-    int cnt=0,cntSleep=0;
-    IUINT32 sumSleep=0,startTime=_getMillisec(),tmp,updateUseTime;
+    // int cnt=0,cntSleep=0;
+    // IUINT32 sumSleep=0,startTime=_getMillisec(),tmp,updateUseTime;
     while(1){
-        if(++cnt==1000){
-            LOG(DEBUG,"intv %f mean sleep %f %d/%d",double(_getMillisec()-startTime)/cnt,double(sumSleep)/cntSleep/1000,cntSleep,cnt);
-            startTime=_getMillisec();
-            cnt=0;
-            sumSleep=0;
-            cntSleep=0;
-        }
+        // if(++cnt==1000){
+        //     LOG(DEBUG,"intv %f mean sleep %f %d/%d",double(_getMillisec()-startTime)/cnt,double(sumSleep)/cntSleep/1000,cntSleep,cnt);
+        //     startTime=_getMillisec();
+        //     cnt=0;
+        //     sumSleep=0;
+        //     cntSleep=0;
+        // }
         sessPtr->lock.lock();
         updateTime = sessPtr->transCB->check();
         now = _getUsec();
@@ -268,8 +268,8 @@ void* TransUpdateLoop(void *args){
         } else {
             sessPtr->lock.unlock();
             usleep(updateTime - now);
-            sumSleep += updateTime - now;
-            cntSleep++;
+            // sumSleep += updateTime - now;
+            // cntSleep++;
         }
     }
     return nullptr;
