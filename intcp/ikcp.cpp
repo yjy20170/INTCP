@@ -46,7 +46,7 @@ snd_nxt_int(0),
 rcv_nxt(0),
 rcv_wnd(INTCP_WND_RCV), // for app recv buffer
 cwnd(1),    //initialize with mtu
-incr(INTCP_MTU),
+incr(INTCP_MSS),
 state(0),
 rx_srtt(0),
 rx_rttval(0),
@@ -406,7 +406,7 @@ void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
             segPtr->sn = snd_nxt_int++;
             encodeSeg(tmpBuffer.get(), segPtr.get());
             output(tmpBuffer.get(), INTCP_OVERHEAD, INTCP_RESPONDER);
-            rmt_sndq_rest -= segPtr->rangeEnd - segPtr->rangeStart;
+            // rmt_sndq_rest -= segPtr->rangeEnd - segPtr->rangeStart;
         } else { //INTCP_MIDNODE
             request(sentEnd, rangeEnd);
         }
@@ -770,9 +770,8 @@ int IntcpTransCB::input(char *data, int size)
             // }
 
             if(true){
-                //TODO error now. change to rate control?
-                rmt_sndq_rest = wnd*INTCP_MSS;//TODO for midnode, ignore this part
-                LOG(TRACE,"%d",rmt_sndq_rest);
+                // rmt_sndq_rest = wnd*INTCP_MSS;//TODO for midnode, ignore this part
+                // LOG(TRACE,"%d",rmt_sndq_rest);
                 if(_getMillisec()>ts){
                     updateHopRtt(_getMillisec()-ts);
                 }else{
@@ -955,9 +954,9 @@ void IntcpTransCB::flushIntBuf(){
                 int_buf_bytes -= (*p)->rangeEnd - (*p)->rangeStart;
                 int_buf.erase(p);
             }
-            if(nodeRole==INTCP_REQUESTER && rmt_sndq_rest<= 0){
-                break;
-            }
+            // if(nodeRole==INTCP_REQUESTER && rmt_sndq_rest<= 0){
+            //     break;
+            // }
         }
     }
     // if(!reach_limit){
@@ -1055,12 +1054,13 @@ void IntcpTransCB::update()
     //DEBUG
     static IUINT32 printTime = _getMillisec()-1000;
     if(_getMillisec()-printTime>1000){
-        if(nodeRole==INTCP_RESPONDER){
+        if(nodeRole!=INTCP_REQUESTER){
             LOG(DEBUG,"%d| %u pcrate %d sndq %ld",
                     ssid, _getMillisec(), rmtPacingRate, snd_queue.size());
-        }else{
-            LOG(DEBUG,"%.3f: hrtt %d intB_bytes %d rcvB %ld rnxt %u",
-                    double(_getMillisec())/1000,hop_srtt,int_buf_bytes,rcv_buf.size(),rcv_nxt);
+        }
+        if(nodeRole!=INTCP_RESPONDER){
+            LOG(DEBUG,"%.3f: hrtt %d rtt %d intB_bytes %d rcvB %ld rnxt %u",
+                    double(_getMillisec())/1000,hop_srtt,rx_srtt,int_buf_bytes,rcv_buf.size(),rcv_nxt);
         }
         printTime = _getMillisec();
     }
@@ -1158,10 +1158,17 @@ int IntcpTransCB::peekSize()
 //cc when send data
 IUINT16 IntcpTransCB::getPacingRate(){
     if(hop_srtt==0||cwnd==0){    //haven't receive feedback
+        // LOGL(DEBUG);
         return INTCP_PCRATE_MIN;
     }else{
-        IUINT16 rate = float(cwnd*INTCP_MSS)/hop_srtt*1000/1024;
-        LOG(TRACE, "%u %u",cwnd,rate);
+        IUINT32 swnd;
+        if(nodeRole == INTCP_REQUESTER){
+            swnd = cwnd; // suppose rcv_buf and rcv_queue is always big enough
+        } else {
+            swnd = min(cwnd,(INTCP_SNDQ_MAX-sndq_bytes)/INTCP_MSS);
+        }
+        IUINT16 rate = float(swnd*INTCP_MSS)/hop_srtt*1000/1024;
+        // LOG(DEBUG, "%u %u",cwnd,rate);
         if(rate<INTCP_PCRATE_MIN){
             rate = INTCP_PCRATE_MIN;
         }

@@ -68,7 +68,7 @@ def Iperf(mn, testParam, logPath):
             atomic(mn.getNodeByName('pep').cmd)('echo a')
             atomic(mn.configLinkStatus)('s2','pep','up')
             
-        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.2.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
         time.sleep(testParam.appParam.sendTime + 10)
 
 #thread for test rtt

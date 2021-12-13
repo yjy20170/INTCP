@@ -126,7 +126,7 @@ private:
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
     int hop_rttval, hop_srtt;
     IUINT32 rcv_wnd, cwnd, ssthresh,incr; //cc, incr is the cwnd for byte
-    int rmt_sndq_rest;
+    // int rmt_sndq_rest;
     int sndq_bytes, int_buf_bytes;
     int intOwd;
     IUINT32 rmtPacingRate;
