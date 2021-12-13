@@ -38,8 +38,10 @@ def Callback_udp(packet):
                 break
             cmd,wnd,ts,sn,length,rangeStart,rangeEnd = unpack(bytePayload,pos)
             pos += (23+length)
-            if cmd==81: #data only
-                print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
+            # if cmd==81: #data only
+                # print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
+            if cmd==86:
+                print("time - ts",(int(time.time()*1000)-1636382539776) - ts)
     except:
         return
 

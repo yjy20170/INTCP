@@ -81,7 +81,7 @@ public:
         void *(*onNewSess)(void* _sessPtr));
     
     int inputUDP(char *recvBuf, int recvLen);
-    void request(int rangeStart, int rangeEnd);
+    int request(int rangeStart, int rangeEnd);
     int recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr);
     void insertData(const char *sendBuf, int start, int end);
 };
