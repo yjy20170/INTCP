@@ -74,7 +74,11 @@ sndq_bytes(0),
 intOwd(-1),
 rmtPacingRate(INTCP_PCRATE_MIN),
 intOutputLimit(0),
-int_buf_bytes(0)
+int_buf_bytes(0),
+last_cwnd_decrease_ts(0),
+throuput_update_ts(0),
+rtt_received_bytes(0),
+rtt_throughput(0)
 {
     ssid = _getMillisec()%10000;
     void *tmp = malloc(INTCP_MTU * 3);
@@ -596,6 +600,7 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
 }
 
 
+
 void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
 {
     if(nodeRole == INTCP_REQUESTER){
@@ -648,6 +653,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> segPtr)
                         rcv_buf.insert(dataIter,intsecDataSeg);
                     }
                 }
+
                 //------------------------------
                 // update int_buf
                 //------------------------------
@@ -1180,6 +1186,21 @@ IUINT16 IntcpTransCB::getPacingRate(){
 void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
     IUINT32 cwndOld = cwnd;//DEBUG
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
+    
+    IUINT32 current = _getMillisec();
+    
+    if(hop_srtt!=0){                        //only begin calculate throughput when hoprtt exists
+        if(throuput_update_ts==0)
+            throuput_update_ts= current;
+        if(_itimediff(current,throuput_update_ts)>hop_srtt){
+            rtt_throughput = rtt_received_bytes;
+            rtt_received_bytes = 0;
+            throuput_update_ts = current;
+        }
+        if(!found_new_loss)
+            rtt_received_bytes+=dataLen;
+    }
+    
     if(cc_status==INTCP_CC_SLOW_START){      //slow start
         if(found_new_loss){                //??
             cwnd = cwnd/2;
@@ -1187,6 +1208,7 @@ void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
                 cwnd=1;
             ssthresh = max(cwnd,INTCP_SSTHRESH_MIN);
             incr = cwnd*INTCP_MSS;
+            last_cwnd_decrease_ts = current;
             cc_status == INTCP_CC_CONG_AVOID;
         }
         else{
@@ -1200,15 +1222,20 @@ void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
     }
     else if(cc_status==INTCP_CC_CONG_AVOID){
         if(found_new_loss){
-            ssthresh = max(ssthresh/2,INTCP_SSTHRESH_MIN);
-            cwnd = ssthresh;
-            ca_data_len = 0;
+            if(allow_cwnd_decrease(current)){
+                ssthresh = max(ssthresh/2,INTCP_SSTHRESH_MIN);
+                cwnd = ssthresh;
+                last_cwnd_decrease_ts = current;
+                ca_data_len = 0;
+            }        
         }else{
             ca_data_len += dataLen;
             if(ca_data_len>cwnd*INTCP_MSS){
-                cwnd ++;
-                ssthresh ++;
-                incr += INTCP_MSS;
+                if(allow_cwnd_increase()){
+                    cwnd ++;
+                    ssthresh ++;
+                    incr += INTCP_MSS;
+                }
                 ca_data_len = 0;
             }
         }
@@ -1216,6 +1243,23 @@ void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
     if(cwndOld != cwnd){
         LOG(TRACE,"cwnd %u %u",_getMillisec(),cwnd);
     }
+}
+
+bool IntcpTransCB::allow_cwnd_increase(){
+    if(rtt_throughput==0||cwnd==0)
+        return true;
+    LOG(TRACE,"rtt_throughput = %u mss",rtt_throughput/INTCP_MSS);
+    if(rtt_throughput<cwnd*INTCP_MSS/2)
+        return false;
+    return true;
+}
+
+bool IntcpTransCB::allow_cwnd_decrease(IUINT32 current){
+    if(last_cwnd_decrease_ts==0||hop_srtt==0)
+        return true;
+    if(_itimediff(current,last_cwnd_decrease_ts)<hop_srtt)
+        return false;
+    return true;
 }
 
 IUINT32 IntcpTransCB::getCwnd(){

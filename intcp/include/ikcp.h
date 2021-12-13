@@ -130,6 +130,10 @@ private:
     int sndq_bytes, int_buf_bytes;
     int intOwd;
     IUINT32 rmtPacingRate;
+    IUINT32 last_cwnd_decrease_ts;
+    IUINT32 throuput_update_ts;
+    int rtt_throughput;
+    int rtt_received_bytes;
     
     int cc_status;
     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
@@ -196,7 +200,8 @@ private:
     void updateCwnd(bool found_new_loss,IUINT32 dataLen);
     
     IUINT32 getCwnd();
-
+    bool allow_cwnd_increase();
+    bool allow_cwnd_decrease(IUINT32 current);
 //---------------------------------------------------------------------
 // API
 //---------------------------------------------------------------------
