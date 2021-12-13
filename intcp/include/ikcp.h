@@ -46,15 +46,11 @@ const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
-const IUINT32 INTCP_CMD_WASK = 83;        // cmd: window probe (ask)
-const IUINT32 INTCP_CMD_WINS = 84;        // cmd: window size (tell)
-const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
-const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
+// const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
+// const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
 
 const IUINT32 INTCP_ASK_SEND = 1;        // need to send INTCP_CMD_WASK
 const IUINT32 INTCP_ASK_TELL = 2;        // need to send INTCP_CMD_WINS
-const IUINT32 INTCP_PROBE_INIT = 7000;        // 7 secs to probe window size
-const IUINT32 INTCP_PROBE_LIMIT = 120000;    // up to 120 secs to probe window
 
 // Retransmission
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
@@ -69,10 +65,12 @@ const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 300;
 const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
-const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
-const IUINT32 INTCP_WND_RCV = 128;       // must >= max fragment size
-const IUINT32 INTCP_SNDQ_MAX = 5000*INTCP_MSS;
-const IUINT32 INTCP_INTB_MAX = 5000;
+// const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
+const IUINT32 INTCP_WND_RCV = 128;
+// const IUINT32 INTCP_SNDQ_INIT = 5*INTCP_MSS;
+const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
+const IUINT32 INTCP_INTB_MAX = 2000*INTCP_MSS;
+const IUINT16 INTCP_PCRATE_MIN = 10; //1KB/s
 
 //=====================================================================
 // SEGMENT
@@ -80,7 +78,7 @@ const IUINT32 INTCP_INTB_MAX = 5000;
 struct IntcpSeg
 {
     IUINT32 cmd;    //need send,1B
-    IUINT32 wnd;    //need send,2B
+    IUINT16 wnd;    //need send,2B
     IUINT32 ts;        //need send,4B
     IUINT32 sn;        //need send,4B
     IUINT32 len;    //need send,4B
@@ -88,7 +86,7 @@ struct IntcpSeg
     IUINT32 rangeStart;    //need send,4B 
     IUINT32 rangeEnd;    //need send,4B 
     
-    IUINT32 firstTs; //first time this interest is sent. ts >= firstTs
+    // IUINT32 firstTs; //first time this interest is sent. ts >= firstTs
     IUINT32 resendts; // time to resend. resendts = ts+rto
     IUINT32 rto;
     IUINT32 xmit; // send time count
@@ -126,19 +124,19 @@ private:
     int xmit;
     
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
-    int hop_rttval, hop_srtt,rmt_hop_rtt;
-    IUINT32 rcv_wnd, rmt_wnd, cwnd, ssthresh,incr,rmt_cwnd; //cc, incr is the cwnd for byte
+    int hop_rttval, hop_srtt;
+    IUINT32 rcv_wnd, cwnd, ssthresh,incr; //cc, incr is the cwnd for byte
     int rmt_sndq_rest;
-    int sndq_bytes;
+    int sndq_bytes, int_buf_bytes;
+    int intOwd;
+    IUINT32 rmtPacingRate;
     
     int cc_status;
     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
     int ca_data_len;
-    int dataOutputLimit;
+    int dataOutputLimit, intOutputLimit;
 
 	IUINT32 updated, updateInterval, nextFlushTs;
-    IUINT32 ts_probe, probe_wait, probe;
-    IUINT32 ts_hop_rtt_probe;
     
     //requester
     list<IntRange> int_queue;
@@ -173,21 +171,19 @@ private:
 
     // flush pending data
     void flush();
-    void flushWndProbe();
     void flushIntQueue();
     void flushIntBuf();
     void flushData();
-    void flushHopRttAsk();
     
     int output(const void *data, int size, int dstRole);
     void updateRTT(IINT32 rtt);
-    void updateHopRtt(IUINT32 ts);
+    void updateHopRtt(IINT32 hop_rtt);
 
     // after input
-    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd,IUINT32 ts, IUINT32 wnd);
+    void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd);
 
     // returns below zero for error
-    int sendData(const char *buffer, IUINT32 start, IUINT32 end, IUINT32 tsEcho);
+    int sendData(const char *buffer, IUINT32 start, IUINT32 end);
 
     void parseData(shared_ptr<IntcpSeg> newseg);
     
@@ -195,7 +191,7 @@ private:
     
     void moveToRcvQueue();
     
-    int getSendLimit();
+    IUINT16 getPacingRate();
     
     void updateCwnd(bool found_new_loss,IUINT32 dataLen);
     
