@@ -37,7 +37,7 @@ void *onNewSess(void* _sessPtr){
     IUINT32 rcn=0;
     IUINT32 next_check_time = 0, startTime = _getMillisec();
     IUINT32 throughput = 0;         //bytes
-    const IUINT32 CheckInterval = 1000;
+    const IUINT32 CheckInterval = 180*1000;
     int loops = 0;
     while(1){
         usleep(10);//sleep 0.01ms

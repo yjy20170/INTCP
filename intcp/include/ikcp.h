@@ -32,6 +32,10 @@ using namespace std;
 #define INTCP_RESPONDER 11
 #define INTCP_MIDNODE 12
 
+#define INTCP_CC_LOSSB 1
+#define INTCP_CC_RTTB 2
+const int CCscheme = INTCP_CC_RTTB;
+
 //=====================================================================
 // KCP BASIC
 //=====================================================================
@@ -71,6 +75,11 @@ const IUINT32 INTCP_WND_RCV = 128;
 const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
 const IUINT32 INTCP_INTB_MAX = 2000*INTCP_MSS;
 const IUINT16 INTCP_PCRATE_MIN = 10; //1KB/s
+
+// RTT-based
+const float QueueingThreshold = 30000; // unit: byte
+const IUINT32 HrttMinWnd = 1000; // unit: ms
+
 
 //=====================================================================
 // SEGMENT
@@ -123,22 +132,28 @@ private:
 	IUINT32 snd_nxt_int; // sn of interest, for interest seq hole detection
     int xmit;
     
-    int rx_rttval, rx_srtt, rx_rto, rx_minrto;
-    int hop_rttval, hop_srtt;
-    IUINT32 rcv_wnd, cwnd, ssthresh,incr; //cc, incr is the cwnd for byte
-    // int rmt_sndq_rest;
-    int sndq_bytes, int_buf_bytes;
-    int intOwd;
-    IUINT32 rmtPacingRate;
-    IUINT32 last_cwnd_decrease_ts;
-    IUINT32 throuput_update_ts;
-    int rtt_throughput;
-    int rtt_received_bytes;
-    
     int cc_status;
     //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
     int ca_data_len;
+    // end-to-end rtt & rto
+    int rx_rttval, rx_srtt, rx_rto, rx_minrto;
+    // hop-by-hop
+    int intOwd, hop_rttval, hop_srtt;
+    IUINT32 rcv_wnd, cwnd, ssthresh, incr; //cc, incr is the cwnd for byte
+    IUINT32 last_cwnd_decrease_ts;
+    IUINT32 throuput_update_ts;
+    int rtt_throughput, rtt_received_bytes;
+    IUINT32 rmtPacingRate; // KB/s
+    // int rmt_sndq_rest;
+    int sndq_bytes, int_buf_bytes;
     int dataOutputLimit, intOutputLimit;
+
+    // loss-based
+    bool hasLossEvent;
+    // RTT-based
+    list<pair<IUINT32,int>> hrtt_queue;
+    float throughput; // KB/s
+
 
 	IUINT32 updated, updateInterval, nextFlushTs;
     
@@ -197,7 +212,7 @@ private:
     
     IUINT16 getPacingRate();
     
-    void updateCwnd(bool found_new_loss,IUINT32 dataLen);
+    void updateCwnd(IUINT32 dataLen);
     
     IUINT32 getCwnd();
     bool allow_cwnd_increase();
