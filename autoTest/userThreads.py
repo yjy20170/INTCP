@@ -71,6 +71,47 @@ def Iperf(mn, testParam, logPath):
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
         time.sleep(testParam.appParam.sendTime + 10)
 
+def kill_intcp_processes(mn,testParam):
+    atomic(mn.getNodeByName('h2').cmd)('killall intcps')
+    atomic(mn.getNodeByName('h1').cmd)('killall intcpc')
+    if testParam.appParam.midCC != 'nopep':
+        for node in testParam.absTopoParam.nodes:
+            if not node=='h1' and not node=='h2':
+                atomic(mn.getNodeByName(node).cmd)('killall intcpm')
+            
+@threadFunc(LatchThread)
+def ThroughputTest(mn,testParam,logPath):
+    if testParam.appParam.get('isManual') or testParam.appParam.get('isRttTest'):
+        return
+    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+    delFile(logFilePath)
+    
+    if testParam.appParam.get('protocol')=="TCP":      #only support e2e TCP
+        atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
+        print('sendTime = %ds'%testParam.appParam.sendTime)
+        for i in range(testParam.appParam.sendRound):
+            print('iperfc loop %d running' %i)
+            atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+            time.sleep(testParam.appParam.sendTime + 10)
+            
+    elif testParam.appParam.get('protocol')=="INTCP":   #only support one round
+        for i in range(testParam.appParam.sendRound):
+            if testParam.appParam.midCC != 'nopep':
+                
+                for node in testParam.absTopoParam.nodes:
+                    if not node=='h1' and not node=='h2':
+                        print(node,"run intcpm")
+                        atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
+                        time.sleep(2)
+            atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+            atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
+            time.sleep(testParam.appParam.sendTime+10)
+            kill_intcp_processes(mn,testParam)
+            time.sleep(2)
+            
+        print("end throughput test")
+        return
+        
 #thread for test rtt
 @threadFunc(LatchThread)
 def RttTest(mn, testParam, logPath):

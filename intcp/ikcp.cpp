@@ -480,7 +480,7 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                         // }
                         // cout<<endl;
                     } else {
-                        LOG(DEBUG,"---- d hole [%u,%u) [%u,%u) t %u----", iter->start,iter->end,iter->byteStart, iter->byteEnd, current);
+                        LOG(TRACE,"---- d hole [%u,%u) [%u,%u) t %u----", iter->start,iter->end,iter->byteStart, iter->byteEnd, current);
                         parseInt(iter->byteStart,iter->byteEnd);
                         list<shared_ptr<IntcpSeg>>::iterator iterInt;
                         // if the range of this hole could cover an interest in int_buf, modify the resendts of interest
@@ -1065,7 +1065,7 @@ void IntcpTransCB::update()
                     ssid, _getMillisec(), rmtPacingRate, snd_queue.size());
         }
         if(nodeRole!=INTCP_RESPONDER){
-            LOG(DEBUG,"%.3f: hrtt %d rtt %d intB_bytes %d rcvB %ld rnxt %u",
+            LOG(TRACE,"%.3f: hrtt %d rtt %d intB_bytes %d rcvB %ld rnxt %u",
                     double(_getMillisec())/1000,hop_srtt,rx_srtt,int_buf_bytes,rcv_buf.size(),rcv_nxt);
         }
         printTime = _getMillisec();
