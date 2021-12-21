@@ -1252,9 +1252,9 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
         if(congSignal){
             if(allow_cwnd_decrease(current)){
                 if(CCscheme == INTCP_CC_LOSSB){
-                    ssthresh = max(IUINT32(ssthresh),INTCP_SSTHRESH_MIN);
+                    ssthresh = max(IUINT32(ssthresh/2),INTCP_SSTHRESH_MIN);
                 }else if(CCscheme == INTCP_CC_RTTB){
-                    ssthresh = max(IUINT32(ssthresh-20),INTCP_SSTHRESH_MIN);
+                    ssthresh = max(IUINT32(ssthresh>=20?ssthresh-20:0),INTCP_SSTHRESH_MIN);
                 }
                 cwnd = ssthresh;
                 last_cwnd_decrease_ts = current;
