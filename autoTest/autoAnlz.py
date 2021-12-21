@@ -169,13 +169,18 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
         else:
             result[tp] = mean(thrps,method='all')
     for k in result:
-       #print(k.name)     
-       print(k.name,result[k][:5])
+       #print(k.name)
+        if isDetail:     
+            print(k.name,result[k][:5])
+        else:
+            print(k.name,result[k])
     print("---end loading---")    
     return result
 
 def getPlotParam(group, isRttTest=False):
     if not isRttTest:
+        #for motivation exprs
+        '''
         if group[0].appParam.e2eCC == 'hybla':
             color = 'orangered'
         elif group[0].appParam.e2eCC == 'cubic':
@@ -189,6 +194,20 @@ def getPlotParam(group, isRttTest=False):
         else:
             marker = 's'
             linestyle = '-'
+        '''
+        if group[0].appParam.protocol == 'INTCP':
+            marker = 'x'
+            linestyle = '--'
+            color = 'red'
+        else:
+            marker = 's'
+            linestyle = '-'
+            if group[0].appParam.e2eCC == 'hybla':
+                color = 'orangered'
+            elif group[0].appParam.e2eCC == 'cubic':
+                color = 'royalblue'
+            else:
+                color = 'g'
     else:
         if group[0].appParam.midCC == 'nopep':
             color = 'purple'
@@ -434,6 +453,7 @@ def anlz(tpSet, logPath, resultPath):
     #plotByGroup(tpSet, mapTpToResult, resultPath)
     if not tpSet.tpTemplate.appParam.isRttTest:
         print('-----')
+        mapTpToResult = loadLog(logPath, tpSet, isDetail=False)
         plotByGroup(tpSet, mapTpToResult, resultPath)
         summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
         print(summaryString)

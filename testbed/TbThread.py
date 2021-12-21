@@ -57,6 +57,7 @@ def smartStart(threads, args=(), kwargs={}):
             latchThrds.append(thrd)
         else:
             normalThrds.append(thrd)
+    #print(len(latchThrds))
     if latchThrds == []:
         LatchThread.pretendRunning()
     for thrd in latchThrds:

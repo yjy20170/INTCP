@@ -14,12 +14,14 @@ def run(testParam, logPath):
     clear()
 
     mn = RealNetwork.createNet(testParam)
-
-    threads = testParam.appParam.threads+linkDnmcThreads.threads
     
+    threads = linkDnmcThreads.threads[:]
+    if not testParam.appParam.isManual:
+        threads += testParam.appParam.threads
     TbThread.smartStart(threads, (mn, testParam, logPath,) )
 
     if testParam.appParam.isManual:
+        #TbThread.LatchThread.pretendRunning()
         # enter command line interface...
         CLI(mn)
     else:

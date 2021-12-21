@@ -124,6 +124,7 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
 
     if (rcv_queue.empty())
         return -1;
+    //printf("111\n");
     if (rcv_queue.size() >= rcv_wnd)
         recover = 1;
 
@@ -1070,7 +1071,7 @@ void IntcpTransCB::update()
                     ssid, _getMillisec(), rmtPacingRate, snd_queue.size());
         }
         if(nodeRole!=INTCP_RESPONDER){
-            LOG(DEBUG,"%.3f: hrtt %d rtt %d intB_bytes %d rcvB %ld rnxt %u",
+            LOG(TRACE,"%.3f: hrtt %d rtt %d intB_bytes %d rcvB %ld rnxt %u",
                     double(_getMillisec())/1000,hop_srtt,rx_srtt,int_buf_bytes,rcv_buf.size(),rcv_nxt);
         }
         printTime = _getMillisec();
@@ -1222,6 +1223,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
         if(_itimediff(current,throuput_update_ts)>hop_srtt){
             rtt_throughput = rtt_received_bytes;
             throughput = float(rtt_received_bytes)/hop_srtt;
+            LOG(TRACE,"receive rate = %.2fMbps",8*((float)rtt_throughput)/(hop_srtt*1024));
             rtt_received_bytes = 0;
             throuput_update_ts = current;
         }
@@ -1262,6 +1264,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             }        
         }else{
             ca_data_len += dataLen;
+            //printf("ca_data_len=%u bytes,cwnd = %u\n",ca_data_len,cwnd);
             if(ca_data_len>cwnd*INTCP_MSS){
                 if(allow_cwnd_increase()){
                     cwnd ++;

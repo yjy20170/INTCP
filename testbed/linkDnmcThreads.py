@@ -38,10 +38,20 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
+  
+
+def routeReset(mn,testParam):
+    nodes = testParam.absTopoParam.nodes
+    for i in range(len(nodes)-1):
+        if i == len(nodes)-2:
+            seg = 100
+        else:
+            seg = i+1
+        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
+    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
     
 @threadFunc(NormalThread)
 def LinkUpdate(mn, testParam, logPath):
-    
     #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
         cmds = []
@@ -97,13 +107,17 @@ def LinkUpdate(mn, testParam, logPath):
 
 ### thread for dynamic link up/down control
 #TODO one thread per link?
+
 @threadFunc(NormalThread)
 def MakeItm(mn, testParam, logPath):
     linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].itmDown > 0]
     if linkNames == []:
         return
+    
     while LatchThread.isRunning():
+        #print("aaaaaaa")
         time.sleep(testParam.linkParams[linkNames[-1]].itmTotal-testParam.linkParams[linkNames[-1]].itmDown)
+        #print("down")
         for l in linkNames:
             nameA,nameB = l.split('-')
             atomic(mn.getNodeByName(nameA).cmd)('echo')
@@ -111,12 +125,15 @@ def MakeItm(mn, testParam, logPath):
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'down')
         time.sleep(testParam.linkParams[linkNames[-1]].itmDown)
+        #print("up")
         for l in linkNames:
             nameA,nameB = l.split('-')
             atomic(mn.getNodeByName(nameA).cmd)('echo')
             atomic(mn.configLinkStatus)(nameA,l,'up')
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'up')
-
+            routeReset(mn,testParam)
+    
+            
             # if changing s2 - h2
             # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')

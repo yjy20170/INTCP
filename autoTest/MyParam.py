@@ -35,7 +35,7 @@ def getTestParamSet(tpsetName):
 
     if tpsetName == "expr":
         absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
-        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=120,sendRound=1,isRttTest=1,midCC='pep')
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=10,sendRound=1,isRttTest=0,midCC='pep',e2eCC='reno')
         
         linkParams = {
                 'h1-pep':Param.LinkParam(loss=5, rtt=100, bw=20, varBw=0),
@@ -43,15 +43,14 @@ def getTestParamSet(tpsetName):
         }
         tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
 
-        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['total_loss','protocol'],keysPlotDiff=[])
-        
-        losses = [0.1,2,5]
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='total_loss',keysCurveDiff=['protocol'],keysPlotDiff=[])
+        losses = [0.1,0.5]
         for loss in losses:
             tpSet.add({
                 'total_loss':[loss],
                 'h1-pep.loss':splitLoss(loss,2),
                 'pep-h2.loss':splitLoss(loss,2),
-                'protocol':["INTCP","TCP"]
+                'protocol':["TCP","INTCP"]
             })
         #tpSet.add({
         #    'pep-h2.rtt':[100,200]
@@ -235,4 +234,98 @@ def getTestParamSet(tpsetName):
         '''
         #tpSet.add({'total_loss':[2],'h1-pep.loss':splitLoss(2,2),'pep-h2.loss':splitLoss(2,2),'protocol':["INTCP","TCP"],'midCC':['pep']})
         #tpSet.add({'total_loss':[2],'h1-pep.loss':splitLoss(2,2),'pep-h2.loss':splitLoss(2,2),'protocol':["TCP"],'midCC':['nopep']})
+        return tpSet
+    #for loss-based cc test
+    if tpsetName == "cc_loss_test_1":
+        absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
+        linkParams = {
+                'h1-pep':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=0)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
+
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='total_loss',keysCurveDiff=['protocol','e2eCC'],keysPlotDiff=[])
+        losses = [0.1,0.5,1]
+        for loss in losses:
+            tpSet.add({'total_loss':[loss],'pep-h2.loss':0,'pep-h2.loss':loss,'protocol':["TCP"],'e2eCC':['cubic','hybla']})
+            tpSet.add({'total_loss':[loss],'pep-h2.loss':0,'pep-h2.loss':loss,'protocol':["INTCP"]})
+        return tpSet
+        
+    if tpsetName == "cc_rtt_test_1":
+        absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
+        linkParams = {
+                'h1-pep':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
+
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.rtt',keysCurveDiff=['protocol','e2eCC'],keysPlotDiff=[])
+        rtts = [20,50,100,200]
+        for rtt in rtts:
+            tpSet.add({'pep-h2.rtt':[rtt],'protocol':["TCP"],'e2eCC':['cubic','hybla']})
+            tpSet.add({'pep-h2.rtt':[rtt],'protocol':["INTCP"]})
+        return tpSet
+    
+    if tpsetName == "cc_varbw_test_1":
+        absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
+        linkParams = {
+                'h1-pep':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=20, varBw=15,varIntv=2)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
+
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.varIntv',keysCurveDiff=['protocol','e2eCC'],keysPlotDiff=[])
+        varIntvs = [2,4,6,8]
+        for varIntv in varIntvs:
+            tpSet.add({'pep-h2.varIntv':[varIntv],'protocol':["TCP"],'e2eCC':['cubic','hybla']})
+            tpSet.add({'pep-h2.varIntv':[varIntv],'protocol':["INTCP"]})
+        return tpSet
+    
+    if tpsetName == "cc_itm_test_1":
+        absTopoParam = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
+        linkParams = {
+                'h1-pep':Param.LinkParam(loss=0, rtt=50, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0, rtt=100, bw=40, varBw=0)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam,linkParams=linkParams,appParam=appParam)
+
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='pep-h2.itmDown',keysCurveDiff=['protocol','e2eCC'],keysPlotDiff=[])
+        itmDowns = [0,1,2,3,4]
+        for itmDown in itmDowns:
+            tpSet.add({'h1-pep.itmDown':0,'pep-h2.itmDown':[itmDown],'protocol':["INTCP"]})
+            tpSet.add({'h1-pep.itmDown':0,'pep-h2.itmDown':[itmDown],'protocol':["TCP"],'e2eCC':['cubic','hybla']})
+        return tpSet
+               
+    if tpsetName == "cc_nodes_test_1":
+        appParam = MyAppParam(name='expr',threads=userThreads.threads,sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
+        absTopoParam_1 = Param.AbsTopoParam(name='net_hmh',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+        absTopoParam_2 = Param.AbsTopoParam(name='net_hmmh',nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
+        absTopoParam_3 = Param.AbsTopoParam(name='net_hmmmh',nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+        linkParams_1 = {
+                'h1-pep':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep-h2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0)
+        }
+        linkParams_2 = {
+                'h1-pep1':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep1-pep2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep2-h2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0)
+        }
+        linkParams_3 = {
+                'h1-pep1':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep1-pep2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep2-pep3':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0),
+                'pep3-h2':Param.LinkParam(loss=0.1, rtt=100, bw=20, varBw=0)
+        }
+        tpTemplate = Param.TestParam(absTopoParam=absTopoParam_1,linkParams=linkParams_1,appParam=appParam)
+        tpSet = Param.TestParamSet(tpsetName,tpTemplate,keyX='midNodes',keysCurveDiff=['protocol','e2eCC'],keysPlotDiff=[])
+        tpSet.add({'absTopoParam':absTopoParam_1,'linkParams':linkParams_1,'midNodes':[1],'protocol':["TCP"],'e2eCC':["cubic","hybla"]})
+        tpSet.add({'absTopoParam':absTopoParam_1,'linkParams':linkParams_1,'midNodes':[1],'protocol':["INTCP"]})
+        tpSet.add({'absTopoParam':absTopoParam_2,'linkParams':linkParams_2,'midNodes':[2],'protocol':["TCP"],'e2eCC':["cubic","hybla"]})
+        tpSet.add({'absTopoParam':absTopoParam_2,'linkParams':linkParams_2,'midNodes':[2],'protocol':["INTCP"]})
+        tpSet.add({'absTopoParam':absTopoParam_3,'linkParams':linkParams_3,'midNodes':[3],'protocol':["TCP"],'e2eCC':["cubic","hybla"]})
+        tpSet.add({'absTopoParam':absTopoParam_3,'linkParams':linkParams_3,'midNodes':[3],'protocol':["INTCP"]})
         return tpSet
