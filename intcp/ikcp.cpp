@@ -78,7 +78,9 @@ int_buf_bytes(0),
 last_cwnd_decrease_ts(0),
 throuput_update_ts(0),
 rtt_received_bytes(0),
-rtt_throughput(0)
+rtt_throughput(0),
+hasLossEvent(false),
+throughput(-1)
 {
     ssid = _getMillisec()%10000;
     void *tmp = malloc(INTCP_MTU * 3);
@@ -122,6 +124,7 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
 
     if (rcv_queue.empty())
         return -1;
+    //printf("111\n");
     if (rcv_queue.size() >= rcv_wnd)
         recover = 1;
 
@@ -783,8 +786,10 @@ int IntcpTransCB::input(char *data, int size)
                 }else{
                     LOG(WARN,"_getMillisec()>ts");
                 }
-                bool found_new_loss = detectDataHole(rangeStart,rangeEnd,sn);
-                updateCwnd(found_new_loss,len);
+                if(detectDataHole(rangeStart,rangeEnd,sn)){
+                    hasLossEvent = true;
+                }
+                updateCwnd(len);
                 seg = createSeg(len);
                 seg->cmd = cmd;
                 seg->wnd = wnd;
@@ -885,6 +890,7 @@ void IntcpTransCB::flushIntBuf(){
                 LOG(TRACE,"request [%d,%d) rto %d",segPtr->rangeStart,segPtr->rangeEnd, IUINT32(segPtr->rto*INTCP_RTO_FACTOR));
                 segPtr->resendts = current + segPtr->rto;// + rx_rto >> 3;
             } else if (_itimediff(current, segPtr->resendts) >= 0) {
+                hasLossEvent = true;
                 cntRTO++;
                 LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                         segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),segPtr->rto);
@@ -1161,7 +1167,7 @@ int IntcpTransCB::peekSize()
     return (*rcv_queue.begin())->len;
 }
 
-//cc when send data
+//rate limitation on sending data
 IUINT16 IntcpTransCB::getPacingRate(){
     if(hop_srtt==0||cwnd==0){    //haven't receive feedback
         // LOGL(DEBUG);
@@ -1183,26 +1189,50 @@ IUINT16 IntcpTransCB::getPacingRate(){
 }
 
 //cc
-void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
+void IntcpTransCB::updateCwnd(IUINT32 dataLen){
+    IUINT32 current = _getMillisec();
+    bool congSignal;
+    if(CCscheme == INTCP_CC_LOSSB){
+        congSignal = hasLossEvent;
+        hasLossEvent = false;
+    } else if(CCscheme == INTCP_CC_RTTB){
+        while(!hrtt_queue.empty() 
+                && current - hrtt_queue.begin()->first > HrttMinWnd){
+            hrtt_queue.pop_front();
+        }
+        hrtt_queue.push_back(pair<IUINT32,int>(current,hop_srtt));
+        int minHrtt=99999999;
+        for(auto pr: hrtt_queue){
+            minHrtt = min(minHrtt, pr.second);
+        }
+        if(throughput == -1){
+            congSignal = false;
+        }else{
+            congSignal = throughput*(hop_srtt - minHrtt) > QueueingThreshold;
+            if(congSignal)
+                LOG(TRACE,"%f %d %d",throughput,hop_srtt,minHrtt);
+        }
+    }
     IUINT32 cwndOld = cwnd;//DEBUG
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
     
-    IUINT32 current = _getMillisec();
     
-    if(hop_srtt!=0){                        //only begin calculate throughput when hoprtt exists
+    if(hop_srtt!=0){ //only begin calculate throughput when hoprtt exists
         if(throuput_update_ts==0)
             throuput_update_ts= current;
         if(_itimediff(current,throuput_update_ts)>hop_srtt){
             rtt_throughput = rtt_received_bytes;
+            throughput = float(rtt_received_bytes)/hop_srtt;
+            LOG(TRACE,"receive rate = %.2fMbps",8*((float)rtt_throughput)/(hop_srtt*1024));
             rtt_received_bytes = 0;
             throuput_update_ts = current;
         }
-        if(!found_new_loss)
-            rtt_received_bytes+=dataLen;
+        // if(!found_new_loss)
+        rtt_received_bytes+=dataLen;
     }
     
     if(cc_status==INTCP_CC_SLOW_START){      //slow start
-        if(found_new_loss){                //??
+        if(congSignal){                //??
             cwnd = cwnd/2;
             if(cwnd<1)
                 cwnd=1;
@@ -1221,15 +1251,20 @@ void IntcpTransCB::updateCwnd(bool found_new_loss,IUINT32 dataLen){
         }
     }
     else if(cc_status==INTCP_CC_CONG_AVOID){
-        if(found_new_loss){
+        if(congSignal){
             if(allow_cwnd_decrease(current)){
-                ssthresh = max(ssthresh/2,INTCP_SSTHRESH_MIN);
+                if(CCscheme == INTCP_CC_LOSSB){
+                    ssthresh = max(IUINT32(ssthresh/2),INTCP_SSTHRESH_MIN);
+                }else if(CCscheme == INTCP_CC_RTTB){
+                    ssthresh = max(IUINT32(ssthresh>=20?ssthresh-20:0),INTCP_SSTHRESH_MIN);
+                }
                 cwnd = ssthresh;
                 last_cwnd_decrease_ts = current;
                 ca_data_len = 0;
             }        
         }else{
             ca_data_len += dataLen;
+            //printf("ca_data_len=%u bytes,cwnd = %u\n",ca_data_len,cwnd);
             if(ca_data_len>cwnd*INTCP_MSS){
                 if(allow_cwnd_increase()){
                     cwnd ++;

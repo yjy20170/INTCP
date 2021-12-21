@@ -46,7 +46,7 @@ def Init(mn, testParam, logPath):
 
 #@threadFunc(LatchThread)
 def Iperf(mn, testParam, logPath):
-    if testParam.appParam.get('isManual') or testParam.appParam.get('isRttTest'):
+    if testParam.appParam.get('isRttTest'):
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
@@ -81,7 +81,7 @@ def kill_intcp_processes(mn,testParam):
             
 @threadFunc(LatchThread)
 def ThroughputTest(mn,testParam,logPath):
-    if testParam.appParam.get('isManual') or testParam.appParam.get('isRttTest'):
+    if testParam.appParam.get('isRttTest'):
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
@@ -115,7 +115,7 @@ def ThroughputTest(mn,testParam,logPath):
 #thread for test rtt
 @threadFunc(LatchThread)
 def RttTest(mn, testParam, logPath):
-    if testParam.appParam.get('isManual') or not testParam.appParam.get('isRttTest'):
+    if not testParam.appParam.get('isRttTest'):
         return
     print("rtt test begin...")
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
