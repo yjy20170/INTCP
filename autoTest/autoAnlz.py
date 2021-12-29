@@ -217,6 +217,7 @@ def getPlotParam(group, isRttTest=False):
         linestyle = '-'
     return color,marker,linestyle
 
+#TODO rename: NetEnv -> TestParam
 def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
     if mode==1:
         x=[]

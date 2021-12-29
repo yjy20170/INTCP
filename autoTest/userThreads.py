@@ -44,32 +44,6 @@ def Init(mn, testParam, logPath):
         for cmd in cmds:
             atomic(intf.tc)(cmd)
 
-#@threadFunc(LatchThread)
-def Iperf(mn, testParam, logPath):
-    if testParam.appParam.get('isRttTest'):
-        return
-    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
-    delFile(logFilePath)
-    
-    atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
-
-    
-    if testParam.appParam.midCC != 'nopep':
-        atomic(mn.getNodeByName('pep').cmd)('../bash/runpep '+testParam.appParam.midCC+' &')
-    
-    #time.sleep(5)
-
-    print('sendTime = %ds'%testParam.appParam.sendTime)
-    for i in range(testParam.appParam.sendRound):
-        print('iperfc loop %d running' %i)
-        
-        if testParam.linkParams['pep-h2'].itmDown>0:
-            atomic(mn.getNodeByName('s2').cmd)('echo a')
-            atomic(mn.getNodeByName('pep').cmd)('echo a')
-            atomic(mn.configLinkStatus)('s2','pep','up')
-            
-        atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
-        time.sleep(testParam.appParam.sendTime + 10)
 
 def kill_intcp_processes(mn,testParam):
     atomic(mn.getNodeByName('h2').cmd)('killall intcps')
@@ -100,7 +74,7 @@ def ThroughputTest(mn,testParam,logPath):
                 
                 for node in testParam.absTopoParam.nodes:
                     if not node=='h1' and not node=='h2':
-                        print(node,"run intcpm")
+                        # print(node,"run intcpm")
                         atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                         time.sleep(2)
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
@@ -147,7 +121,7 @@ def RttTest(mn, testParam, logPath):
             
             for node in testParam.absTopoParam.nodes:
                 if not node=='h1' and not node=='h2':
-                    print(node,"run intcpm")
+                    # print(node,"run intcpm")
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                     time.sleep(2)
                     #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
@@ -163,11 +137,9 @@ def RttTest(mn, testParam, logPath):
         return
 
 # for intcp only
-'''
-@threadFunc(LatchThread)
+# @threadFunc(LatchThread)
 def PerformTest(mn, testParam, logPath):
-    if testParam.appParam.get('isManual') or not testParam.appParam.get('isPerformTest') or nottestParam.appParam.get('protocol')=="INTCP":
+    if not testParam.appParam.get('protocol')=="INTCP":
         return
     print("performance test begin")
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
-'''

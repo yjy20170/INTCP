@@ -9,18 +9,18 @@ from . import RealNetwork
 # userThreads: things to run on this testbed (transport & application layer)
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
-def run(testParam, logPath):
+def run(testParam, logPath, isManual):
     print(testParam.serialize())
     clear()
 
     mn = RealNetwork.createNet(testParam)
     
     threads = linkDnmcThreads.threads[:]
-    if not testParam.appParam.isManual:
+    if not isManual:
         threads += testParam.appParam.threads
     TbThread.smartStart(threads, (mn, testParam, logPath,) )
 
-    if testParam.appParam.isManual:
+    if isManual:
         #TbThread.LatchThread.pretendRunning()
         # enter command line interface...
         CLI(mn)

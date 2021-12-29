@@ -3,7 +3,6 @@
 import sys
 import os
 import argparse
-import time
 
 sys.path.append(os.path.dirname(os.sys.path[0]))
 from testbed import Instance
@@ -12,53 +11,37 @@ import MyParam
 import FileUtils
 import autoAnlz
 
-def getArgsFromCli():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--m', action='store_const', const=True, default=False, help='enter command line interface(run auto experiment by default)')
-    parser.add_argument('--r', action='store_const', const=True, default=False, help='enter rtt test')
-    parser.add_argument('--a', action='store_const', const=True, default=False, help='only run analyzing program')
-    args = parser.parse_args()
-    return args
-
 
 if __name__=='__main__':
-    os.chdir(sys.path[0]) 
-    # import inspect
+    parser = argparse.ArgumentParser()
+    # enter command line interface (run auto experiment by default)
+    parser.add_argument('--m', action='store_const', const=True, default=False)
+    # only run analyzing program
+    parser.add_argument('--a', action='store_const', const=True, default=False)
+    args = parser.parse_args()
+    isManual = args.m
+    isAnlz = args.a
 
-    # for name, obj in inspect.getmembers(userThreads):
-    #     if inspect.isclass(Thread):
-    #         print(Thread)
+    os.chdir(sys.path[0])
 
-
-    tpSetNames = ["cc_itm_test_1"]#["cc_nodes_test_1"]##"mot_itm_test"
-
-
-    isAnlz = getArgsFromCli().a
-    isManual = getArgsFromCli().m
-    isRttTest = getArgsFromCli().r
-
+    tpSetNames = ["expr"]
     for sno,tpSetName in enumerate(tpSetNames):
-        print('\nStart NetEnvSet (%d/%d)' % (sno+1,len(tpSetNames)))
+        print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
         tpSet = MyParam.getTestParamSet(tpSetName)
-        # netTopo = NetTopo.netTopos[neSet.neTemplate.netName]
 
         logPath = '%s/%s' % ('./logs', tpSetName)
+        resultPath = '%s/%s' % ('./result', tpSetName)
 
         if not isAnlz:
             FileUtils.createFolder(logPath)
             FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
         
             for i,tp in enumerate(tpSet.testParams):
-                print('\nStart NetEnv(%d/%d) in NetEnvSet \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
-                
-                tp.appParam.update('isManual', 1 if isManual else 0)
-
-                Instance.run(tp, logPath)
+                print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
+                Instance.run(tp, logPath, isManual)
 
             FileUtils.fixOwnership(logPath, 'r')
 
-        resultPath = '%s/%s' % ('./result', tpSetName)
         autoAnlz.anlz(tpSet, logPath, resultPath)
 
     if not isAnlz:

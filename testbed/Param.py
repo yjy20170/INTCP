@@ -99,6 +99,8 @@ class Param:
     def keyToStr(self,key):
         return '%s(%s)'%(key, self.getUnit(key))
 
+    def copy(self):
+        return self.__class__(template=self)
 
 class LinkParam(Param):
     Keys = ['name', 
@@ -131,13 +133,9 @@ class AbsTopoParam(Param):
 class AppParam(Param):
     Keys = ['name',
             'threads', #NOTE AppParam must include this seg
-            'isManual' #NOTE AppParam must include this seg
     ]
-    SegDefault = {'name':'xxx',
-            'isManual':0
-    }
-    SegUnit = {
-    }
+    SegDefault = {'name':'xxx'}
+    SegUnit = {}
     def __init__(self, template=None, **kwargs):
         super().__init__(template=template, **kwargs)
     
@@ -213,6 +211,7 @@ class TestParam(Param):
 class TestParamSet:
     def __init__(self, tpsetName='xxx', tpTemplate=None, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
         self.tpsetName = tpsetName
+        assert(tpTemplate!=None)
         self.tpTemplate = tpTemplate
         self.keyX = keyX
         self.keysCurveDiff = keysCurveDiff

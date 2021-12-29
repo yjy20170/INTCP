@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# root@c34:/home/yjy/桌面/INTCP/autoTest# ../app*/int*/intcpc > ./misc/templog.txt
+# /INTCP$ app*/int*/intcpc > autoTest/misc/templog.txt
 
 import time
 import matplotlib.pyplot as plt

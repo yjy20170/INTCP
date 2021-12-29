@@ -1,26 +1,22 @@
-from testbed import Param
+from testbed.Param import *
 # from testbed.AbsNetwork import *
 
 import userThreads
 from testbed.RealNetwork import splitLoss
 
-class MyAppParam(Param.AppParam):
+class MyAppParam(AppParam):
     Keys = ['name',
             'threads', #NOTE AppParam must include this seg
-            'isManual', #NOTE AppParam must include this seg
             'e2eCC', 'midCC','protocol',
             'max_queue_size', 'txqueuelen',
             'sendTime', 'sendRound', 
-            'isRttTest', 'rttTestPacket','total_loss','midNodes',
-            'isPerformTest','convs'
+            'isRttTest', 'rttTestPacket','total_loss','midNodes'
     ]
     SegDefault = {'name':'xxx',
-        'isManual':0,
         'e2eCC':'cubic', 'midCC':'nopep','protocol':'INTCP',
         'max_queue_size':1000,'txqueuelen':1000,
         'sendTime':120, 'sendRound':3, 
-        'isRttTest':0, 'rttTestPacket':0,'total_loss':0,'midNodes':1,
-        'isPerformTest':0,'convs':1
+        'isRttTest':0, 'rttTestPacket':0,'total_loss':0,'midNodes':1
     }
     # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
     # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
@@ -30,7 +26,49 @@ class MyAppParam(Param.AppParam):
     }
 
 
+# basic topo
+topo_1_mid = AbsTopoParam(name='1_mid',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+topo_2_mid = AbsTopoParam(name='2_mid',nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
+topo_3_mid = AbsTopoParam(name='3_mid',nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+
+# linkParams generator
+# argLP is LinkParam list or single LinkParam
+def getLinkParams(links,argLP):
+    if isinstance(argLP,list):
+        linkParams = argLP
+    else:
+        linkParams = [argLP.copy() for l in links]
+    dic = {}
+    for link,lp in zip(links,linkParams):
+        dic[f'{link[0]}-{link[1]}'] = lp
+    return dic
+# example
+linkParam_basic = LinkParam(loss=0, rtt=100, bw=20, varBw=0)
+linkParams_1_mid = getLinkParams(topo_1_mid.links, linkParam_basic)
+
+app_basic = MyAppParam(name='basic',threads=userThreads.threads,sendTime=30,sendRound=1,isRttTest=0,midCC='pep')
+
+tp_basic = TestParam(absTopoParam=topo_1_mid,linkParams=linkParams_1_mid,appParam=app_basic)
+
+
 def getTestParamSet(tpsetName):
+    tpSet = None
+    if tpsetName == "expr":
+        tpSet = TestParamSet(tpsetName,tpTemplate=tp_basic,keyX='midNodes')
+        for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
+            tpSet.add({
+                    'absTopoParam':topo,
+                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=0.1)),
+                    'midNodes':[len(topo.nodes)-2] # use list, so that the name of TestParam will contain "midNodes_3"
+            })
+
+    return tpSet
+
+
+
+
+
+def getTestParamSet_Old(tpsetName):
     print('Using TestParamSet \'%s\'' % tpsetName)
 
     if tpsetName == "expr":
