@@ -1,5 +1,5 @@
-#define TOTAL_DATA_LEN 300 //bytes
+// #define TOTAL_DATA_LEN 300 //bytes
 
-#define REQ_LEN 10000 //bytes per segment
+#define REQ_LEN INTCP_MSS*50 //bytes per segment
 
 #define REQ_INTV 1//ms  interval between two request

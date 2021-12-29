@@ -37,7 +37,7 @@ void *onNewSess(void* _sessPtr){
     IUINT32 rcn=0;
     IUINT32 next_check_time = 0, startTime = _getMillisec();
     IUINT32 throughput = 0;         //bytes
-    const IUINT32 CheckInterval = 10000;
+    const IUINT32 CheckInterval = 1000;
 
     int loops = 0;
     while(1){
@@ -52,7 +52,7 @@ void *onNewSess(void* _sessPtr){
                 next_check_time = curTime + CheckInterval;
             else{
                 next_check_time += CheckInterval;
-                printf("%4ds %3.2f Mbits/sec receiver\n",int((curTime - startTime)/1000),(8*(double)throughput)/(1000*CheckInterval));
+                printf("%4ds %3.2f Mbits/sec receiver\n",int((curTime - startTime)/1000),(8*(double)throughput)/(1024*1024*CheckInterval/1000));
                 //printf("start %u end %u\n",start,end);
             }
             throughput = 0;

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring>
+#include <cmath>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -73,12 +74,12 @@ const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
 const IUINT32 INTCP_WND_RCV = 128;
 // const IUINT32 INTCP_SNDQ_INIT = 5*INTCP_MSS;
 const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
-const IUINT32 INTCP_INTB_MAX = 2000*INTCP_MSS;
+const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;//TODO relation
 const IUINT16 INTCP_PCRATE_MIN = 10; //1KB/s
 
 // RTT-based
 const float QueueingThreshold = 30000; // unit: byte
-const IUINT32 HrttMinWnd = 1000; // unit: ms
+const IUINT32 HrttMinWnd = 5000; // unit: ms
 
 
 //=====================================================================
@@ -96,8 +97,7 @@ struct IntcpSeg
     IUINT32 rangeEnd;    //need send,4B 
     
     // IUINT32 firstTs; //first time this interest is sent. ts >= firstTs
-    IUINT32 resendts; // time to resend. resendts = ts+rto
-    IUINT32 rto;
+    // bool rttUpdate; // is this interest allowed to be used in rtt update
     IUINT32 xmit; // send time count
     
     char data[1];    //need send
@@ -137,6 +137,7 @@ private:
     int ca_data_len;
     // end-to-end rtt & rto
     int rx_rttval, rx_srtt, rx_rto, rx_minrto;
+    list<int> rtt_queue;
     // hop-by-hop
     int intOwd, hop_rttval, hop_srtt;
     IUINT32 rcv_wnd, cwnd, ssthresh, incr; //cc, incr is the cwnd for byte
@@ -153,6 +154,8 @@ private:
     // RTT-based
     list<pair<IUINT32,int>> hrtt_queue;
     float throughput; // KB/s
+
+    int thrpStat;
 
 
 	IUINT32 updated, updateInterval, nextFlushTs;
