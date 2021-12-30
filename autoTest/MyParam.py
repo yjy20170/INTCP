@@ -52,14 +52,15 @@ def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "expr":
         tp = tp_basic.copy()
-        tp.update("appParam.midCC","nopep")#"nopep/pep"
+        tp.update("appParam.midCC","pep")#"nopep/pep"
         tp.update("appParam.sendTime",60)
+        loss = 1
         tpSet = TestParamSet(tpsetName,tpTemplate=tp,keyX='numMidNode')
         # for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
         for topo in [topo_3_mid]:
             tpSet.add({
                     'absTopoParam':[topo], # use list, so that the name of TestParam is "xxx_topo_{topoName}"
-                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=0)),
+                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=loss)),
             })
 
     return tpSet

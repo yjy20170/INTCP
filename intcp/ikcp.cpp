@@ -1,8 +1,7 @@
 #include "./include/ikcp.h"
 #undef LOG_LEVEL
-#define LOG_LEVEL DEBUG
+#define LOG_LEVEL  DEBUG// SILENT//
 
-//DEBUG
 #include <iostream>
 using namespace std;
 
@@ -74,8 +73,11 @@ recvedBytesLastHRTT(0),
 hasLossEvent(false),
 thrpLastHRTT(-1)
 {
-    stat.ssid = _getMillisec()%10000;
+    IUINT32 current = _getMillisec();
+    stat.ssid = current%10000;
+    stat.startTs = current;
     stat.xmit = 0;
+    stat.lastPrintTs = current;
     stat.thrpINTCP = 0;
     stat.thrpUDP = 0;
 
@@ -198,12 +200,11 @@ int IntcpTransCB::sendData(const char *buffer, IUINT32 start, IUINT32 end)
 
 //add (rangeStart,rangeEnd) to intQueue
 int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
-    // LOG(DEBUG,"%ld",intBuf.size());//DEBUG
     if(rangeEnd <= rangeStart){
         LOG(WARN,"rangeStart %d rangeEnd %d",rangeStart,rangeEnd);
         return -2;
     }
-    if(intBufBytes >= INTCP_INTB_MAX){//TODO make it a parameter
+    if(intBufBytes >= INTCP_INTB_MAX){
         return -1;
     }
     IntRange intr;
@@ -217,6 +218,9 @@ int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
 //---------------------------------------------------------------------
 void IntcpTransCB::updateRTT(IINT32 rtt, int xmit)
 {
+    if(xmit>1){
+        LOG(DEBUG,"retrans packet rtt %d",rtt);
+    }
     if(rtt<=0){
         return;
     }
@@ -266,8 +270,8 @@ void IntcpTransCB::updateRTT(IINT32 rtt, int xmit)
         rttval = (3 * rttval + delta) / 4;
         srtt = (7 * srtt + rttForUpdate) / 8;
         if (srtt < 1) srtt = 1;
-        IINT32 rto = srtt + _imax_(INTCP_UPDATE_INTERVAL, 4 * rttval);
-        rto = _ibound_(INTCP_RTO_MIN, rto, INTCP_RTO_MAX);
+        IINT32 rtoTmp = srtt + _imax_(INTCP_UPDATE_INTERVAL, 4 * rttval);
+        rto = _ibound_(INTCP_RTO_MIN, rtoTmp, INTCP_RTO_MAX);
     }
 
     LOG(TRACE,"rtt %d srtt %d val %d rto %d",rtt,srtt,rttval,rto);
@@ -669,7 +673,8 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 intsecDataSeg->len = intsecEnd-intsecStart;
                 memcpy(intsecDataSeg->data, dataSeg->data+intsecStart-dataSeg->rangeStart,
                         intsecEnd-intsecStart);
-                //DEBUG
+
+                //NOTE pass information to app layer
                 IUINT32 cur_tmp = _getMillisec();
                 // LOG(DEBUG,"xmit %u rto %u rcvTime %u",intSeg->xmit,intSeg->rto,cur_tmp);
                 memcpy(intsecDataSeg->data+sizeof(IUINT32), &intSeg->xmit, sizeof(IUINT32));
@@ -704,7 +709,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 stat.thrpINTCP += intsecEnd - intsecStart;
                 if(dataSeg->rangeStart <= intSeg->rangeStart){
                     if(dataSeg->rangeEnd >= intSeg->rangeEnd){    //range completely received
-                        updateRTT(_itimediff(_getMillisec(), intSeg->ts), intSeg->xmit);//DEBUG!!
+                        updateRTT(_itimediff(_getMillisec(), intSeg->ts), intSeg->xmit);
                         intBuf.erase(intIter);
                     }
                     else{
@@ -951,7 +956,7 @@ void IntcpTransCB::flushIntBuf(){
                     LOG(DEBUG,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                             segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                     needsend = 1;
-                    stat.xmit++;//TODO if sndq limit occurs, withdraw?
+                    stat.xmit++;
                 }
             }
         }
@@ -1128,25 +1133,27 @@ void IntcpTransCB::flush(){
 void IntcpTransCB::update()
 {
     IUINT32 current = _getMillisec();
-    //DEBUG
-    static IUINT32 printTime = current-1000;
-    if(current-printTime>1000){
+    if(current-stat.lastPrintTs>1000){
         if(nodeRole!=INTCP_REQUESTER){
-            LOG(DEBUG,"%d| %u rmtSndr %.2f sndq %dmss",
+            LOG(DEBUG,"%d| %u rmtSndr %.2f sndq %d",
                     stat.ssid, current, rmtSendRate, sndQueueBytes/INTCP_MSS);
         }
         if(nodeRole!=INTCP_RESPONDER){
-            LOG(DEBUG,"rtt %d %d cwnd %u sndr %.2f thrpU/I %.2f/%.2f |intB %d rcvB %ld",// rnxt %u",
+            LOG(DEBUG,"rtt %d %d cwnd %u sndr %.2f thrpU/I %.2f/%.2f |intB %d rcvB %ld",
                     srtt,srttHop,
                     cwnd,
                     float(getSendRate())/100,
-                    float(stat.thrpUDP)*8/1024/1024/(current-printTime)*1000,
-                    float(stat.thrpINTCP)*8/1024/1024/(current-printTime)*1000,
-                    intBufBytes/INTCP_MSS,rcvBuf.size());//,rcvNxt);
+                    float(stat.thrpUDP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
+                    float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
+                    intBufBytes/INTCP_MSS,rcvBuf.size());
+            printf("  %ds %.2f Mbits/sec receiver\n",
+                    (current-stat.startTs)/1000,
+                    float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
+            );
             stat.thrpUDP = 0;
             stat.thrpINTCP = 0;
         }
-        printTime = _getMillisec();
+        stat.lastPrintTs = _getMillisec();
     }
     if (updated == 0) {
         updated = 1;
@@ -1281,7 +1288,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
                 LOG(TRACE,"%.2f %d %d",thrpLastHRTT,srttHop,minHrtt);
         }
     }
-    IUINT32 cwndOld = cwnd;//DEBUG
+    IUINT32 cwndOld = cwnd;// for debug
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
 
     if(ccState==INTCP_CC_SLOW_START){

@@ -123,7 +123,7 @@ class LinkParam(Param):
         for key in self.__class__.Keys:
             if key in ['itmTotal','itmDown'] and self.itmDown==0:
                 continue
-            if key in ['varBw', 'varIntv'] and self.varBw==0:
+            if key in ['varBw', 'varIntv', 'varMethod'] and self.varBw==0:
                 continue
             string += IndentSpace*indent
             string += key+'\n'

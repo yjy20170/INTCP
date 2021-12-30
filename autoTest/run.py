@@ -25,6 +25,10 @@ if __name__=='__main__':
 
     os.chdir(sys.path[0])
 
+    if not isAnlz:
+        os.system("../appLayer/intcpApp/makes.sh")
+
+
     tpSetNames = ["expr"]
     for sno,tpSetName in enumerate(tpSetNames):
         if len(tpSetNames)!=1:

@@ -49,10 +49,10 @@ void *onNewSess(void* _sessPtr){
         IUINT32 curTime = _getMillisec();
         if(printTime==0||curTime-printTime>CheckInterval){
             if(printTime!=0){
-                printf("%4ds %3.2f Mbits/sec receiver\n",
-                        int((curTime - startTime)/1000),
-                        (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
-                );
+                // printf("%4ds %3.2f Mbits/sec receiver\n",
+                //         int((curTime - startTime)/1000),
+                //         (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
+                // );
                 //printf("start %u end %u\n",start,end);
             }
             throughput = 0;

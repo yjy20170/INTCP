@@ -41,11 +41,11 @@ using namespace std;
 
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
-const IUINT32 INTCP_MTU = 1400; //EXPR 1400
+const IUINT32 INTCP_MTU = 1400;
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
-const IUINT32 INTCP_UPDATE_INTERVAL = 2; //Unit: ms
+const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -123,7 +123,9 @@ struct Hole
 struct StatInfo
 {
     int ssid;
+    IUINT32 startTs;
     int xmit;
+    IUINT32 lastPrintTs;
     int thrpUDP; // Mbps
     int thrpINTCP;
 };
