@@ -4,11 +4,10 @@ from mininet.net import Mininet
 
 from testbed.TbNode import TbNode
 
-
-#TODO automatic; provide IP to application
 def splitLoss(loss,n):
     return 100*(1-(1-loss/100)**(1/n))
     
+#TODO automatic; provide IP to application
 def createNet(testParam):
     topo=Topo()
 

@@ -61,14 +61,13 @@ const IUINT32 INTCP_ASK_TELL = 2;        // need to send INTCP_CMD_WINS
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 1000;      //500
 const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_FACTOR = 1.05;
 const IUINT32 INTCP_SEQHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
 const IUINT32 INTCP_SEQHOLE_THRESHOLD = 3; // if three segs 
 
 // Congestion control
 const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
-const IUINT32 INTCP_SSTHRESH_INIT = 300;
+const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600
 const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
 // const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
 const IUINT32 INTCP_WND_RCV = 128;
@@ -78,7 +77,7 @@ const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;//TODO relation
 const IUINT16 INTCP_PCRATE_MIN = 10; //1KB/s
 
 // RTT-based
-const float QueueingThreshold = 30000; // unit: byte
+const float QueueingThreshold = 10000; // unit: byte
 const IUINT32 HrttMinWnd = 5000; // unit: ms
 
 

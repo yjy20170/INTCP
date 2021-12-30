@@ -1,5 +1,28 @@
 import threading
 
+TestbedThreads = []
+UserThreads = [] # threads to run on this testbed (transport & application layer)
+
+
+def threadFunc(cls,isTestbedThreads):
+    #print('123')
+    prefix = 'Testbed' if isTestbedThreads else 'User'
+    def wrapper(func):
+        name = func.__name__ + 'Thread'
+        def wrapped(*args, **kw):
+            print('[ %s Thread start ] %s' % (prefix,func.__name__))
+            ret = func(*args, **kw)
+            print('[ %s Thread  end  ] %s' % (prefix,func.__name__))
+            return ret
+        # global FuncsDict
+        # FuncsDict[func.__name__] = wrapper
+        if isTestbedThreads:
+            TestbedThreads.append(cls(func,name=name))
+        else:
+            UserThreads.append(cls(func,name=name))
+        return wrapped
+    return wrapper
+
 class NormalThread:# (threading.Thread):
     
     def __init__(self, func, name='xxx'):

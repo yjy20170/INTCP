@@ -1,8 +1,8 @@
 import copy
 
 class Param:
-    Keys = ['name']
-    SegDefault = {'name':'xxx'}
+    Keys = []
+    SegDefault = {}
     SegUnit = {}
     def __init__(self, template=None, **kwargs):
         for key in self.__class__.Keys:
@@ -103,12 +103,11 @@ class Param:
         return self.__class__(template=self)
 
 class LinkParam(Param):
-    Keys = ['name', 
-            'bw', 'rtt', 'loss', 
+    Keys = ['bw', 'rtt', 'loss', 
             'itmTotal', 'itmDown',
             'varBw', 'varIntv', 'varMethod',
     ]
-    SegDefault = {'name':'xxx',
+    SegDefault = {
             'bw':10, 'rtt':100, 'loss':0, #'rttTotal':200, 
             'itmTotal':20, 'itmDown':0,
             'varBw':0, 'varIntv':1, 'varMethod':'random'
@@ -118,23 +117,46 @@ class LinkParam(Param):
             'itmDown': 's','itmTotal':'s', 
             'varBw': 'Mbps', 'varIntv': 's'
     }
+    def serialize(self,indent=0):
+        IndentSpace = '    '
+        string = ''
+        for key in self.__class__.Keys:
+            if key in ['itmTotal','itmDown'] and self.itmDown==0:
+                continue
+            if key in ['varBw', 'varIntv'] and self.varBw==0:
+                continue
+            string += IndentSpace*indent
+            string += key+'\n'
+            if issubclass(self.get(key).__class__, Param):
+                string += self.get(key).serialize(indent+1)
+            else:
+                string += IndentSpace*(indent+1)
+                string += '%s'%self.get(key) + '\n'
+        return string
 
 class AbsTopoParam(Param):
     Keys = ['name',
+            'numMidNode',
             'nodes',
-            'links'
+            'links',
     ]
-    SegDefault = {'name':'xxx',
+    SegDefault = {'name':'NoName',
     }
     SegUnit = {
     }
+    def serialize(self,indent=0):
+        if self.name==self.SegDefault['name']:
+            return super(self).serialize(indent)
+        IndentSpace = '    '
+        string = ''
+        string += IndentSpace*(indent)
+        string += '%s'%self.get('name') + '\n'
+        return string
 
 # AppParam is defined by user
 class AppParam(Param):
-    Keys = ['name',
-            'threads', #NOTE AppParam must include this seg
-    ]
-    SegDefault = {'name':'xxx'}
+    Keys = []
+    SegDefault = {}
     SegUnit = {}
     def __init__(self, template=None, **kwargs):
         super().__init__(template=template, **kwargs)
@@ -145,13 +167,6 @@ class AppParam(Param):
         for key in self.__class__.Keys:
             string += IndentSpace*indent
             string += key+'\n'
-            if key == 'threads':
-                threads = self.get(key)
-                for th in threads:
-                    #print(th)
-                    string += IndentSpace*(indent+1)
-                    string += th.fname + '\n'
-                continue
             if issubclass(self.get(key).__class__, Param):
                 string += self.get(key).serialize(indent+1)
             else:
@@ -166,7 +181,7 @@ class TestParam(Param):
             'linkParams',
             'appParam'
     ]
-    SegDefault = {'name':'xxx'
+    SegDefault = {'name':'NoName'
     }
     SegUnit = {
     }
@@ -209,7 +224,7 @@ class TestParam(Param):
     
 
 class TestParamSet:
-    def __init__(self, tpsetName='xxx', tpTemplate=None, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
+    def __init__(self, tpsetName='NoName', tpTemplate=None, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
         self.tpsetName = tpsetName
         assert(tpTemplate!=None)
         self.tpTemplate = tpTemplate

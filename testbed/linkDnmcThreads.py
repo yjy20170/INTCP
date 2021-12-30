@@ -2,24 +2,8 @@ import time
 import random
 import math
 
-from .TbThread import NormalThread, LatchThread, atomic
+from .TbThread import *
 
-
-threads = []
-
-def threadFunc(cls):
-    def wrapper(func):
-        name = func.__name__ + 'Thread'
-        def wrapped(*args, **kw):
-            print('[ Testbed Thread start ] %s' % func.__name__)
-            ret = func(*args, **kw)
-            print('[ Testbed Thread  end  ] %s' % func.__name__)
-            return ret
-        # global FuncsDict
-        # FuncsDict[func.__name__] = wrapper
-        threads.append(cls(func,name=name))
-        return wrapped
-    return wrapper
 
 ### thread for dynamic link params control
 #TODO K for each link? or independent thread for each link?
@@ -50,7 +34,7 @@ def routeReset(mn,testParam):
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
     
-@threadFunc(NormalThread)
+@threadFunc(NormalThread,True)
 def LinkUpdate(mn, testParam, logPath):
     #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
@@ -108,7 +92,7 @@ def LinkUpdate(mn, testParam, logPath):
 ### thread for dynamic link up/down control
 #TODO one thread per link?
 
-@threadFunc(NormalThread)
+@threadFunc(NormalThread,True)
 def MakeItm(mn, testParam, logPath):
     linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].itmDown > 0]
     if linkNames == []:

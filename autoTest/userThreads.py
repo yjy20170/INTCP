@@ -1,27 +1,10 @@
 import time
 
-from testbed.TbThread import atomic, NormalThread, LatchThread
+from testbed.TbThread import *
 from FileUtils import delFile
 
 
-threads = []
-
-def threadFunc(cls):
-    #print('123')
-    def wrapper(func):
-        name = func.__name__ + 'Thread'
-        def wrapped(*args, **kw):
-            print('[ User Thread start ] %s' % func.__name__)
-            ret = func(*args, **kw)
-            print('[ User Thread  end  ] %s' % func.__name__)
-            return ret
-        # global FuncsDict
-        # FuncsDict[func.__name__] = wrapper
-        threads.append(cls(func,name=name))
-        return wrapped
-    return wrapper
-
-#@threadFunc(NormalThread)
+#@threadFunc(NormalThread,False)
 def Init(mn, testParam, logPath):
     for l in testParam.linkParams:
         nameA,nameB = l.split('-')
@@ -53,7 +36,7 @@ def kill_intcp_processes(mn,testParam):
             if not node=='h1' and not node=='h2':
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
             
-@threadFunc(LatchThread)
+@threadFunc(LatchThread,False)
 def ThroughputTest(mn,testParam,logPath):
     if testParam.appParam.get('isRttTest'):
         return
@@ -87,7 +70,7 @@ def ThroughputTest(mn,testParam,logPath):
         return
         
 #thread for test rtt
-@threadFunc(LatchThread)
+@threadFunc(LatchThread,False)
 def RttTest(mn, testParam, logPath):
     if not testParam.appParam.get('isRttTest'):
         return
@@ -102,9 +85,9 @@ def RttTest(mn, testParam, logPath):
     delFile(receiverLogFilePath)
     
     #if testParam.midCC != 'nopep':
-    #    atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
-        
-    #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(testParam.rttTestPacket,testParam.rttTotal,logFilePath))
+    #   atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
+    #RttTestPacketNum = 1000
+    #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(RttTestPacketNum,testParam.rttTotal,logFilePath))
     if testParam.appParam.get('protocol')=="TCP":   # h1->h2
         atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
         atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
@@ -137,7 +120,7 @@ def RttTest(mn, testParam, logPath):
         return
 
 # for intcp only
-# @threadFunc(LatchThread)
+# @threadFunc(LatchThread,False)
 def PerformTest(mn, testParam, logPath):
     if not testParam.appParam.get('protocol')=="INTCP":
         return

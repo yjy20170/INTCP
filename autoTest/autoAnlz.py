@@ -368,7 +368,7 @@ def getCdfParam(tp):
     midcc_dict = {'pep':"green",'nopep':'orangered'}
     
     color = loss_dict[tp.appParam.total_loss]
-    #color = nodes_dict[tp.appParam.midNodes]
+    #color = nodes_dict[tp.absTopoParam.numMidNode]
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     

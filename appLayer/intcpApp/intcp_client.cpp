@@ -35,7 +35,7 @@ void *onNewSess(void* _sessPtr){
     char recvBuf[MaxBufSize];
     IUINT32 start,end;
     IUINT32 rcn=0;
-    IUINT32 next_check_time = 0, startTime = _getMillisec();
+    IUINT32 printTime = 0, startTime = _getMillisec();
     IUINT32 throughput = 0;         //bytes
     const IUINT32 CheckInterval = 1000;
 
@@ -47,15 +47,16 @@ void *onNewSess(void* _sessPtr){
         if(ret==0)
             throughput += (end-start);
         IUINT32 curTime = _getMillisec();
-        if(next_check_time==0||curTime>next_check_time){
-            if(next_check_time==0)
-                next_check_time = curTime + CheckInterval;
-            else{
-                next_check_time += CheckInterval;
-                printf("%4ds %3.2f Mbits/sec receiver\n",int((curTime - startTime)/1000),(8*(double)throughput)/(1024*1024*CheckInterval/1000));
+        if(printTime==0||curTime-printTime>CheckInterval){
+            if(printTime!=0){
+                printf("%4ds %3.2f Mbits/sec receiver\n",
+                        int((curTime - startTime)/1000),
+                        (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
+                );
                 //printf("start %u end %u\n",start,end);
             }
             throughput = 0;
+            printTime = curTime;
         }
         if(ret<0)
             continue;

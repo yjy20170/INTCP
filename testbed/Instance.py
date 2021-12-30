@@ -1,12 +1,10 @@
 import os
 from mininet.cli import CLI
 
-from . import linkDnmcThreads
 from . import TbThread
 from . import RealNetwork
+from . import linkDnmcThreads # for threadFunc execution
 
-# net: topo of net
-# userThreads: things to run on this testbed (transport & application layer)
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
 def run(testParam, logPath, isManual):
@@ -15,9 +13,10 @@ def run(testParam, logPath, isManual):
 
     mn = RealNetwork.createNet(testParam)
     
-    threads = linkDnmcThreads.threads[:]
+    threads = TbThread.TestbedThreads[:]
     if not isManual:
-        threads += testParam.appParam.threads
+        threads += TbThread.UserThreads
+    # print(len(TbThread.TestbedThreads),len(TbThread.UserThreads))
     TbThread.smartStart(threads, (mn, testParam, logPath,) )
 
     if isManual:

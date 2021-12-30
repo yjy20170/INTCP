@@ -1,35 +1,32 @@
 from testbed.Param import *
-# from testbed.AbsNetwork import *
-
-import userThreads
 from testbed.RealNetwork import splitLoss
 
 class MyAppParam(AppParam):
-    Keys = ['name',
-            'threads', #NOTE AppParam must include this seg
-            'e2eCC', 'midCC','protocol',
-            'max_queue_size', 'txqueuelen',
-            'sendTime', 'sendRound', 
-            'isRttTest', 'rttTestPacket','total_loss','midNodes'
+    Keys = [
+            'max_queue_size', 'txqueuelen','total_loss',
+            'protocol','e2eCC', 'midCC',
+            'isRttTest',
+            'sendTime', 'sendRound'
     ]
-    SegDefault = {'name':'xxx',
+    SegDefault = {
         'e2eCC':'cubic', 'midCC':'nopep','protocol':'INTCP',
         'max_queue_size':1000,'txqueuelen':1000,
         'sendTime':120, 'sendRound':3, 
-        'isRttTest':0, 'rttTestPacket':0,'total_loss':0,'midNodes':1
+        'isRttTest':0, 'total_loss':0
     }
     # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
     # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
     SegUnit = {
         'max_queue_size':'packets','txqueuelen':'packets',
-        'sendTime':'s','total_loss':'%'
+        'total_loss':'%',
+        'sendTime':'s'
     }
 
 
 # basic topo
-topo_1_mid = AbsTopoParam(name='1_mid',nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
-topo_2_mid = AbsTopoParam(name='2_mid',nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
-topo_3_mid = AbsTopoParam(name='3_mid',nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+topo_1_mid = AbsTopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+topo_2_mid = AbsTopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
+topo_3_mid = AbsTopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
 
 # linkParams generator
 # argLP is LinkParam list or single LinkParam
@@ -46,7 +43,7 @@ def getLinkParams(links,argLP):
 linkParam_basic = LinkParam(loss=0, rtt=100, bw=20, varBw=0)
 linkParams_1_mid = getLinkParams(topo_1_mid.links, linkParam_basic)
 
-app_basic = MyAppParam(name='basic',threads=userThreads.threads,sendTime=30,sendRound=1,isRttTest=0,midCC='pep')
+app_basic = MyAppParam(sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
 
 tp_basic = TestParam(absTopoParam=topo_1_mid,linkParams=linkParams_1_mid,appParam=app_basic)
 
@@ -54,12 +51,15 @@ tp_basic = TestParam(absTopoParam=topo_1_mid,linkParams=linkParams_1_mid,appPara
 def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "expr":
-        tpSet = TestParamSet(tpsetName,tpTemplate=tp_basic,keyX='midNodes')
-        for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
+        tp = tp_basic.copy()
+        tp.update("appParam.midCC","pep")#"nopep"
+        tp.update("appParam.sendTime",30)
+        tpSet = TestParamSet(tpsetName,tpTemplate=tp,keyX='numMidNode')
+        # for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
+        for topo in [topo_3_mid]:
             tpSet.add({
-                    'absTopoParam':topo,
-                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=0.1)),
-                    'midNodes':[len(topo.nodes)-2] # use list, so that the name of TestParam will contain "midNodes_3"
+                    'absTopoParam':[topo], # use list, so that the name of TestParam is "xxx_topo_{topoName}"
+                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=0)),
             })
 
     return tpSet

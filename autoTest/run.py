@@ -10,6 +10,7 @@ from testbed import Instance
 import MyParam
 import FileUtils
 import autoAnlz
+import userThreads # for threadFunc execution
 
 
 if __name__=='__main__':
@@ -26,7 +27,8 @@ if __name__=='__main__':
 
     tpSetNames = ["expr"]
     for sno,tpSetName in enumerate(tpSetNames):
-        print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
+        if len(tpSetNames)!=1:
+            print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
         tpSet = MyParam.getTestParamSet(tpSetName)
 
         logPath = '%s/%s' % ('./logs', tpSetName)
@@ -37,7 +39,8 @@ if __name__=='__main__':
             FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
         
             for i,tp in enumerate(tpSet.testParams):
-                print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
+                if len(tpSet.testParams)!=1:
+                    print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
                 Instance.run(tp, logPath, isManual)
 
             FileUtils.fixOwnership(logPath, 'r')

@@ -910,8 +910,8 @@ void IntcpTransCB::flushIntBuf(){
             // } else if (_itimediff(current, segPtr->resendts) >= 0) {
             } else {
                 // RTO gain function: gain=f(xmit)
-                float gain = pow(1.5,segPtr->xmit-1);
-                if (_itimediff(current, segPtr->ts+IUINT32(rx_rto*gain)) >= 0) {
+                float gain = pow(1.5,segPtr->xmit-1)+0.1;//NOTE
+                if (rx_srtt != 0 && _itimediff(current, segPtr->ts+IUINT32(rx_rto*gain)) >= 0) {
                     hasLossEvent = true;
                     cntRTO++;
                     LOG(DEBUG,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
@@ -1093,15 +1093,15 @@ void IntcpTransCB::update()
     static IUINT32 printTime = _getMillisec()-1000;
     if(_getMillisec()-printTime>1000){
         if(nodeRole!=INTCP_REQUESTER){
-            LOG(DEBUG,"%d| %u pcrate %d sndq %d",
+            LOG(DEBUG,"%d| %u pcrate %d sndq %dmss",
                     ssid, _getMillisec(), rmtPacingRate, sndq_bytes/INTCP_MSS);
         }
         if(nodeRole!=INTCP_RESPONDER){
-            LOG(DEBUG,"%.2f: rtt %d hrtt %d cwnd %u thrp %.2f | intBytes %d rcvB %ld rnxt %u",
+            LOG(DEBUG,"%.2f: rtt %d hrtt %d cwnd %u thrp %.2f | intB %dmss rcvB %ld rnxt %u",
                     double(_getMillisec())/1000,
                     rx_srtt,hop_srtt,
                     cwnd,
-                    float(thrpStat)*8/1024/1024,
+                    float(thrpStat)*8/1024/1024/(_getMillisec()-printTime)*1000,
                     int_buf_bytes/INTCP_MSS,rcv_buf.size(),rcv_nxt);
             thrpStat = 0;
         }
