@@ -257,7 +257,7 @@ void* TransUpdateLoop(void *args){
         // }
         sessPtr->lock.lock();
         updateTime = sessPtr->transCB->check();
-        now = _getUsec();
+        now = _getMillisec();
         if (updateTime <= now) {
             // if(lastUpdateTime!=-1){
             //     LOG(DEBUG,"update interval %d", now - lastUpdateTime);

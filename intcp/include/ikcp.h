@@ -33,20 +33,19 @@ using namespace std;
 #define INTCP_RESPONDER 11
 #define INTCP_MIDNODE 12
 
-#define INTCP_CC_LOSSB 1
-#define INTCP_CC_RTTB 2
-const int CCscheme = INTCP_CC_RTTB;
+#define INTCP_RTT_SCHM_MAXWND 1
+#define INTCP_RTT_SCHM_EXPO 2
 
-//=====================================================================
-// KCP BASIC
-//=====================================================================
+#define INTCP_CC_SCHM_LOSSB 1
+#define INTCP_CC_SCHM_RTTB 2
+
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 const IUINT32 INTCP_MTU = 1400; //EXPR 1400
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
-const IUINT32 INTCP_UPDATE_INTERVAL = 5000; //Unit: usec //EXPR 100 -> 5
+const IUINT32 INTCP_UPDATE_INTERVAL = 2; //Unit: ms
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -54,31 +53,34 @@ const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
 // const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
 // const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
 
-const IUINT32 INTCP_ASK_SEND = 1;        // need to send INTCP_CMD_WASK
-const IUINT32 INTCP_ASK_TELL = 2;        // need to send INTCP_CMD_WINS
 
 // Retransmission
+const int RTTscheme = INTCP_RTT_SCHM_EXPO;
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 1000;      //500
+const IUINT32 INTCP_RTO_DEF = 5000;      //500
 const IUINT32 INTCP_RTO_MAX = 60000;
-const IUINT32 INTCP_SEQHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
-const IUINT32 INTCP_SEQHOLE_THRESHOLD = 3; // if three segs 
+const float INTCP_RTO_EXPO = 1.1;
+
+const IUINT32 INTCP_SNHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
+const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs 
 
 // Congestion control
+const int CCscheme = INTCP_CC_SCHM_RTTB;
+
 const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600
-const IUINT32 INTCP_SSTHRESH_MIN = 2;       //2 MSS
-// const IUINT32 INTCP_HOP_RTT_INTERVAL = 1000;  //1s to probe hop rtt
-const IUINT32 INTCP_WND_RCV = 128;
-// const IUINT32 INTCP_SNDQ_INIT = 5*INTCP_MSS;
-const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
-const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;//TODO relation
-const IUINT16 INTCP_PCRATE_MIN = 10; //1KB/s
-
+const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
 // RTT-based
 const float QueueingThreshold = 10000; // unit: byte
 const IUINT32 HrttMinWnd = 5000; // unit: ms
+
+const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
+const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;
+const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
+
+const float INTCP_SENDRATE_MIN = 0.1; //Mbps
+
 
 
 //=====================================================================
@@ -105,17 +107,25 @@ struct IntcpSeg
 struct IntRange
 {
     // ts is for rtt caclulation: 
-    // when response interest in recvedInts, 
+    // when response interest in pendingInts, 
     // copy the ts of interest to data packet header
-    IUINT32 start, end, ts;
+    IUINT32 startByte, endByte, ts;
 };
 
 struct Hole
 {
-    IUINT32 start, end; //packet level(sn)
-    IUINT32 byteStart, byteEnd; //byte level
+    IUINT32 startSn, endSn; //packet level(sn)
+    IUINT32 startByte, endByte; //byte level
     IUINT32 ts;
     int count;
+};
+
+struct StatInfo
+{
+    int ssid;
+    int xmit;
+    int thrpUDP; // Mbps
+    int thrpINTCP;
 };
 
 //---------------------------------------------------------------------
@@ -124,58 +134,67 @@ struct Hole
 class IntcpTransCB
 {
 private:
-    int ssid;
-	int state, dead_link;
-    
-	IUINT32 snd_nxt, rcv_nxt;    //still need rcv_nxt, snd_una & snd_nxt  may be discarded
-	IUINT32 snd_nxt_int; // sn of interest, for interest seq hole detection
-    int xmit;
-    
-    int cc_status;
-    //bytes received in congestion avoid phase, when reach cwnd*mtu, cwnd++
-    int ca_data_len;
-    // end-to-end rtt & rto
-    int rx_rttval, rx_srtt, rx_rto, rx_minrto;
-    list<int> rtt_queue;
-    // hop-by-hop
-    int intOwd, hop_rttval, hop_srtt;
-    IUINT32 rcv_wnd, cwnd, ssthresh, incr; //cc, incr is the cwnd for byte
-    IUINT32 last_cwnd_decrease_ts;
-    IUINT32 throuput_update_ts;
-    int rtt_throughput, rtt_received_bytes;
-    IUINT32 rmtPacingRate; // KB/s
-    // int rmt_sndq_rest;
-    int sndq_bytes, int_buf_bytes;
-    int dataOutputLimit, intOutputLimit;
-
-    // loss-based
-    bool hasLossEvent;
-    // RTT-based
-    list<pair<IUINT32,int>> hrtt_queue;
-    float throughput; // KB/s
-
-    int thrpStat;
+	int state;
+	IUINT32 updated, nextFlushTs;
+    StatInfo stat;
 
 
-	IUINT32 updated, updateInterval, nextFlushTs;
-    
+   	int nodeRole;
+
     //requester
-    list<IntRange> int_queue;
-    list<shared_ptr<IntcpSeg>> int_buf;
-    list<shared_ptr<IntcpSeg>> rcv_buf;
-    list<shared_ptr<IntcpSeg>> rcv_queue;
+    list<IntRange> intQueue;
+    list<shared_ptr<IntcpSeg>> intBuf;
+    list<shared_ptr<IntcpSeg>> rcvBuf;
+	IUINT32 rcvNxt; // for ordered data receiving
+    list<shared_ptr<IntcpSeg>> rcvQueue;
     //responder
-    list<IntRange> recvedInts;
-    list<shared_ptr<IntcpSeg>> snd_queue;
+    list<IntRange> pendingInts;
+    list<shared_ptr<IntcpSeg>> sndQueue;
+    shared_ptr<char> tmpBuffer;
 
 
-	int nodeRole;
-    //seqhole
+    /* ------------ Loss Recovery --------------- */
+    // end-to-end timeout
+    int srtt, rttval, rto;
+    list<int> rttQueue;
+
+    // hop-by-hop sn hole
+	IUINT32 dataNextSn, intNextSn;
     IUINT32 dataSnRightBound, dataByteRightBound, dataRightBoundTs;
     IUINT32 intSnRightBound, intByteRightBound, intRightBoundTs;
     list<Hole> dataHoles, intHoles;
-    void detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
-    bool detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
+    
+    
+    /* ----- hop-by-hop Congestion Control ----- */
+    int ccState;
+    int ccDataLen;
+    IUINT32 cwnd;
+    
+    int intOwdHop, srttHop, rttvalHop;
+    // throughput calculation for rtt-based CC and app-limited detection
+    IUINT32 lastThrpUpdateTs;
+    int recvedBytesLastHRTT, recvedBytesThisHRTT;
+    float thrpLastHRTT; // KB/s
+
+    // congestion signal
+    // loss-based
+    bool hasLossEvent;
+    // RTT-based
+    list<pair<IUINT32,int>> hrttQueue;
+
+    // to avoid severe cwnd decreasing in one hrtt
+    IUINT32 lastCwndDecrTs;
+
+    // send rate limitation for queue length control
+    int sndQueueBytes, intBufBytes;
+    // int rmt_sndq_rest;
+
+    // send rate notification and implementation
+    float rmtSendRate; // Mbps
+    int dataOutputLimit;
+
+
+
     
     void *user;
     int (*outputFunc)(const char *buf, int len, void *user, int dstRole);
@@ -184,7 +203,6 @@ private:
     int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user);
 	// also called by responseInterest
 
-    shared_ptr<char> tmpBuffer;
 
     // allocate a new kcp segment
     shared_ptr<IntcpSeg> createSeg(int size);
@@ -197,9 +215,11 @@ private:
     void flushData();
     
     int output(const void *data, int size, int dstRole);
-    void updateRTT(IINT32 rtt);
-    void updateHopRtt(IINT32 hop_rtt);
+    void updateRTT(IINT32 rtt, int xmit);
+    void updateHopRTT(IINT32 hop_rtt);
 
+    void detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
+    bool detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn);
     // after input
     void parseInt(IUINT32 rangeStart,IUINT32 rangeEnd);
 
@@ -212,7 +232,7 @@ private:
     
     void moveToRcvQueue();
     
-    IUINT16 getPacingRate();
+    IUINT16 getSendRate();
     
     void updateCwnd(IUINT32 dataLen);
     

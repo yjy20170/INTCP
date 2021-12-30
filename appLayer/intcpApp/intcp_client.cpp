@@ -15,8 +15,8 @@ void request_func(IntcpSess * _sessPtr){
     int sendStart = 0, ret;
     while(1){
         ret = _sessPtr->request(sendStart, sendStart+REQ_LEN);
-        if(ret == -1){// int_buf is full
-            LOG(TRACE,"int_buf is full");
+        if(ret == -1){// intBuf is full
+            LOG(TRACE,"intBuf is full");
         } else {
             LOG(TRACE,"request range [%d,%d)",sendStart,sendStart+REQ_LEN);
             sendStart += REQ_LEN;

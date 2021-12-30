@@ -52,8 +52,8 @@ def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "expr":
         tp = tp_basic.copy()
-        tp.update("appParam.midCC","pep")#"nopep"
-        tp.update("appParam.sendTime",30)
+        tp.update("appParam.midCC","nopep")#"nopep/pep"
+        tp.update("appParam.sendTime",60)
         tpSet = TestParamSet(tpsetName,tpTemplate=tp,keyX='numMidNode')
         # for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
         for topo in [topo_3_mid]:
