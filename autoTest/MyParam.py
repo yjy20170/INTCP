@@ -55,7 +55,7 @@ def getTestParamSet(tpsetName):
         tp_basic.appParam.sendTime=10
 
         losss = [0.1]*4
-        bandwidths = [20,20,20,40]
+        bandwidths = [40,40,20,40]
 
         lpList = []
         for i in range(4):

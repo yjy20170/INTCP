@@ -50,15 +50,13 @@ const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
 const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
-// const IUINT32 INTCP_CMD_HOP_RTT_ASK = 85;
-// const IUINT32 INTCP_CMD_HOP_RTT_TELL = 86;
 
 
 // Retransmission
 const int RTTscheme = INTCP_RTT_SCHM_EXPO;
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 10000;      //500
-const IUINT32 INTCP_RTO_MAX = 60000;
+const IUINT32 INTCP_RTO_MAX = 30000;
 const float INTCP_RTO_EXPO = 1.1;
 
 const IUINT32 INTCP_SNHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
@@ -106,6 +104,7 @@ struct IntcpSeg
 
 struct IntRange
 {
+    //TODO remove ts?
     // ts is for rtt caclulation: 
     // when response interest in pendingInts, 
     // copy the ts of interest to data packet header
@@ -176,7 +175,10 @@ private:
     /* ------------ Loss Recovery --------------- */
     // end-to-end timeout
     int srtt, rttval, rto;
+    // maxRtt window
     list<int> rttQueue;
+    // exponential
+    int conseqTimeout;
 
     // hop-by-hop sn hole
 	IUINT32 dataNextSn, intNextSn;
@@ -190,7 +192,11 @@ private:
     int ccDataLen;
     IUINT32 cwnd;
     
-    int intOwdHop, srttHop, rttvalHop;
+    int intHopOwd, hopSrtt, hopRttval;
+    // if there is no interest to send in short-term future, 
+    // requester needs to send empty interest for sendRate notification
+    // this is particularly necessary in slow start phase
+    IUINT32 lastSendIntTs; 
     // throughput calculation for rtt-based CC and app-limited detection
     IUINT32 lastThrpUpdateTs;
     int recvedBytesLastHRTT, recvedBytesThisHRTT;
@@ -235,6 +241,7 @@ private:
     void flushData();
     
     int output(const void *data, int size, int dstRole);
+    int outputInt(IUINT32 rangeStart, IUINT32 rangeEnd);
     void updateRTT(IINT32 rtt, int xmit);
     void updateHopRTT(IINT32 hop_rtt);
 
@@ -248,15 +255,12 @@ private:
 
     void parseData(shared_ptr<IntcpSeg> newseg);
     
-    void parseHopRttAsk(IUINT32 ts,IUINT32 sn,IUINT32 wnd);
-    
     void moveToRcvQueue();
     
     IUINT16 getSendRate();
     
     void updateCwnd(IUINT32 dataLen);
     
-    IUINT32 getCwnd();
     bool allow_cwnd_increase();
     bool allow_cwnd_decrease(IUINT32 current);
 //---------------------------------------------------------------------
@@ -306,10 +310,9 @@ public:
 // rarely use
 //---------------------------------------------------------------------
     // get how many packet is waiting to be sent
+    IUINT32 getCwnd();
     int getWaitSnd();
-
     int getRwnd();
-
     // check the size of next message in the recv queue
     int peekSize();
 };
