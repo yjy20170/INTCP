@@ -53,7 +53,7 @@ void *onNewSess(void* _sessPtr){
                 //         int((curTime - startTime)/1000),
                 //         (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
                 // );
-                //printf("start %u end %u\n",start,end);
+                //LOG(TRACE,"start %u end %u\n",start,end);
             }
             throughput = 0;
             printTime = curTime;
@@ -67,7 +67,7 @@ void *onNewSess(void* _sessPtr){
         while(1){
             if(pos+sizeof(IUINT32)*2>end)
                 break;
-            //printf("%d %d %d\n",pos,start,end);
+            //LOG(TRACE,"%d %d %d\n",pos,start,end);
             IUINT32 sendTime = *((IUINT32 *)(recvBuf+pos-start));
             IUINT32 xmit = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)));
             IUINT32 recvTime = *((IUINT32 *)(recvBuf+pos-start+sizeof(IUINT32)*2));
@@ -76,7 +76,7 @@ void *onNewSess(void* _sessPtr){
             // LOG(TRACE, "recv [%d,%d)\n", start, end);
 
             // if(recvTime<1000){
-            //printf("recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
+            //LOG(TRACE,"recv [%d,%d) xmit %u intcpRtt %u owd_noOrder %u sendTime %u recvTime %u curTime %u owd_obs %u\n",pos,pos+REQ_LEN,xmit,recvTime-firstTs,recvTime-sendTime,sendTime,recvTime,curTime, curTime-sendTime);
                 // abort();
             // }
             fflush(stdout);
@@ -89,9 +89,8 @@ void *onNewSess(void* _sessPtr){
 int main(){
     Cache cache(QUAD_STR_LEN);
     ByteMap<shared_ptr<IntcpSess>> sessMap;
-    printf("entering intcpc\n");
+    LOG(INFO,"entering intcpc\n");
     startRequester(&cache,&sessMap,onNewSess,
         "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);
-    //printf(_round_up())
     return 0;
 }

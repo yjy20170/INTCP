@@ -7,7 +7,7 @@ void *onNewSess(void* _sessPtr){
     char reqIP[30],respIP[30];
     writeIPstr(reqIP, sessPtr->requesterAddr.sin_addr.s_addr);
     writeIPstr(respIP, sessPtr->responderAddr.sin_addr.s_addr);
-    LOG(DEBUG,"new sess req %s:%d resp %s:%d",
+    LOG(INFO,"new sess req %s:%d resp %s:%d",
             reqIP,
             ntohs(sessPtr->requesterAddr.sin_port),
             respIP,
@@ -26,10 +26,19 @@ void *onNewSess(void* _sessPtr){
     return nullptr;
 }
 
-int main(){
+int main(int argc,char **argv){
+    if(argc==2 && argv[1][0]=='c'){
+        chdirProgramDir();
+        char cmd[50];
+        sprintf(cmd,"../../intcp/cleaript.sh");
+        system(cmd);
+        LOG(INFO,"ip table cleared.");
+        return 0;
+    }
+
     Cache cache(QUAD_STR_LEN);
     ByteMap<shared_ptr<IntcpSess>> sessMap;
-    printf("entering intcpm\n");
+    LOG(INFO,"entering intcpm\n");
     fflush(stdout);
     startMidnode(&cache,&sessMap,onNewSess,DEFAULT_MID_PORT);
     

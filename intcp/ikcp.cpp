@@ -73,13 +73,7 @@ recvedBytesLastHRTT(0),
 hasLossEvent(false),
 thrpLastHRTT(-1)
 {
-    IUINT32 current = _getMillisec();
-    stat.ssid = current%10000;
-    stat.startTs = current;
-    stat.xmit = 0;
-    stat.lastPrintTs = current;
-    stat.thrpINTCP = 0;
-    stat.thrpUDP = 0;
+    stat.init();
 
     void *tmp = malloc(INTCP_MTU * 3);
     assert(tmp != NULL);
@@ -219,7 +213,7 @@ int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
 void IntcpTransCB::updateRTT(IINT32 rtt, int xmit)
 {
     if(xmit>1){
-        LOG(DEBUG,"retrans packet rtt %d",rtt);
+        LOG(TRACE,"retrans packet rtt %d",rtt);
     }
     if(rtt<=0){
         return;
@@ -292,91 +286,89 @@ void IntcpTransCB::updateHopRTT(IINT32 hop_rtt){
 }
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
-    // if(isMidnode){
-    if(true){
-        IUINT32 current = _getMillisec();
-        if(intSnRightBound==-1 || current-intRightBoundTs>INTCP_SNHOLE_TIMEOUT){
-            intSnRightBound = sn+1;
-            intByteRightBound = rangeEnd;
-            intRightBoundTs = current;
-            intHoles.clear();
-        }else{
-            // locate the position of seg in intHoles
-            list<Hole>::iterator iter,next;
-            for(iter=intHoles.begin(); iter!=intHoles.end();iter=next){
-                next=iter;next++;
-                if(current-iter->ts>INTCP_SNHOLE_TIMEOUT){
+    IUINT32 current = _getMillisec();
+    if(intSnRightBound==-1 || current-intRightBoundTs>INTCP_SNHOLE_TIMEOUT){
+        intSnRightBound = sn+1;
+        intByteRightBound = rangeEnd;
+        intRightBoundTs = current;
+        intHoles.clear();
+    }else{
+        // locate the position of seg in intHoles
+        list<Hole>::iterator iter,next;
+        for(iter=intHoles.begin(); iter!=intHoles.end();iter=next){
+            next=iter;next++;
+            if(current-iter->ts>INTCP_SNHOLE_TIMEOUT){
+                intHoles.erase(iter);
+            } else if(sn >= iter->endSn){
+                iter->count++;
+                if(iter->count >= INTCP_SNHOLE_THRESHOLD){
+                    if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_INT_RANGE_LIMIT){
+                        LOG(INFO, "---- Abnormal int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
+                    } else {
+                        stat.cntIntHole++;
+                        LOG(TRACE,"---- int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
+                        parseInt(iter->startByte, iter->endByte);
+                    }
                     intHoles.erase(iter);
-                } else if(sn >= iter->endSn){
-                    iter->count++;
-                    if(iter->count >= INTCP_SNHOLE_THRESHOLD){
-                        if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_INT_RANGE_LIMIT){
-                            LOG(DEBUG, "abnormal! ignore this hole");
-                        } else {
-                            LOG(DEBUG,"---- int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
-                            parseInt(iter->startByte, iter->endByte);
-                        }
+                }
+            } else if(sn >= iter->startSn){
+                if(sn == iter->startSn){
+                    if(sn == iter->endSn-1){ // hole is fixed
                         intHoles.erase(iter);
+                    } else {
+                        iter->startSn++;
+                        iter->startByte = rangeEnd;
                     }
-                } else if(sn >= iter->startSn){
-                    if(sn == iter->startSn){
-                        if(sn == iter->endSn-1){ // hole is fixed
-                            intHoles.erase(iter);
-                        } else {
-                            iter->startSn++;
-                            iter->startByte = rangeEnd;
-                        }
-                    }else if(sn == iter->endSn-1){
-                        iter->endSn--;
-                        iter->endByte = rangeStart;
-                        iter->count++;
-                    }else{
-                        Hole newHole;
-                        newHole.count = iter->count;
-                        newHole.startSn = sn+1;
-                        newHole.endSn = iter->endSn;
-                        newHole.startByte = rangeEnd;
-                        newHole.endByte = iter->endByte;
-                        newHole.ts = iter->ts;
-                        intHoles.insert(next, newHole);
-
-                        iter->endSn = sn;
-                        iter->endByte = rangeStart;
-                        iter->count++;
-                    }
-                } else { // segPtr->sn < iter->startSn
-                    // for this hole and subsequent holes, all hole.start > sn
-                    break;
-                }
-            }
-            if(sn >= intSnRightBound){
-                if(sn > intSnRightBound && (rangeStart>intByteRightBound)){
-                    // add a new hole
+                }else if(sn == iter->endSn-1){
+                    iter->endSn--;
+                    iter->endByte = rangeStart;
+                    iter->count++;
+                }else{
                     Hole newHole;
-                    newHole.startSn = intSnRightBound;
-                    newHole.endSn = sn;
-                    newHole.startByte = intByteRightBound;
-                    newHole.endByte = rangeStart;
-                    newHole.ts = current;
-                    newHole.count = 1;
-                    intHoles.push_back(newHole);
+                    newHole.count = iter->count;
+                    newHole.startSn = sn+1;
+                    newHole.endSn = iter->endSn;
+                    newHole.startByte = rangeEnd;
+                    newHole.endByte = iter->endByte;
+                    newHole.ts = iter->ts;
+                    intHoles.insert(next, newHole);
+
+                    iter->endSn = sn;
+                    iter->endByte = rangeStart;
+                    iter->count++;
                 }
-                intSnRightBound = sn+1;
-                intByteRightBound = _imax_(intByteRightBound,rangeEnd);
-                intRightBoundTs = current;
+            } else { // segPtr->sn < iter->startSn
+                // for this hole and subsequent holes, all hole.start > sn
+                break;
             }
-            
         }
-        if(!intHoles.empty()){
-            char tmp[100];
-            string str;
-            for(auto ho:intHoles){
-                snprintf(tmp,100,"   [ st %d end %d bSt %d bEnd %d ]",ho.startSn,ho.endSn,ho.startByte,ho.endByte);
-                str += tmp;
+        if(sn >= intSnRightBound){
+            if(sn > intSnRightBound && (rangeStart>intByteRightBound)){
+                // add a new hole
+                Hole newHole;
+                newHole.startSn = intSnRightBound;
+                newHole.endSn = sn;
+                newHole.startByte = intByteRightBound;
+                newHole.endByte = rangeStart;
+                newHole.ts = current;
+                newHole.count = 1;
+                intHoles.push_back(newHole);
             }
-            LOG(TRACE,"sn %d intHoles: %ld %s",
-                    sn,intHoles.size(),str.c_str());
+            intSnRightBound = sn+1;
+            intByteRightBound = _imax_(intByteRightBound,rangeEnd);
+            intRightBoundTs = current;
         }
+        
+    }
+    if(!intHoles.empty()){
+        char tmp[100];
+        string str;
+        for(auto ho:intHoles){
+            snprintf(tmp,100,"   [ st %d end %d bSt %d bEnd %d ]",ho.startSn,ho.endSn,ho.startByte,ho.endByte);
+            str += tmp;
+        }
+        LOG(TRACE,"sn %d intHoles: %ld %s",
+                sn,intHoles.size(),str.c_str());
     }
 }
 void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
@@ -513,14 +505,10 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                 if(iter->count >= INTCP_SNHOLE_THRESHOLD){
                     found_new_loss = true;
                     if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_MSS){
-                        LOG(DEBUG, "abnormal hole! [%d,%d) sn [%d,%d)",
-                                iter->startByte, iter->endByte,iter->startSn,iter->endSn);
-                        // for(auto kh:dataHoles){
-                        //     cout<<kh.byteStart<<','<<kh.byteEnd<<' ';
-                        // }
-                        // cout<<endl;
+                        LOG(INFO, "---- Abnormal data hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
+                        stat.cntDataHole++;
                     } else {
-                        LOG(TRACE,"---- d hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
+                        LOG(TRACE,"---- data hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
                         parseInt(iter->startByte,iter->endByte);
                         list<shared_ptr<IntcpSeg>>::iterator iterInt;
                         // if the range of this hole could cover an interest in intBuf, modify the ts of interest
@@ -930,11 +918,11 @@ void IntcpTransCB::flushIntBuf(){
     // from intBuf to udp
     list<shared_ptr<IntcpSeg>>::iterator p,next;
 
-    int cnt=0,cntRTO=0,cntXmit=0;
+    int cntAll=0,cntTimeout=0,cntRetransed=0;
 
     // bool reach_limit = false;
     for (p = intBuf.begin(); p != intBuf.end(); p=next) {
-        cnt++;
+        cntAll++;
         next=p;next++;
         IUINT32 current = _getMillisec();
         shared_ptr<IntcpSeg> segPtr = *p;
@@ -943,17 +931,17 @@ void IntcpTransCB::flushIntBuf(){
             needsend = 1;
         } else {
             // RTO mechanism
-            if (segPtr->xmit >= 2) {cntXmit++;}
+            if (segPtr->xmit >= 2) {cntRetransed++;}
             if (segPtr->xmit == 0) {
                 needsend = 1;
             // } else if (_itimediff(current, segPtr->resendts) >= 0) {
             } else {
                 // RTO gain function: gain=f(xmit)
                 float gain = pow(1.5,segPtr->xmit-1)+0.1;//NOTE
-                if (srtt != 0 && _itimediff(current, segPtr->ts+IUINT32(rto*gain)) >= 0) {
+                if (_itimediff(current, segPtr->ts+IUINT32(rto*gain)) >= 0) {
                     hasLossEvent = true;
-                    cntRTO++;
-                    LOG(DEBUG,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
+                    cntTimeout++;
+                    LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                             segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                     needsend = 1;
                     stat.xmit++;
@@ -1034,8 +1022,9 @@ void IntcpTransCB::flushIntBuf(){
     // if(!reach_limit){
     //     intOutputLimit = 0;//min();
     // }
-    LOG(TRACE,"RTO %d %d/%d/%d",rto,cntRTO,cntXmit,cnt);
-    if(RTTscheme==INTCP_RTT_SCHM_EXPO && cntRTO>0){
+    LOG(TRACE,"RTO %d %d/%d/%d",rto,cntTimeout,cntRetransed,cntAll);
+    stat.cntTimeout += cntTimeout;
+    if(RTTscheme==INTCP_RTT_SCHM_EXPO && cntTimeout>0){
         srtt = srtt * INTCP_RTO_EXPO;
         rto = rto * INTCP_RTO_EXPO;
     }
@@ -1133,27 +1122,33 @@ void IntcpTransCB::flush(){
 void IntcpTransCB::update()
 {
     IUINT32 current = _getMillisec();
+    if (srtt==0 && current-stat.startTs >= INTCP_RTO_MAX) {
+        state = -1;
+        LOG(ERROR, "dead link");
+        abort();
+    }
     if(current-stat.lastPrintTs>1000){
         if(nodeRole!=INTCP_REQUESTER){
-            LOG(DEBUG,"%d| %u rmtSndr %.2f sndq %d",
-                    stat.ssid, current, rmtSendRate, sndQueueBytes/INTCP_MSS);
+            LOG(DEBUG,"%d| %4d rmtSndr %.2f sndq %d ih %d",
+                    stat.ssid, (current-stat.startTs)/1000,
+                    rmtSendRate, sndQueueBytes/INTCP_MSS,
+                    stat.cntIntHole);
         }
         if(nodeRole!=INTCP_RESPONDER){
-            LOG(DEBUG,"rtt %d %d cwnd %u sndr %.2f thrpU/I %.2f/%.2f |intB %d rcvB %ld",
+            LOG(DEBUG,"rtt %d %d cwnd %u sndr %.2f thrpI/W %.2f/%.2f iB %d rB %ld to/dh %d/%d",
                     srtt,srttHop,
                     cwnd,
                     float(getSendRate())/100,
-                    float(stat.thrpUDP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
                     float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
-                    intBufBytes/INTCP_MSS,rcvBuf.size());
-            printf("  %ds %.2f Mbits/sec receiver\n",
+                    float(stat.thrpUDP-stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
+                    intBufBytes/INTCP_MSS,rcvBuf.size(),
+                    stat.cntTimeout,stat.cntDataHole);
+            printf("  %4ds %.2f Mbits/sec receiver\n",
                     (current-stat.startTs)/1000,
                     float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
             );
-            stat.thrpUDP = 0;
-            stat.thrpINTCP = 0;
         }
-        stat.lastPrintTs = _getMillisec();
+        stat.reset();
     }
     if (updated == 0) {
         updated = 1;

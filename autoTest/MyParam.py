@@ -40,7 +40,7 @@ def getLinkParams(links,argLP):
         dic[f'{link[0]}-{link[1]}'] = lp
     return dic
 # example
-linkParam_basic = LinkParam(loss=0, rtt=100, bw=20, varBw=0)
+linkParam_basic = LinkParam(loss=0, rtt=100, bw=20)
 linkParams_1_mid = getLinkParams(topo_1_mid.links, linkParam_basic)
 
 app_basic = MyAppParam(sendTime=180,sendRound=1,isRttTest=0,midCC='pep')
@@ -51,17 +51,21 @@ tp_basic = TestParam(absTopoParam=topo_1_mid,linkParams=linkParams_1_mid,appPara
 def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "expr":
-        tp = tp_basic.copy()
-        tp.update("appParam.midCC","pep")#"nopep/pep"
-        tp.update("appParam.sendTime",60)
-        loss = 1
-        tpSet = TestParamSet(tpsetName,tpTemplate=tp,keyX='numMidNode')
-        # for topo in [topo_1_mid,topo_2_mid,topo_3_mid]:
-        for topo in [topo_3_mid]:
-            tpSet.add({
-                    'absTopoParam':[topo], # use list, so that the name of TestParam is "xxx_topo_{topoName}"
-                    'linkParams':getLinkParams(topo.links, LinkParam(linkParam_basic,loss=loss)),
-            })
+        tp_basic.appParam.midCC="pep" #"nopep/pep"
+        tp_basic.appParam.sendTime=10
+
+        losss = [0.1]*4
+        bandwidths = [20,20,20,40]
+
+        lpList = []
+        for i in range(4):
+            lpList.append(LinkParam(linkParam_basic,bw=bandwidths[i],loss=losss[i]))
+        lps = getLinkParams(topo_3_mid.links, lpList)
+        tpSet = TestParamSet(tpsetName,tpTemplate=tp_basic,keyX='numMidNode')
+        tpSet.add({
+                'absTopoParam':[topo_3_mid], # use list, so that the name of TestParam is "xxx_topo_{topoName}"
+                'linkParams':lps,
+        })
 
     return tpSet
 

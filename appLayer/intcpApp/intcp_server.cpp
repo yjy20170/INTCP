@@ -26,7 +26,7 @@ int provideData(IUINT32 start, IUINT32 end, void *_sessPtr){
 }
 
 void *onNewSess(void* _sessPtr){
-    LOGL(DEBUG);
+    LOG(INFO,"");
     /*
     IntcpSess *sessPtr = (IntcpSess*)_sessPtr;
     char dataBuf[TOTAL_DATA_LEN];
@@ -47,7 +47,7 @@ void *onNewSess(void* _sessPtr){
 int main(){
     Cache cache(QUAD_STR_LEN);
     ByteMap<shared_ptr<IntcpSess>> sessMap;
-    printf("entering intcps\n");
+    LOG(INFO,"entering intcps");
     fflush(stdout);
     startResponder(&cache,&sessMap,onNewSess,provideData,
             "10.0.100.2", DEFAULT_SERVER_PORT);

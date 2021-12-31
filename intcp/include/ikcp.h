@@ -57,7 +57,7 @@ const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
 // Retransmission
 const int RTTscheme = INTCP_RTT_SCHM_EXPO;
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
-const IUINT32 INTCP_RTO_DEF = 5000;      //500
+const IUINT32 INTCP_RTO_DEF = 10000;      //500
 const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_EXPO = 1.1;
 
@@ -120,14 +120,32 @@ struct Hole
     int count;
 };
 
-struct StatInfo
+class StatInfo
 {
+public:
     int ssid;
     IUINT32 startTs;
+
     int xmit;
     IUINT32 lastPrintTs;
     int thrpUDP; // Mbps
     int thrpINTCP;
+    int cntTimeout,cntIntHole,cntDataHole;
+
+    void reset(){
+        int ssidTmp=ssid;
+        IUINT32 startTsTmp=startTs;
+        memset(this,0,sizeof(*this));
+        ssid = ssidTmp;
+        startTs = startTsTmp;
+        lastPrintTs = _getMillisec();
+    }
+    void init(){
+        IUINT32 current = _getMillisec();
+        ssid = current%10000;
+        startTs = current;
+        reset();
+    }
 };
 
 //---------------------------------------------------------------------

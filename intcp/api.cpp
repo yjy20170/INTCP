@@ -6,20 +6,20 @@ int chdirProgramDir(){
     char _exec_name_ [BUFSIZ];
     ret = readlink ("/proc/self/exe", _exec_name_, BUFSIZ);
     if(ret==-1){
-        printf("get exec file's path failed.\n");
+        LOG(ERROR,"get exec file's path failed.");
         return -1;
     }
     string _temp_s_ = _exec_name_;
     int _index_s_ = _temp_s_.find_last_of("/");
     if(_index_s_==string::npos){
-        printf("get exec file's dir path failed.\n");
+        LOG(ERROR,"get exec file's dir path failed.");
         return -2;
     }
     _curPath_s_ = _temp_s_.substr(0, _index_s_);
-    LOG(DEBUG,"%s",_curPath_s_.c_str());
+    LOG(TRACE,"%s",_curPath_s_.c_str());
     ret = chdir(_curPath_s_.c_str());
     if(ret!=0){
-        printf("chdir error.\n");
+        LOG(ERROR,"chdir error.");
         return -3;
     }
 

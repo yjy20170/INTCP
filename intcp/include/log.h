@@ -4,31 +4,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#define TRACE 1
-#define DEBUG 3
-#define WARN 5
-#define ERROR 7
-#define SILENT 10
+#define TRACE 0
+#define DEBUG 2
+#define INFO 4
+#define WARN 6
+#define SILENT 8
+#define ERROR 10
 
 #define LOG_LEVEL DEBUG
-
-
-#define LOGL(level) \
-    if(level>=LOG_LEVEL){ \
-        char fileStr[100]{__FILE__}; \
-        const char *ptrL = strrchr(fileStr,'/'); \
-        if(ptrL==NULL) { \
-            ptrL = fileStr; \
-        }else{ \
-            ptrL++; \
-        } \
-        int limit = 30; \
-        char prefix[limit+4]; \
-        memset(prefix,' ',limit+4); \
-        snprintf(prefix, limit+1, "%s@%s,%d", \
-                __func__, ptrL, __LINE__); \
-        printf("%s\n",prefix); \
-    }
 
 #define LOG(level, format, ...) \
     if(level>=LOG_LEVEL){ \
@@ -39,14 +22,17 @@
         }else{ \
             ptrL++; \
         } \
-        int limit_for_log_h = 30; \
-        char prefix[limit_for_log_h+4]; \
-        memset(prefix,' ',limit_for_log_h+4); \
-        snprintf(prefix, limit_for_log_h+1, "%s@%s,%d", \
-                __func__, ptrL, __LINE__); \
-        prefix[strlen(prefix)]=' '; \
-        prefix[limit_for_log_h+1] = '|'; \
-        prefix[limit_for_log_h+3] = '\0'; \
+        char prefix[50]; \
+        memset(prefix,' ',50); \
+        int FuncNameLen=8,ProgramNameLen=10,LineLen=4; \
+        int TotalLen=FuncNameLen+ProgramNameLen+LineLen+2; \
+        snprintf(prefix, 50, "%*.*s@%*.*s %*d", \
+                FuncNameLen,FuncNameLen,__func__, \
+                ProgramNameLen,ProgramNameLen,ptrL, \
+                LineLen,__LINE__); \
+        prefix[TotalLen] = '|'; \
+        prefix[TotalLen+1] = ' '; \
+        prefix[TotalLen+2] = '\0'; \
         printf("%s" format "\n",prefix,##__VA_ARGS__); \
     }
 
