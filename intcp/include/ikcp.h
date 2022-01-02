@@ -56,7 +56,7 @@ const IUINT32 INTCP_CMD_PUSH = 81;        // cmd: push data
 const int RTTscheme = INTCP_RTT_SCHM_EXPO;
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 10000;      //500
-const IUINT32 INTCP_RTO_MAX = 30000;
+const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_EXPO = 1.1;
 
 const IUINT32 INTCP_SNHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
@@ -73,7 +73,7 @@ const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
 const float QueueingThreshold = 10000; // unit: byte
 const IUINT32 HrttMinWnd = 5000; // unit: ms
 
-const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS;
+const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 

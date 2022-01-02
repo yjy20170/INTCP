@@ -1,22 +1,23 @@
 import time
 
+from testbed import Param
 from testbed.TbThread import *
 from FileUtils import delFile
 
 
 #@threadFunc(NormalThread,False)
 def Init(mn, testParam, logPath):
-    for l in testParam.linkParams:
-        nameA,nameB = l.split('-')
+    for l in testParam.topoParam.linkNames():
+        nameA,nameB = l.split(Param.LinkNameSep)
         nodeA = mn.getNodeByName(nameA)
         switch = mn.getNodeByName(l)
         nodeB = mn.getNodeByName(nameB)
 
         atomic(nodeA.cmd)("ifconfig %s txqueuelen %d"%(l,testParam.appParam.txqueuelen))
-        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+'-'+nameA,testParam.appParam.txqueuelen))
+        atomic(nodeB.cmd)("ifconfig %s txqueuelen %d"%(nameB+Param.LinkNameSep+nameA,testParam.appParam.txqueuelen))
         
         ### max_queue_size
-        # tc -s -d qdisc show dev pep-eth2
+        # tc -s -d qdisc show dev pep_eth2
         # print(testParam.max_queue_size)
         intf = nodeA.connectionsTo(switch)[0][0]
         cmds, parent = atomic(intf.delayCmds)(max_queue_size=testParam.appParam.max_queue_size,is_change=True,intf=intf)
@@ -32,7 +33,7 @@ def kill_intcp_processes(mn,testParam):
     atomic(mn.getNodeByName('h2').cmd)('killall intcps')
     atomic(mn.getNodeByName('h1').cmd)('killall intcpc')
     if testParam.appParam.midCC != 'nopep':
-        for node in testParam.absTopoParam.nodes:
+        for node in testParam.topoParam.nodes:
             if not node=='h1' and not node=='h2':
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
             
@@ -55,8 +56,8 @@ def ThroughputTest(mn,testParam,logPath):
         for i in range(testParam.appParam.sendRound):
             if testParam.appParam.midCC != 'nopep':
                 
-                for node in testParam.absTopoParam.nodes:
-                    if not node=='h1' and not node=='h2':
+                for node in testParam.topoParam.nodes:
+                    if node not in ['h1','h2']:
                         # print(node,"run intcpm")
                         atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                         time.sleep(2)
@@ -102,7 +103,7 @@ def RttTest(mn, testParam, logPath):
         
         if testParam.appParam.midCC != 'nopep':
             
-            for node in testParam.absTopoParam.nodes:
+            for node in testParam.topoParam.nodes:
                 if not node=='h1' and not node=='h2':
                     # print(node,"run intcpm")
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')

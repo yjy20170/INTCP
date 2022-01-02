@@ -3,6 +3,7 @@ import random
 import math
 
 from .TbThread import *
+from . import Param
 
 
 ### thread for dynamic link params control
@@ -25,7 +26,7 @@ def generateBw(policy, meanbw,varbw, prd=10):
   
 
 def routeReset(mn,testParam):
-    nodes = testParam.absTopoParam.nodes
+    nodes = testParam.topoParam.nodes
     for i in range(len(nodes)-1):
         if i == len(nodes)-2:
             seg = 100
@@ -52,12 +53,15 @@ def LinkUpdate(mn, testParam, logPath):
 
     global K
     K = 1
-    linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].varBw > 0]
+    linkNames = []
+    for ln in testParam.topoParam.linkNames():
+        if testParam.linksParam.getLP(ln).varBw>0:
+            linkNames.append(ln)
     if linkNames == []:
         return
     while LatchThread.isRunning():
         for linkName in linkNames:
-            nameA,nameB = linkName.split('-')
+            nameA,nameB = linkName.split(Param.LinkNameSep)
             nodeA = mn.getNodeByName(nameA)
             switch = mn.getNodeByName(linkName)
             nodeB = mn.getNodeByName(nameB)
@@ -66,52 +70,57 @@ def LinkUpdate(mn, testParam, logPath):
             #     newBw = generateBw('square', testParam.linkParams[linkName].bw, testParam.linkParams[linkName].varBw)
             #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
             #         config(intf, bw=newBw)
-            #     if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
+            #     if testParam.linkParams['pep_h2'].varMethod == 'squareHighPulse':
             #         time.sleep(5)
             #     else:
-            #         time.sleep(testParam.linkParams['pep-h2'].varIntv)
+            #         time.sleep(testParam.linkParams['pep_h2'].varIntv)
 
             #     # newBw = generateBw('random',testParam.bw,testParam.varBw)
-            #     newBw = generateBw('square', testParam.linkParams['pep-h2'].bw, testParam.linkParams['pep-h2'].varBw)
+            #     newBw = generateBw('square', testParam.linkParams['pep_h2'].bw, testParam.linkParams['pep-h2'].varBw)
             #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
             #         config(intf, bw=newBw)
-            #     if testParam.linkParams['pep-h2'].varMethod == 'squareHighPulse':
-            #         time.sleep(testParam.linkParams['pep-h2'].varIntv)
+            #     if testParam.linkParams['pep_h2'].varMethod == 'squareHighPulse':
+            #         time.sleep(testParam.linkParams['pep_h2'].varIntv)
             #     else:
             #         time.sleep(5)
             # else:
-            newBw = generateBw(testParam.linkParams[linkName].varMethod, testParam.linkParams[linkName].bw, testParam.linkParams[linkName].varBw)
+            lp = testParam.linksParam.getLP(linkName)
+            newBw = generateBw(lp.varMethod, lp.bw, lp.varBw)
             for intf in (nodeA.connectionsTo(switch)[0]+
                     switch.connectionsTo(nodeA)[0]+
                     switch.connectionsTo(nodeB)[0]+
                     nodeB.connectionsTo(switch)[0]):
                 config(intf,bw=newBw)
         # linkName is the name of last link in linkNames
-        time.sleep(testParam.linkParams[linkName].varIntv)
+         #TODO what if the links have different varIntv
+        time.sleep(testParam.linksParam.basicLP.varIntv)
 
-### thread for dynamic link up/down control
-#TODO one thread per link?
 
 @threadFunc(NormalThread,True)
 def MakeItm(mn, testParam, logPath):
-    linkNames = [l for l in testParam.linkParams if testParam.linkParams[l].itmDown > 0]
+    linkNames = []
+    for ln in testParam.topoParam.linkNames():
+        if testParam.linksParam.getLP(ln).itmDown>0:
+            linkNames.append(ln)
     if linkNames == []:
         return
     
+    #TODO what if the links have different itmTotal/itmDown
+    anyLP = testParam.linksParam.getLP(linkNames[-1])
     while LatchThread.isRunning():
         #print("aaaaaaa")
-        time.sleep(testParam.linkParams[linkNames[-1]].itmTotal-testParam.linkParams[linkNames[-1]].itmDown)
+        time.sleep(anyLP.itmTotal-anyLP.itmDown)
         #print("down")
         for l in linkNames:
-            nameA,nameB = l.split('-')
+            nameA,nameB = l.split(Param.LinkNameSep)
             atomic(mn.getNodeByName(nameA).cmd)('echo')
             atomic(mn.configLinkStatus)(nameA,l,'down')
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'down')
-        time.sleep(testParam.linkParams[linkNames[-1]].itmDown)
+        time.sleep(anyLP.itmDown)
         #print("up")
         for l in linkNames:
-            nameA,nameB = l.split('-')
+            nameA,nameB = l.split(Param.LinkNameSep)
             atomic(mn.getNodeByName(nameA).cmd)('echo')
             atomic(mn.configLinkStatus)(nameA,l,'up')
             atomic(mn.getNodeByName(nameB).cmd)('echo')

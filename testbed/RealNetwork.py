@@ -3,6 +3,7 @@ from mininet.link import TCLink
 from mininet.net import Mininet
 
 from testbed.TbNode import TbNode
+from testbed import Param
 
 def splitLoss(loss,n):
     return 100*(1-(1-loss/100)**(1/n))
@@ -11,18 +12,19 @@ def splitLoss(loss,n):
 def createNet(testParam):
     topo=Topo()
 
-    #NOTE only suitable for chain topo with less than 100 nodes
-    nodes = testParam.absTopoParam.nodes
+    #NOTE only suitable for chain topo
+    nodes = testParam.topoParam.nodes
     topo.addHost(nodes[0], cls=TbNode)
     for i in range(1,len(nodes)):
         topo.addHost(nodes[i], cls=TbNode)
-        linkName = nodes[i-1]+'-'+nodes[i]
-        linkNameRvs = nodes[i]+'-'+nodes[i-1]
+        linkName = nodes[i-1]+Param.LinkNameSep+nodes[i]
+        linkNameRvs = nodes[i]+Param.LinkNameSep+nodes[i-1]
         topo.addSwitch(linkName)
 
-        delay = testParam.linkParams[linkName].rtt/4
-        loss = splitLoss(testParam.linkParams[linkName].loss,2)
-        bw = testParam.linkParams[linkName].bw
+        lp = testParam.linksParam.getLP(linkName)
+        delay = lp.rtt/4
+        loss = splitLoss(lp.loss,2)
+        bw = lp.bw
         if i == len(nodes)-1:
             seg = 100
         else:
@@ -51,9 +53,11 @@ def createNet(testParam):
     
     return mn
 
+
+
 def createNet_deprecated(testParam):
     topo=Topo()
-    if testParam.absTopoParam.name=="net_hmmh":
+    if testParam.topoParam.name=="net_hmmh":
 
         h1 = topo.addHost('h1', cls=TbNode)
         s1 = topo.addSwitch('h1-pep1')
@@ -103,7 +107,7 @@ def createNet_deprecated(testParam):
         # pep2.cmd('route add default gw 10.0.4.90')
         
         # h2.cmd('route add default gw 10.0.2.90')
-    elif testParam.absTopoParam.name=="net_hmh":
+    elif testParam.topoParam.name=="net_hmh":
         router = 'pep'
         topo.addNode(router, cls=TbNode)
         hostsNum = 2

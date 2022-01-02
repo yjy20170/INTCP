@@ -42,23 +42,25 @@ def mean(values, method='all'):
         return sum(values)/len(values)
 
 def getOwdTotal(tp):
-    rtt_total = 0
-    rtt_min = 10000
-    for lp in tp.linkParams.values():
-        rtt_total += lp.rtt
-        rtt_min = min(rtt_min,lp.rtt)
-    owd_total = rtt_total*0.5
+    rttTotal = 0
+    rttMin = 999999
+    for ln in tp.topoParam.linkNames():
+        lp = tp.linksParam.getLP(ln)
+        rttTotal += lp.rtt
+        rttMin = min(rttMin,lp.rtt)
+    owdTotal = rttTotal*0.5
     if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
-        retran_threshold = rtt_total*0.5 + rtt_min
+        retranThreshold = rttTotal*0.5 + rttMin
     else:
-        retran_threshold = rtt_total*1.5
-    return owd_total,retran_threshold
+        retranThreshold = rttTotal*1.5
+    return owdTotal,retranThreshold
     
 def getTCDelay(tp):
     sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
-    for name in tp.linkParams.keys():
-        if sender in name:
-            return tp.linkParams[name].rtt/4
+    for linkName in tp.topoParam.linkNames():
+        if sender in linkName:
+            return tp.linksParam.getLP(linkName).rtt/4
+    raise Exception("sender link not found")
             
 def parseLine(line,protocol):
     if protocol=="TCP":
@@ -356,7 +358,7 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
         plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
 
-
+#TODO appParam.total_loss is removed now
 def getCdfParam(tp):
     if tp.appParam.protocol=="INTCP":
         linestyle = '--'
@@ -368,7 +370,7 @@ def getCdfParam(tp):
     midcc_dict = {'pep':"green",'nopep':'orangered'}
     
     color = loss_dict[tp.appParam.total_loss]
-    #color = nodes_dict[tp.absTopoParam.numMidNode]
+    #color = nodes_dict[tp.topoParam.numMidNode]
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     

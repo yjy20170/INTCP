@@ -318,7 +318,7 @@ void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 s
                 iter->count++;
                 if(iter->count >= INTCP_SNHOLE_THRESHOLD){
                     if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_INT_RANGE_LIMIT){
-                        LOG(INFO, "---- Abnormal int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
+                        LOG(TRACE, "---- Abnormal int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
                     } else {
                         stat.cntIntHole++;
                         LOG(TRACE,"---- int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
@@ -511,7 +511,7 @@ bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 
                 if(iter->count >= INTCP_SNHOLE_THRESHOLD){
                     found_new_loss = true;
                     if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_MSS){
-                        LOG(INFO, "---- Abnormal data hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
+                        LOG(TRACE, "---- Abnormal data hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
                         stat.cntDataHole++;
                     } else {
                         LOG(TRACE,"---- data hole [%u,%u) [%u,%u) t %u----", iter->startSn,iter->endSn,iter->startByte, iter->endByte, current);
@@ -947,7 +947,7 @@ void IntcpTransCB::flushIntBuf(){
             // } else if (_itimediff(current, segPtr->resendts) >= 0) {
             } else {
                 //NOTE RTO function: segRto=f(rto, xmit)
-                IUINT32 segRto = rto*( pow(1.5,segPtr->xmit-1)+0.1 );
+                IUINT32 segRto = rto*( pow(1.5,segPtr->xmit-1) +1);// + 1000;
                 if (_itimediff(current, segPtr->ts) >= segRto) {
                     if (segPtr->xmit >= INTCP_DEADLINK || segRto>=INTCP_RTO_MAX) {
                         LOG(DEBUG,"xmit %d rto %u",segPtr->xmit,segRto);
@@ -1133,11 +1133,14 @@ void IntcpTransCB::update()
                     float(stat.thrpUDP-stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
                     intBufBytes/INTCP_MSS,rcvBuf.size(),
                     stat.cntTimeout,stat.cntDataHole);
-            printf("  %4ds %.2f Mbits/sec receiver\n",
-                    (current-stat.startTs)/1000,
-                    float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
-            );
-        } else if(nodeRole==INTCP_MIDNODE){
+            //NOTE
+            // printf("  %4ds %.2f Mbits/sec receiver\n",
+            //         (current-stat.startTs)/1000,
+            //         float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
+            //         // float(stat.thrpUDP-stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
+            // );
+        }
+        if(nodeRole==INTCP_MIDNODE){
             LOG(DEBUG,"hr %d cwnd %u sndr %.2f thrp %.2f rB %4ld dh %d",
                     hopSrtt,
                     cwnd,
@@ -1145,7 +1148,8 @@ void IntcpTransCB::update()
                     float(stat.thrpUDP)*8/1024/1024/(current-stat.lastPrintTs)*1000,
                     rcvBuf.size(),
                     stat.cntDataHole);
-        } else if(nodeRole!=INTCP_REQUESTER){
+        }
+        if(nodeRole!=INTCP_REQUESTER){
             LOG(DEBUG,"%d| %4d rmtSndr %.2f sndq %d ih %d",
                     stat.ssid, (current-stat.startTs)/1000,
                     rmtSendRate, sndQueueBytes/INTCP_MSS,

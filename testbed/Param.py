@@ -1,78 +1,56 @@
 import copy
 
+SegUnit = {
+        'bw': 'Mbps', 'rttSat': 'ms', 'loss': '%', 
+        'itmDown': 's','itmTotal':'s', 
+        'varBw': 'Mbps', 'varIntv': 's'
+}
+def getUnit(key):
+    key = key.split('.')[-1]
+    if key not in SegUnit:
+            return ''
+    else:
+        return SegUnit[key]
+
 class Param:
-    Keys = []
-    SegDefault = {}
-    SegUnit = {}
+    BasicKeys = []
     def __init__(self, template=None, **kwargs):
-        for key in self.__class__.Keys:
+        if template==None:
+            keys = self.BasicKeys
+        else:
+            keys = list(template.__dict__.keys())
+        for key in keys:
             if key in kwargs:
                 value = kwargs[key]
                 kwargs.pop(key)
             elif template.__class__ == self.__class__:
                 value = template.get(key)
-            elif key in self.__class__.SegDefault:
-                value = self.__class__.SegDefault[key]
             else:
-                raise Exception('seg [%s] is missed.' % key)
-            self.update(key, value)
+                raise Exception(f'seg "{key}" is missed in {self.__class__.__name__}.')
+            self.set(key, value)
 
-        # like 'linkParams.pep-h2.bw'
+        # like 'linksParam.pep-h2.bw'
         for key in kwargs:
-            self.update(key, kwargs[key])
-                
-    def checkKey(self, key):
-        if key not in self.__class__.Keys:
-            print()
-            raise Exception('key [%s] is undefined.' % key)
+            self.set(key, kwargs[key])
 
-    def relocate(self, key):
-        obj = self
-        while '.' in key:
-            [newObjStr,key] = key.split('.',1)
-            if issubclass(type(obj), Param):
-                obj = obj.get(newObjStr)
-            elif type(obj) == dict:
-                obj = obj[newObjStr]
-            else:
-                raise Exception('wrong key')
-        return [obj,key]
-
-    def update(self, key, value):
-        if issubclass(value.__class__, Param):
-            newValue = value.__class__(template = value)
+    def set(self, key, value):
+        if issubclass(type(value), Param):
+            newValue = value.copy()
         else:
             newValue = copy.deepcopy(value)
-
-        [obj,key] = self.relocate(key)
-        if issubclass(type(obj), Param):
-            obj.checkKey(key)
-            obj.__dict__[key] = newValue # copy.deepcopy(value)
-        elif type(obj) == dict:
-            obj[key] = newValue
-        else:
-            raise Exception('wrong key')
+        obj = self
+        if '.' in key:
+            l,key = key.rsplit('.',1)
+            obj = self.get(l)
+        obj.__dict__[key] = newValue
+        return self
 
     def get(self, key):
-        [obj,key] = self.relocate(key)
-        if issubclass(type(obj), Param):
-            obj.checkKey(key)
-            return obj.__dict__[key]
-        elif type(obj) == dict:
-            return obj[key]
+        if '.' in key:
+            l,key = key.rsplit('.',1)
+            return self.get(l).get(key)
         else:
-            raise Exception('wrong key')
-
-    def getUnit(self,key):
-        [obj,key] = self.relocate(key)
-        if issubclass(type(obj), Param):
-            obj.checkKey(key)
-            if key not in obj.SegUnit:
-                return ''
-            else:
-                return obj.SegUnit[key]
-        else:
-            raise Exception('wrong key')
+            return self.__dict__[key]
 
     def compareKeys(self, param, keysCmp):
         for key in keysCmp:
@@ -80,13 +58,15 @@ class Param:
                 return False
         return True
 
-    def serialize(self,indent=0):
+    def serialize(self,indent=0,exclude=[]):
         IndentSpace = '    '
         string = ''
-        for key in self.__class__.Keys:
+        for key in self.__dict__:
+            if key in exclude:
+                continue
             string += IndentSpace*indent
             string += key+'\n'
-            if issubclass(self.get(key).__class__, Param):
+            if issubclass(type(self.get(key)), Param):
                 string += self.get(key).serialize(indent+1)
             else:
                 string += IndentSpace*(indent+1)
@@ -95,139 +75,99 @@ class Param:
 
     # easy-to-read string of seg/key
     def segToStr(self, key):
-        return '%s=%s%s'%(key, str(self.get(key)), self.getUnit(key))
+        return '%s=%s%s'%(key, str(self.get(key)), getUnit(key))
     def keyToStr(self,key):
-        return '%s(%s)'%(key, self.getUnit(key))
+        return '%s(%s)'%(key, getUnit(key))
 
     def copy(self):
         return self.__class__(template=self)
 
+LinkNameSep = '_'
+class TopoParam(Param):
+    BasicKeys = ['name',
+            'numMidNode','nodes','links']
+    def serialize(self,indent=0):
+        IndentSpace = '    '
+        string = f'{IndentSpace*(indent)}{self.name}\n'
+        return string
+    def linkNames(self):
+        return [f'{l[0]}{LinkNameSep}{l[1]}' for l in self.links]
+
 class LinkParam(Param):
-    Keys = ['bw', 'rtt', 'loss', 
+    BasicKeys = ['bw', 'rtt', 'loss', 
             'itmTotal', 'itmDown',
             'varBw', 'varIntv', 'varMethod',
     ]
-    SegDefault = {
-            'bw':10, 'rtt':100, 'loss':0, #'rttTotal':200, 
-            'itmTotal':20, 'itmDown':0,
-            'varBw':0, 'varIntv':1, 'varMethod':'random'
-    }
-    SegUnit = {
-            'bw': 'Mbps', 'rttSat': 'ms', 'loss': '%', 
-            'itmDown': 's','itmTotal':'s', 
-            'varBw': 'Mbps', 'varIntv': 's'
-    }
-    def serialize(self,indent=0):
-        IndentSpace = '    '
-        string = ''
-        for key in self.__class__.Keys:
-            if key in ['itmTotal','itmDown'] and self.itmDown==0:
-                continue
-            if key in ['varBw', 'varIntv', 'varMethod'] and self.varBw==0:
-                continue
-            string += IndentSpace*indent
-            string += key+'\n'
-            if issubclass(self.get(key).__class__, Param):
-                string += self.get(key).serialize(indent+1)
-            else:
-                string += IndentSpace*(indent+1)
-                string += '%s'%self.get(key) + '\n'
-        return string
+    def serialize(self,indent=0,exclude=[]):
+        if self.itmDown==0:
+            exclude += ['itmTotal','itmDown']
+        if self.varBw==0:
+            exclude += ['varBw', 'varIntv', 'varMethod']
+        return super().serialize(indent=indent,exclude=exclude)
 
-class AbsTopoParam(Param):
-    Keys = ['name',
-            'numMidNode',
-            'nodes',
-            'links',
-    ]
-    SegDefault = {'name':'NoName',
-    }
-    SegUnit = {
-    }
-    def serialize(self,indent=0):
-        if self.name==self.SegDefault['name']:
-            return super(self).serialize(indent)
-        IndentSpace = '    '
-        string = ''
-        string += IndentSpace*(indent)
-        string += '%s'%self.get('name') + '\n'
-        return string
+class PartialLinkParam(Param):
+    pass
+
+class LinksParam(Param):
+    BasicKeys = ['basicLP']
+    # dic: {'h1_pep1':{'bw':40,'loss':0.1}}
+    def __init__(self, basicLP=None, dic=None, template=None):
+        if template != None:
+            super().__init__(template)
+            return
+        self.set('basicLP', basicLP)
+        for linkName in dic:
+            for key in dic[linkName]:
+                self.set(linkName+'.'+key,dic[linkName][key])
+
+    def get(self,key):
+        if key not in self.__dict__:
+            self.__dict__[key] = PartialLinkParam()
+        return super().get(key)
+    
+    def getLP(self,linkName):
+        if linkName in self.__dict__:
+            tmpLP = self.basicLP.copy()
+            for key in self.get(linkName).__dict__:
+                if key in LinkParam.BasicKeys:
+                    tmpLP.set(key, self.get(linkName).get(key))
+            return tmpLP
+        else:
+            return self.basicLP
 
 # AppParam is defined by user
 class AppParam(Param):
-    Keys = []
-    SegDefault = {}
-    SegUnit = {}
     def __init__(self, template=None, **kwargs):
         super().__init__(template=template, **kwargs)
-    
-    def serialize(self,indent=0):
-        IndentSpace = '    '
-        string = ''
-        for key in self.__class__.Keys:
-            string += IndentSpace*indent
-            string += key+'\n'
-            if issubclass(self.get(key).__class__, Param):
-                string += self.get(key).serialize(indent+1)
-            else:
-                string += IndentSpace*(indent+1)
-                string += '%s'%self.get(key) + '\n'
-        return string
 
 
 class TestParam(Param):
-    Keys = ['name',
-            'absTopoParam',
-            'linkParams',
-            'appParam'
-    ]
-    SegDefault = {'name':'NoName'
-    }
-    SegUnit = {
-    }
-    def serialize(self,indent=0):
-        IndentSpace = '    '
-        string = ''
-        for key in self.__class__.Keys:
-            string += IndentSpace*indent
-            string += key+'\n'
-            if key == 'linkParams':
-                lparams = self.get(key)
-                for lp in lparams:
-                    string += IndentSpace*(indent+1)
-                    string += '%s:\n%s'%(lp, lparams[lp].serialize(indent+2))
-                continue
-            if issubclass(self.get(key).__class__, Param):
-                string += self.get(key).serialize(indent+1)
-            else:
-                string += IndentSpace*(indent+1)
-                string += '%s'%self.get(key) + '\n'
-        return string
-
+    BasicKeys = ['name',
+            'topoParam','linksParam','appParam']
     def completeKey(self,key):
         first = key.split('.',1)[0]
-        if first in self.__class__.Keys:
+        if first in self.BasicKeys + list(self.__dict__.keys()):
             return key
         else:
-            if first in self.absTopoParam.__class__.Keys:
-                return 'absTopoParam.' + key
-            elif first in self.appParam.__class__.Keys:
+            if first in self.topoParam.__dict__:
+                return 'topoParam.' + key
+            elif first in self.appParam.__dict__:
                 return 'appParam.' + key
             else:
-                return 'linkParams.' + key
+                return 'linksParam.' + key
     def get(self, key):
         return super().get(self.completeKey(key))
-    def getUnit(self, key):
-        return super().getUnit(self.completeKey(key))
-    def update(self, key, value):
-        return super().update(self.completeKey(key), value)
+    def set(self, key, value):
+        return super().set(self.completeKey(key), value)
+    @classmethod
+    def template(cls,topo,links,app):
+        return TestParam(name="nameless",topoParam=topo,linksParam=links,appParam=app)
     
 
 class TestParamSet:
-    def __init__(self, tpsetName='NoName', tpTemplate=None, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
+    def __init__(self, tpsetName, topo,links,app, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
         self.tpsetName = tpsetName
-        assert(tpTemplate!=None)
-        self.tpTemplate = tpTemplate
+        self.tpTemplate = TestParam.template(topo,links,app)
         self.keyX = keyX
         self.keysCurveDiff = keysCurveDiff
         self.keysPlotDiff = keysPlotDiff
@@ -254,10 +194,8 @@ class TestParamSet:
             neNameElems = []
             for i,key in enumerate(keys):
                 perm[key] = segDict[key][pos[i]]
-                if key=="absTopoParam":
-                    neNameElems.append('topo_'+perm[key].name)
-                elif key=="linkParams":
-                    continue
+                if key=="topoParam":
+                    neNameElems.append(perm[key].name)
                 else:
                     neNameElems.append(key+'_'+str(perm[key]))
             
