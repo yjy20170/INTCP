@@ -59,7 +59,7 @@ def LinkUpdate(mn, testParam, logPath):
             linkNames.append(ln)
     if linkNames == []:
         return
-    while LatchThread.isRunning():
+    while LatchThread.isRunning():#DEBUG
         for linkName in linkNames:
             nameA,nameB = linkName.split(Param.LinkNameSep)
             nodeA = mn.getNodeByName(nameA)

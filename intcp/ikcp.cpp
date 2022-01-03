@@ -1134,11 +1134,11 @@ void IntcpTransCB::update()
                     intBufBytes/INTCP_MSS,rcvBuf.size(),
                     stat.cntTimeout,stat.cntDataHole);
             //NOTE
-            // printf("  %4ds %.2f Mbits/sec receiver\n",
-            //         (current-stat.startTs)/1000,
-            //         float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
-            //         // float(stat.thrpUDP-stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
-            // );
+            printf("  %4ds %.2f Mbits/sec receiver\n",
+                    (current-stat.startTs)/1000,
+                    float(stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
+                    // float(stat.thrpUDP-stat.thrpINTCP)*8/1024/1024/(current-stat.lastPrintTs)*1000
+            );
         }
         if(nodeRole==INTCP_MIDNODE){
             LOG(DEBUG,"hr %d cwnd %u sndr %.2f thrp %.2f rB %4ld dh %d",
@@ -1264,7 +1264,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             ccState = INTCP_CC_CONG_AVOID;
         } else {
             ccDataLen += dataLen;        //window expand 1mss when receive 1mss data
-            cwnd = ccDataLen/INTCP_MSS;
+            cwnd = (ccDataLen/INTCP_MSS)*(pow(2,min(5.0,double(hopSrtt)/INTCP_RTT0))-1);
         }
     }
     if(ccState==INTCP_CC_CONG_AVOID){
@@ -1284,9 +1284,14 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             if(ccDataLen>cwnd*INTCP_MSS){
                 ccDataLen -= cwnd*INTCP_MSS;
                 if(allow_cwnd_increase()){
-                    cwnd++;
+                    cwnd += pow(float(hopSrtt)/INTCP_RTT0,2);
                 }else{
-                    cwnd--;
+                    double dec = pow(float(hopSrtt)/INTCP_RTT0,2);
+                    if(dec+INTCP_CWND_MIN >= cwnd){
+                        cwnd = INTCP_CWND_MIN;
+                    }else{
+                        cwnd -= dec;
+                    }
                 }
             }
         }

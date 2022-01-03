@@ -33,7 +33,7 @@ class Param:
         for key in kwargs:
             self.set(key, kwargs[key])
 
-    def set(self, key, value):
+    def set(self, key='nokey', value=None, **kwargs):
         if issubclass(type(value), Param):
             newValue = value.copy()
         else:
@@ -43,6 +43,8 @@ class Param:
             l,key = key.rsplit('.',1)
             obj = self.get(l)
         obj.__dict__[key] = newValue
+        for kw in kwargs:
+            self.set(kw, kwargs[kw])
         return self
 
     def get(self, key):
@@ -176,39 +178,47 @@ class TestParamSet:
         
     # sometimes two or more segs are variable, but we don't want a Cartesian Product
     # at this time we must add the testParams manually by this function
-    def add(self, segDict):
-        # maybe some value in segs is not a list
-        singleSegs = {}
+    def add(self, segDict,*segGroupDicts):
         for key in segDict:
             if type(segDict[key]) != list:
-                singleSegs[key] = segDict[key]
-        for key in singleSegs:
-            segDict.pop(key)
-        # finally, the rest values in segs are lists.
-        # make a Cartesian Product of these lists
+                segDict[key] = [segDict[key]]
 
-        pos = [0] * len(segDict)
-        keys = list(segDict.keys())
+        lenSegDict = len(segDict.keys())
+        lenSegGroupDicts = len(segGroupDicts)
+        sumLen = lenSegDict+lenSegGroupDicts
+        pos = [0] * sumLen
         while True:
-            perm = singleSegs.copy()
-            neNameElems = []
-            for i,key in enumerate(keys):
+            perm = {}
+            tpNameItems = []
+            for i,key in enumerate(list(segDict.keys())):
                 perm[key] = segDict[key][pos[i]]
                 if key=="topoParam":
-                    neNameElems.append(perm[key].name)
+                    tpNameItems.append(perm[key].name)
                 else:
-                    neNameElems.append(key+'_'+str(perm[key]))
+                    tpNameItems.append(key+'_'+str(perm[key]))
+            for i,group in enumerate(segGroupDicts):
+                keyInGroup = list(group.keys())[pos[i+lenSegDict]]
+                # merge segGroup into perm
+                # the right dict will cover the left one in shared segs
+                perm = {**perm, **group[keyInGroup]}
+                tpNameItems.append(keyInGroup)
             
-            neSpec = '_'.join(neNameElems)
-            self.testParams.append(TestParam(template=self.tpTemplate, name=self.tpsetName + '_' + neSpec, **perm))
+            self.testParams.append(TestParam(
+                    template=self.tpTemplate,
+                    name='_'.join(tpNameItems),
+                    **perm))
 
-            if segDict=={}:
-                break
             # move to next one
-            ptr = len(segDict) - 1
+            ptr = sumLen - 1
             pos[ptr] += 1
             done = False
-            while pos[ptr] == len(segDict[keys[ptr]]):
+            while True:
+                if ptr<lenSegDict:
+                    numChoice = len(list(segDict.values())[ptr])
+                else:
+                    numChoice = len(segGroupDicts[ptr-lenSegDict])
+                if pos[ptr] != numChoice:
+                    break
                 pos[ptr] = 0
                 ptr -= 1
                 if ptr == -1:

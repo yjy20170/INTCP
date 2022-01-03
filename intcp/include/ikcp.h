@@ -69,9 +69,11 @@ const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
+const IUINT32 INTCP_RTT0 = 25; // like hybla
+
 // RTT-based
-const float QueueingThreshold = 10000; // unit: byte
-const IUINT32 HrttMinWnd = 5000; // unit: ms
+const float QueueingThreshold = 50000; // unit: byte
+const IUINT32 HrttMinWnd = 10000; // unit: ms
 
 const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;

@@ -50,11 +50,10 @@ void *onNewSess(void* _sessPtr){
         if(printTime==0||curTime-printTime>CheckInterval){
             if(printTime!=0){
                 //NOTE
-                printf("%4ds %3.2f Mbits/sec receiver\n",
-                        int((curTime - startTime)/1000),
-                        (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
-                );
-                //LOG(TRACE,"start %u end %u\n",start,end);
+                // printf("%4ds %3.2f Mbits/sec receiver\n",
+                //         int((curTime - startTime)/1000),
+                //         (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
+                // );
             }
             throughput = 0;
             printTime = curTime;
