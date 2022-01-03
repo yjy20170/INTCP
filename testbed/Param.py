@@ -34,15 +34,16 @@ class Param:
             self.set(key, kwargs[key])
 
     def set(self, key='nokey', value=None, **kwargs):
-        if issubclass(type(value), Param):
-            newValue = value.copy()
-        else:
-            newValue = copy.deepcopy(value)
-        obj = self
-        if '.' in key:
-            l,key = key.rsplit('.',1)
-            obj = self.get(l)
-        obj.__dict__[key] = newValue
+        if key != 'nokey':
+            if issubclass(type(value), Param):
+                newValue = value.copy()
+            else:
+                newValue = copy.deepcopy(value)
+            obj = self
+            if '.' in key:
+                l,key = key.rsplit('.',1)
+                obj = self.get(l)
+            obj.__dict__[key] = newValue
         for kw in kwargs:
             self.set(kw, kwargs[kw])
         return self

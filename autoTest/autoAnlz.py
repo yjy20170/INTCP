@@ -61,7 +61,7 @@ def getTCDelay(tp):
         if sender in linkName:
             return tp.linksParam.getLP(linkName).rtt/4
     raise Exception("sender link not found")
-            
+
 def parseLine(line,protocol):
     if protocol=="TCP":
         p1 = line.find("length")
@@ -97,7 +97,7 @@ def generateLog(logPath,tpSet):
                 except:
                     continue
                     
-        #load receiver            
+        #load receiver
         with open(receiverLogFilePath,"r") as f:
             lines = f.readlines()
             for line in lines:
@@ -113,16 +113,17 @@ def generateLog(logPath,tpSet):
                 owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
             else:
                 print(seq,end=',')  
-        print("\n----%s------"%(tp.name))         
+        print("\n----%s------"%(tp.name))
         with open(logFilePath,"w") as f:
             for seq,owd in owdDict.items():
                 f.write("seq %d owd_obs %f\n"%(seq,owd)) 
         #print(sendTimeDict.keys())
-        #print(recvTimeDict.keys())    
-              
+        #print(recvTimeDict.keys())
+
 def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=False):
     result = {}
     for tp in tpSet.testParams:
+        print('-----\n'+tp.name)
         logFilePath = '%s/%s.txt'%(logPath,tp.name)
         #print(tp.name)
         thrps = []
@@ -166,17 +167,11 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                                 except:
                                     continue
 
-        if isDetail or tpSet.tpTemplate.appParam.isRttTest:    
+        if isDetail or tpSet.tpTemplate.appParam.isRttTest:
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-    for k in result:
-       #print(k.name)
-        if isDetail:     
-            print(k.name,result[k][:5])
-        else:
-            print(k.name,result[k])
-    print("---end loading---")    
+            print(tp.name,result[tp])
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -442,10 +437,10 @@ def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
     title = 'Seq Diagram'
     plt.title(title)
     plt.legend(legends)
-    plt.xlabel('packet sn',size=12)      
+    plt.xlabel('packet sn',size=12)
     plt.ylabel('one way delay(ms)',size=12)
     plt.savefig('%s/%s.png' % (resultPath, title))
-     
+    
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
     

@@ -62,7 +62,8 @@ def recvFunc(tcp_socket,limit):
         prev_owd_c2s = float(owd_c2s)
         cur = time.time()
         if cur-last>=1:
-            print((idxPkt-lastIdx)*8/1024,'Mbps',flush=True)
+            #TODO one packet is always 1000Byte?
+            print((idxPkt-lastIdx)*8/1000,'Mbps',flush=True)
             lastIdx = idxPkt
             last = cur
 

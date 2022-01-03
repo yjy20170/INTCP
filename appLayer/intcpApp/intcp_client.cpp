@@ -52,7 +52,7 @@ void *onNewSess(void* _sessPtr){
                 //NOTE
                 // printf("%4ds %3.2f Mbits/sec receiver\n",
                 //         int((curTime - startTime)/1000),
-                //         (8*(float)throughput)/(1024*1024*(curTime-printTime)/1000)
+                //         mbitToBytes(throughput)*1000/(curTime-printTime)
                 // );
             }
             throughput = 0;

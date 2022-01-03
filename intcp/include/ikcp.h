@@ -69,10 +69,10 @@ const int INTCP_CC_SLOW_START=0;
 const int INTCP_CC_CONG_AVOID=1;
 const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
-const IUINT32 INTCP_RTT0 = 25; // like hybla
+const IUINT32 INTCP_RTT0 = 100; // like hybla
 
 // RTT-based
-const float QueueingThreshold = 50000; // unit: byte
+const float QueueingThreshold = 20000; // unit: byte
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
 const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS; //NOTE
@@ -81,7 +81,8 @@ const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 
 const float INTCP_SENDRATE_MIN = 0.1; //Mbps
 
-
+float bytesToMbit(int bytes);
+int mbitToBytes(float mbit);
 
 //=====================================================================
 // SEGMENT
@@ -129,8 +130,8 @@ public:
 
     int xmit;
     IUINT32 lastPrintTs;
-    int thrpUDP; // Mbps
-    int thrpINTCP;
+    int recvedUDP; // Mbps
+    int recvedINTCP;
     int cntTimeout,cntIntHole,cntDataHole;
 
     void reset(){
@@ -202,7 +203,7 @@ private:
     // throughput calculation for rtt-based CC and app-limited detection
     IUINT32 lastThrpUpdateTs;
     int recvedBytesLastHRTT, recvedBytesThisHRTT;
-    float thrpLastHRTT; // KB/s
+    float thrpLastHRTT; // Mbps
 
     // congestion signal
     // loss-based

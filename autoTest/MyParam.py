@@ -1,4 +1,3 @@
-from typing import Protocol
 from testbed.Param import *
 from testbed.RealNetwork import splitLoss
 
@@ -37,17 +36,17 @@ def getTestParamSet(tpsetName):
     if tpsetName == "expr":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
-                LinksParam(DefaultLP.set('varIntv',10), 
+                LinksParam(DefaultLP.set(varIntv=5), 
                     {'h1_pep1':{'bw':40},
                     'pep3_h2':{'bw':40}}),
                 DefaultAP.set(sendTime=60),
                 keyX='pep2_pep3.varBw')
         tpSet.add({
-                'basicLP.loss':[0.1],
+                'basicLP.loss':[0],
                 'pep2_pep3.varBw':[0],#0,
         },{
-            'cubic':{'e2eCC':'cubic','protocol':'TCP'},
-            'bbr':{'e2eCC':'bbr','protocol':'TCP'},
+            # 'hybla':{'e2eCC':'hybla','protocol':'TCP'},
+            # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
             'in_nopep':{'protocol':'INTCP','midCC':'nopep'},
             'in_pep':{'protocol':'INTCP','midCC':'pep'}
         })

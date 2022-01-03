@@ -67,7 +67,6 @@ def ThroughputTest(mn,testParam,logPath):
             kill_intcp_processes(mn,testParam)
             time.sleep(2)
             
-        print("end throughput test")
         return
         
 #thread for test rtt
@@ -75,7 +74,6 @@ def ThroughputTest(mn,testParam,logPath):
 def RttTest(mn, testParam, logPath):
     if not testParam.appParam.get('isRttTest'):
         return
-    print("rtt test begin...")
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
     receiverLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"recv")
