@@ -25,9 +25,11 @@ if __name__=='__main__':
 
     os.chdir(sys.path[0])
 
-    if not isAnlz:
-        os.system("../appLayer/intcpApp/makes.sh")
+    # if not isAnlz:
+    #     os.system("../appLayer/intcpApp/makes.sh")
 
+
+    Instance.clear()
 
     tpSetNames = ["expr"]
     for sno,tpSetName in enumerate(tpSetNames):
@@ -45,12 +47,13 @@ if __name__=='__main__':
             for i,tp in enumerate(tpSet.testParams):
                 if len(tpSet.testParams)!=1:
                     print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
+                print(tp.serialize())
                 Instance.run(tp, logPath, isManual)
 
             FileUtils.fixOwnership(logPath, 'r')
 
-        autoAnlz.anlz(tpSet, logPath, resultPath)
+        if not isManual:
+            autoAnlz.anlz(tpSet, logPath, resultPath)
 
-    if not isAnlz:
-        Instance.clear()
     print('all experiments finished.')
+    

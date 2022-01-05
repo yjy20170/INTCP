@@ -5,7 +5,7 @@ from testbed.TbThread import *
 from FileUtils import delFile
 
 
-#@threadFunc(NormalThread,False)
+#@threadFunc(False)
 def Init(mn, testParam, logPath):
     for l in testParam.topoParam.linkNames():
         nameA,nameB = l.split(Param.LinkNameSep)
@@ -37,7 +37,7 @@ def kill_intcp_processes(mn,testParam):
             if not node=='h1' and not node=='h2':
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
             
-@threadFunc(LatchThread,False)
+@threadFunc(True)
 def ThroughputTest(mn,testParam,logPath):
     if testParam.appParam.get('isRttTest'):
         return
@@ -46,7 +46,6 @@ def ThroughputTest(mn,testParam,logPath):
     
     if testParam.appParam.get('protocol')=="TCP":      #only support e2e TCP
         atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
-        print('sendTime = %ds'%testParam.appParam.sendTime)
         for i in range(testParam.appParam.sendRound):
             print('iperfc loop %d running' %i)
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
@@ -70,7 +69,7 @@ def ThroughputTest(mn,testParam,logPath):
         return
         
 #thread for test rtt
-@threadFunc(LatchThread,False)
+@threadFunc(True)
 def RttTest(mn, testParam, logPath):
     if not testParam.appParam.get('isRttTest'):
         return
@@ -119,7 +118,7 @@ def RttTest(mn, testParam, logPath):
         return
 
 # for intcp only
-# @threadFunc(LatchThread,False)
+# @threadFunc(True)
 def PerformTest(mn, testParam, logPath):
     if not testParam.appParam.get('protocol')=="INTCP":
         return

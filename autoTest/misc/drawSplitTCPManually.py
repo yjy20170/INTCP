@@ -47,13 +47,13 @@ def plotSeq(resultPath, result, keyX, groups, ccs, title, legends=[],isRttTest=F
     legend_font = {"family" : "Times New Roman",'size':legendsize}
     if len(groups)==1:
         group = groups[0]
-        plt.plot([netEnv.get(keyX) for netEnv in group],
-                 [result[netEnv] for netEnv in group])
+        plt.plot([testParam.get(keyX) for testParam in group],
+                 [result[testParam] for testParam in group])
     else:
         for i,group in enumerate(groups):
             # print(len(group))
-            # for netEnv in group:
-            #     print(netEnv.get(keyX),result[netEnv])
+            # for testParam in group:
+            #     print(testParam.get(keyX),result[testParam])
 
             color,marker,linestyle = getPlotParam(ccs[i],isRttTest)
 

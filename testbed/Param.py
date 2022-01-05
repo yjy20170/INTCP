@@ -64,16 +64,25 @@ class Param:
     def serialize(self,indent=0,exclude=[]):
         IndentSpace = '    '
         string = ''
+        nonParams = []
         for key in self.__dict__:
             if key in exclude:
                 continue
-            string += IndentSpace*indent
-            string += key+'\n'
             if issubclass(type(self.get(key)), Param):
+                continue
+            nonParams.append(key)
+        if nonParams!=[]:
+            string += IndentSpace*indent
+            string += ', '.join([f'{key}={self.get(key)}' for key in nonParams])
+            string += '\n'
+            
+        for key in self.__dict__:
+            if key in exclude:
+                continue
+            if issubclass(type(self.get(key)), Param):
+                string += IndentSpace*indent
+                string += key+'\n'
                 string += self.get(key).serialize(indent+1)
-            else:
-                string += IndentSpace*(indent+1)
-                string += '%s'%self.get(key) + '\n'
         return string
 
     # easy-to-read string of seg/key
@@ -101,12 +110,12 @@ class LinkParam(Param):
             'itmTotal', 'itmDown',
             'varBw', 'varIntv', 'varMethod',
     ]
-    def serialize(self,indent=0,exclude=[]):
-        if self.itmDown==0:
-            exclude += ['itmTotal','itmDown']
-        if self.varBw==0:
-            exclude += ['varBw', 'varIntv', 'varMethod']
-        return super().serialize(indent=indent,exclude=exclude)
+    # def serialize(self,indent=0,exclude=[]):
+    #     if self.itmDown==0:
+    #         exclude += ['itmTotal','itmDown']
+    #     if self.varBw==0:
+    #         exclude += ['varBw', 'varIntv', 'varMethod']
+    #     return super().serialize(indent=indent,exclude=exclude)
 
 class PartialLinkParam(Param):
     pass
@@ -168,7 +177,7 @@ class TestParam(Param):
     
 
 class TestParamSet:
-    def __init__(self, tpsetName, topo,links,app, keyX='null', keysCurveDiff=[], keysPlotDiff=[]):
+    def __init__(self, tpsetName, topo,links,app, keyX='nokeyx', keysCurveDiff=[], keysPlotDiff=[]):
         self.tpsetName = tpsetName
         self.tpTemplate = TestParam.template(topo,links,app)
         self.keyX = keyX

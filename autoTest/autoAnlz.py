@@ -171,7 +171,7 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-            print(tp.name,result[tp])
+            print('average =',result[tp])
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -214,15 +214,14 @@ def getPlotParam(group, isRttTest=False):
         linestyle = '-'
     return color,marker,linestyle
 
-#TODO rename: NetEnv -> TestParam
 def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
     if mode==1:
         x=[]
         y=[]
-        for netEnv in group:
-            cnt = len(result[netEnv])
-            x += cnt*[netEnv.get(keyX)]
-            y += result[netEnv]
+        for testParam in group:
+            cnt = len(result[testParam])
+            x += cnt*[testParam.get(keyX)]
+            y += result[testParam]
         #sns.regplot(x=x,y=y,scatter_kws={'s':10},line_kws={'linewidth':1,'label':label},ci=95,x_estimator=np.mean)
         sns.regplot(x=x,y=y,scatter_kws={'s':2,'color':color,},line_kws={'linewidth':1,'label':label,'color':color},ci=95)
 
@@ -232,14 +231,14 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
         y_lower = []
         y_upper = []
 
-        for netEnv in group:
-            y = result[netEnv]
+        for testParam in group:
+            y = result[testParam]
             if len(y)==0:
                 continue
-            cur_x = netEnv.get(keyX)
+            cur_x = testParam.get(keyX)
             cur_y_lower = scoreatpercentile(y,5)
             cur_y_upper = scoreatpercentile(y,95)
-            x.append(netEnv.get(keyX))
+            x.append(testParam.get(keyX))
             y_mean.append(mean(y,method='all'))
             y_lower.append(cur_y_lower)
             y_upper.append(cur_y_upper)
@@ -258,16 +257,16 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=Fal
     legend_font = {'size':12}#"family" : "Times New Roman",
     if len(groups)==1:
         group = groups[0]
-        plt.plot([netEnv.get(keyX) for netEnv in group],
-                 [result[netEnv] for netEnv in group])
+        plt.plot([testParam.get(keyX) for testParam in group],
+                 [result[testParam] for testParam in group])
     else:
         for i,group in enumerate(groups):
 
             color,marker,linestyle = getPlotParam(group,isRttTest)
 
             if not isRttTest:
-                plt.plot([netEnv.get(keyX) for netEnv in group],
-                            [result[netEnv] for netEnv in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
+                plt.plot([testParam.get(keyX) for testParam in group],
+                            [result[testParam] for testParam in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
                 #plt.legend()
             else:
                 drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
@@ -481,7 +480,7 @@ def anlz(tpSet, logPath, resultPath):
 if __name__=='__main__':
     tpSetNames = ['expr']
     for sno,tpSetName in enumerate(tpSetNames):
-        print('Analyzing NetEnvSet (%d/%d)\n' % (sno+1,len(tpSetNames)))
+        print('Analyzing TestParamSet (%d/%d)\n' % (sno+1,len(tpSetNames)))
         tpSet = MyParam.getTestParamSet(tpSetName)
         # netTopo = NetTopo.netTopos[neSet.neTemplate.netName]
 

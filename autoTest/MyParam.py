@@ -6,15 +6,15 @@ SegUnit['txqueuelen']='packets'
 SegUnit['sendTime']='s'
 class MyAppParam(AppParam):
     BasicKeys = [
-    # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
-    # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
-            'max_queue_size', 'txqueuelen',
+            # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
+            # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
+            # 'max_queue_size', 'txqueuelen',
             'protocol','e2eCC', 'midCC',
             'isRttTest',
             'sendTime', 'sendRound'
     ]
 
-
+# don't change these
 #
 Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
@@ -26,7 +26,7 @@ DefaultLP = LinkParam(
         varBw=0, varIntv=5,varMethod='square')
 # 
 DefaultAP = MyAppParam(
-        max_queue_size=1000,txqueuelen=1000,
+        # max_queue_size=1000,txqueuelen=1000,
         sendTime=180,sendRound=1,isRttTest=0,
         e2eCC='cubic', midCC='nopep',protocol='INTCP')
 
@@ -36,20 +36,20 @@ def getTestParamSet(tpsetName):
     if tpsetName == "expr":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
-                LinksParam(DefaultLP.set(varIntv=5), 
+                LinksParam(DefaultLP.set(varIntv=10,loss=0), 
                     {'h1_pep1':{'bw':40},
                     'pep3_h2':{'bw':40}}),
-                DefaultAP.set(sendTime=60),
+                DefaultAP.set(sendTime=120),
                 keyX='pep2_pep3.varBw')
-        tpSet.add({
-                'basicLP.loss':[0],
-                'pep2_pep3.varBw':[0],#0,
-        },{
-            # 'hybla':{'e2eCC':'hybla','protocol':'TCP'},
-            # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-            'in_nopep':{'protocol':'INTCP','midCC':'nopep'},
-            'in_pep':{'protocol':'INTCP','midCC':'pep'}
-        })
+        tpSet.add(
+                {'pep2_pep3.varBw':[10]
+                },
+                {
+                # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
+                'in_nopep':{'midCC':'nopep'},
+                'in_pep':{'midCC':'pep'}
+                }
+        )
 
     return tpSet
 

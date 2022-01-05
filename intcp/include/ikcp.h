@@ -29,15 +29,18 @@
 
 using namespace std;
 
-#define INTCP_REQUESTER 10
-#define INTCP_RESPONDER 11
-#define INTCP_MIDNODE 12
+#define INTCP_ROLE_REQUESTER 10
+#define INTCP_ROLE_RESPONDER 11
+#define INTCP_ROLE_MIDNODE 12
 
 #define INTCP_RTT_SCHM_MAXWND 1
 #define INTCP_RTT_SCHM_EXPO 2
 
 #define INTCP_CC_SCHM_LOSSB 1
 #define INTCP_CC_SCHM_RTTB 2
+
+#define INTCP_CC_SLOW_START 0
+#define INTCP_CC_CONG_AVOID 1
 
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
@@ -65,24 +68,20 @@ const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs
 // Congestion control
 const int CCscheme = INTCP_CC_SCHM_RTTB;
 
-const int INTCP_CC_SLOW_START=0;
-const int INTCP_CC_CONG_AVOID=1;
-const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600
+const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600 -> 100
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
-const IUINT32 INTCP_RTT0 = 100; // like hybla
+const IUINT32 INTCP_RTT0 = 50; // like hybla
 
 // RTT-based
 const float QueueingThreshold = 20000; // unit: byte
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
-const IUINT32 INTCP_SNDQ_MAX = 2000*INTCP_MSS; //NOTE
+const IUINT32 INTCP_SNDQ_MAX = 20000*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 
 const float INTCP_SENDRATE_MIN = 0.1; //Mbps
 
-float bytesToMbit(int bytes);
-int mbitToBytes(float mbit);
 
 //=====================================================================
 // SEGMENT
@@ -177,7 +176,7 @@ private:
 
     /* ------------ Loss Recovery --------------- */
     // end-to-end timeout
-    int srtt, rttval, rto;
+    int srtt, rttvar, rto;
     // maxRtt window
     list<int> rttQueue;
     // exponential
@@ -195,7 +194,7 @@ private:
     int ccDataLen;
     IUINT32 cwnd;
     
-    int intHopOwd, hopSrtt, hopRttval;
+    int intHopOwd, hopSrtt, hopRttvar;
     // if there is no interest to send in short-term future, 
     // requester needs to send empty interest for sendRate notification
     // this is particularly necessary in slow start phase
@@ -320,5 +319,8 @@ public:
     int peekSize();
 };
 
+
+float bytesToMbit(int bytes);
+int mbitToBytes(float mbit);
 
 #endif

@@ -35,7 +35,7 @@ def routeReset(mn,testParam):
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
     
-@threadFunc(NormalThread,True)
+@threadFunc(False)
 def LinkUpdate(mn, testParam, logPath):
     #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
     def config(intf,bw=None,rtt=None,loss=None):
@@ -59,7 +59,7 @@ def LinkUpdate(mn, testParam, logPath):
             linkNames.append(ln)
     if linkNames == []:
         return
-    while LatchThread.isRunning():#DEBUG
+    while LatchThread.running():#DEBUG
         for linkName in linkNames:
             nameA,nameB = linkName.split(Param.LinkNameSep)
             nodeA = mn.getNodeByName(nameA)
@@ -96,7 +96,7 @@ def LinkUpdate(mn, testParam, logPath):
         time.sleep(testParam.linksParam.basicLP.varIntv)
 
 
-@threadFunc(NormalThread,True)
+@threadFunc(False)
 def MakeItm(mn, testParam, logPath):
     linkNames = []
     for ln in testParam.topoParam.linkNames():
@@ -107,7 +107,7 @@ def MakeItm(mn, testParam, logPath):
     
     #TODO what if the links have different itmTotal/itmDown
     anyLP = testParam.linksParam.getLP(linkNames[-1])
-    while LatchThread.isRunning():
+    while LatchThread.running():
         #print("aaaaaaa")
         time.sleep(anyLP.itmTotal-anyLP.itmDown)
         #print("down")

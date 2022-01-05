@@ -132,7 +132,7 @@ int createSocket(in_addr_t IP, uint16_t port, bool reusePort, uint16_t *finalPor
 IntcpSess::IntcpSess(in_addr_t reqAddrIP, in_addr_t respAddrIP, 
         uint16_t respAddrPort, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr)):
-nodeRole(INTCP_REQUESTER),
+nodeRole(INTCP_ROLE_REQUESTER),
 cachePtr(_cachePtr)
 {
     uint16_t reqAddrPort;
@@ -160,7 +160,7 @@ cachePtr(_cachePtr)
 // this is called when receiving a new Quad
 IntcpSess::IntcpSess(Quad quad, int listenFd, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr), int (*onUnsatInt)(IUINT32 start, IUINT32 end, void *user)):
-nodeRole(INTCP_RESPONDER),
+nodeRole(INTCP_ROLE_RESPONDER),
 cachePtr(_cachePtr)
 {
     requesterAddr = quad.getReqAddr();
@@ -183,7 +183,7 @@ cachePtr(_cachePtr)
 // this is called when receiving a new Quad
 IntcpSess::IntcpSess(Quad quad, Cache* _cachePtr,
         void *(*onNewSess)(void* _sessPtr)):
-nodeRole(INTCP_MIDNODE),
+nodeRole(INTCP_ROLE_MIDNODE),
 cachePtr(_cachePtr)
 {
     requesterAddr = quad.getReqAddr();
@@ -292,10 +292,10 @@ int udpSend(const char* buf,int len, void* user, int dstRole){
     }
     struct sockaddr_in *dstAddrPtr;
     int outputFd;
-    if(dstRole==INTCP_RESPONDER){
+    if(dstRole==INTCP_ROLE_RESPONDER){
         dstAddrPtr = &sess->responderAddr;
         outputFd = sess->socketFd_toResp;
-    }else if(dstRole==INTCP_REQUESTER){
+    }else if(dstRole==INTCP_ROLE_REQUESTER){
         //in midnode, udpSend_default send to requester and udpSend_toResp send to responder
         dstAddrPtr = &sess->requesterAddr;
         outputFd = sess->socketFd_toReq;
@@ -403,10 +403,10 @@ void *udpRecvLoop(void *_args){
         //
         bool isEndp = addrCmp(recvAddr, args->listenAddr);
         int segDstRole = IntcpTransCB::judgeSegDst(recvBuf, recvLen);
-        if(segDstRole == INTCP_RESPONDER){
+        if(segDstRole == INTCP_ROLE_RESPONDER){
             requesterAddr = sendAddr;
             responderAddr = recvAddr;
-        } else if (segDstRole == INTCP_REQUESTER) {
+        } else if (segDstRole == INTCP_ROLE_REQUESTER) {
             requesterAddr = recvAddr;
             responderAddr = sendAddr;
         } else {
@@ -420,7 +420,7 @@ void *udpRecvLoop(void *_args){
         int ret = args->sessMapPtr->readValue(quad.chars, QUAD_STR_LEN, &sessPtr);
         if (ret == -1){
             //if the endpoint receives a intcp DATA packet from unknown session, ignores it.
-            if(isEndp && segDstRole==INTCP_REQUESTER){
+            if(isEndp && segDstRole==INTCP_ROLE_REQUESTER){
           
                 LOG(WARN,"requester recvs an unknown packet");
                 continue;
