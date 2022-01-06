@@ -50,7 +50,14 @@ def createNet(testParam):
         for seg in range(1,i):
             mn.getNodeByName(nodes[i]).cmd(
                     'route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(seg,i))
-    
+
+    #BUG bug in Mininet
+    # there must be some traffic between the endpoints before running intcp, 
+    # otherwise the first dozens of interests will be out of order,
+    # leading to severe fake interest hole
+    # so we use ping here
+    mn.ping([mn['h1'],mn['h2']])
+
     return mn
 
 

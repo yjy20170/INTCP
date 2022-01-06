@@ -318,10 +318,10 @@ void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 s
                 iter->count++;
                 if(iter->count >= INTCP_SNHOLE_THRESHOLD){
                     if(iter->endByte - iter->startByte > (iter->endSn - iter->startSn)*INTCP_INT_RANGE_LIMIT){
-                        LOG(TRACE, "---- Abnormal int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
+                        LOG(TRACE, "---- Abnormal int hole [%u,%u) [%u,%u)----", iter->startSn,iter->endSn, iter->startByte, iter->endByte);
                     } else {
                         stat.cntIntHole++;
-                        LOG(TRACE,"---- int hole [%d,%d) cur %u----", iter->startByte, iter->endByte, current);
+                        LOG(TRACE,"---- int hole [%u,%u) [%u,%u)----", iter->startSn,iter->endSn, iter->startByte, iter->endByte);
                         parseInt(iter->startByte, iter->endByte);
                     }
                     intHoles.erase(iter);
@@ -640,6 +640,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
     if(nodeRole == INTCP_ROLE_REQUESTER){
         list<shared_ptr<IntcpSeg>>::iterator intIter, intNext;
         //in requester, need to delete range of intBuf
+        int intUseful = 0;
         for (intIter = intBuf.begin(); intIter != intBuf.end(); intIter = intNext) {
             shared_ptr<IntcpSeg> intSeg = *intIter;
             intNext = intIter; intNext++;
@@ -649,7 +650,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
             if (dataSeg->rangeStart < intSeg->rangeEnd && dataSeg->rangeEnd > intSeg->rangeStart) {
                 LOG(TRACE,"[%d,%d) rtt %d current %u xmit %d",dataSeg->rangeStart,dataSeg->rangeEnd,
                         _getMillisec()-intSeg->ts, _getMillisec(), intSeg->xmit);
-
+                intUseful = 1;
                 // if(intSeg->rttUpdate){
                 // // if(true){
                 //     updateRTT(_itimediff(_getMillisec(), intSeg->ts));
@@ -722,6 +723,9 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                     intBuf.insert(intIter,newseg);
                 }
             }
+        }
+        if(intUseful==0){
+            LOG(TRACE,"useless data recved [%u,%u)",dataSeg->rangeStart,dataSeg->rangeEnd);
         }
     } else {
         shared_ptr<IntcpSeg> segToForward = createSeg(dataSeg->len);
@@ -809,13 +813,13 @@ int IntcpTransCB::input(char *data, int size)
         if(cmd==INTCP_CMD_INT){
             intHopOwd = _getMillisec() - ts;
             rmtSendRate = float(wnd)/100;
-            LOG(TRACE, "recv int [%d,%d)",rangeStart,rangeEnd);
+            LOG(TRACE, "recv int %u [%u,%u)",sn,rangeStart,rangeEnd);
             if(!(rangeStart==0 && rangeEnd==0)){
                 detectIntHole(rangeStart,rangeEnd,sn);
                 parseInt(rangeStart,rangeEnd);
             }
         } else if (cmd == INTCP_CMD_PUSH) {
-            LOG(TRACE, "input data sn %d [%d,%d)", sn, rangeStart,rangeEnd);
+            LOG(TRACE, "recv data %d [%d,%d)", sn, rangeStart,rangeEnd);
 
             //TODO avoid memcpy
             // if (isMidnode) {
@@ -949,16 +953,15 @@ void IntcpTransCB::flushIntBuf(){
                 //NOTE RTO function: segRto=f(rto, xmit)
                 IUINT32 segRto = rto*( pow(1.5,segPtr->xmit-1) +1);// + 1000;
                 if (_itimediff(current, segPtr->ts) >= segRto) {
+                    LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
+                            segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                     if (segPtr->xmit >= INTCP_DEADLINK || segRto>=INTCP_RTO_MAX) {
-                        LOG(DEBUG,"xmit %d rto %u",segPtr->xmit,segRto);
                         state = -1;
                         LOG(ERROR, "dead link");
                         abort();
                     }
                     hasLossEvent = true;
                     cntTimeout++;
-                    LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
-                            segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                     needsend = 1;
                     stat.xmit++;
                 }

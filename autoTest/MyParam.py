@@ -42,7 +42,7 @@ def getTestParamSet(tpsetName):
                 DefaultAP.set(sendTime=120),
                 keyX='pep2_pep3.varBw')
         tpSet.add(
-                {'pep2_pep3.varBw':[10]
+                {'pep2_pep3.varBw':[0]
                 },
                 {
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},

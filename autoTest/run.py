@@ -25,11 +25,9 @@ if __name__=='__main__':
 
     os.chdir(sys.path[0])
 
-    # if not isAnlz:
-    #     os.system("../appLayer/intcpApp/makes.sh")
+    if not isAnlz:
+        os.system("../appLayer/intcpApp/makes.sh")
 
-
-    Instance.clear()
 
     tpSetNames = ["expr"]
     for sno,tpSetName in enumerate(tpSetNames):
@@ -56,4 +54,4 @@ if __name__=='__main__':
             autoAnlz.anlz(tpSet, logPath, resultPath)
 
     print('all experiments finished.')
-    
+    os.system('sudo killall -9 xterm >/dev/null 2>&1')

@@ -11,10 +11,14 @@ from . import linkDnmcThreads # for threadFunc execution
 def Cli(mn):
     time.sleep(0.5)
     mn.enterCli()
+    # mn.interact()
 
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
 def run(testParam, logPath, isManual):
+    print("cleanup mininet...")
+    clear()
+    
     mn = RealNetwork.createNet(testParam)
 
     threads = TbThread.NormalThreads[:]
@@ -23,14 +27,11 @@ def run(testParam, logPath, isManual):
     try:
         TbThread.smartRun(threads, mn, testParam, logPath)
         if isManual:
+            mn.openXterm()
             Cli(mn)
         TbThread.waitLatch(threads)
     except KeyboardInterrupt:
         print('\nstopped')
-
-    print("cleanup mininet...")
-    # os.system('sudo mn -c >/dev/null 2>&1')
-    cleanup()
     
     return
 
@@ -38,7 +39,7 @@ def clear():
     # os.system('sudo mn -c >/dev/null 2>&1')
     cleanup()
 
-    # os.system('sudo killall -9 xterm >/dev/null 2>&1')
+    os.system('sudo killall -9 xterm >/dev/null 2>&1')
 
     # os.system('kill -9 `jobs -ps`')
     # os.system('kill -9 $(jobs -p)')

@@ -59,7 +59,7 @@ def LinkUpdate(mn, testParam, logPath):
             linkNames.append(ln)
     if linkNames == []:
         return
-    while LatchThread.running():#DEBUG
+    while LatchThread.running():#TODO time.sleep(1000) exit too late
         for linkName in linkNames:
             nameA,nameB = linkName.split(Param.LinkNameSep)
             nodeA = mn.getNodeByName(nameA)
