@@ -93,7 +93,7 @@ def LinkUpdate(mn, testParam, logPath):
                 config(intf,bw=newBw)
         # linkName is the name of last link in linkNames
          #TODO what if the links have different varIntv
-        time.sleep(testParam.linksParam.basicLP.varIntv)
+        time.sleep(testParam.linksParam.defaultLP.varIntv)
 
 
 @threadFunc(False)

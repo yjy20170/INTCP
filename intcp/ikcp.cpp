@@ -1128,7 +1128,7 @@ void IntcpTransCB::update()
     IUINT32 current = _getMillisec();
     if(current-stat.lastPrintTs>1000){
         if(nodeRole==INTCP_ROLE_REQUESTER){
-            LOG(DEBUG,"%4d %d C %4u ↑%.1f ↓%.1f+%.1f rB %ld T %d D %d",
+            LOG(DEBUG,"%4d %d C %4u ↑%.1f ↓%.1f+%.2f rB %ld T %d D %d",
                     srtt,hopSrtt,
                     cwnd,
                     float(getSendRate())/100,
@@ -1152,7 +1152,7 @@ void IntcpTransCB::update()
                     stat.cntIntHole,stat.cntDataHole);
         }
         if(nodeRole!=INTCP_ROLE_REQUESTER){
-            LOG(DEBUG,"%d| %4d ↑%.1f sQ %d I %d",
+            LOG(DEBUG,"%d| %4d r↑%.1f sQ %d I %d",
                     stat.ssid, (current-stat.startTs)/1000,
                     rmtSendRate, sndQueueBytes/INTCP_MSS,
                     stat.cntIntHole);

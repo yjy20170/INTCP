@@ -7,11 +7,6 @@ from . import TbThread
 from . import RealNetwork
 from . import linkDnmcThreads # for threadFunc execution
 
-@TbThread.LatchFunc
-def Cli(mn):
-    time.sleep(0.5)
-    mn.enterCli()
-    # mn.interact()
 
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
@@ -20,15 +15,20 @@ def run(testParam, logPath, isManual):
     clear()
     
     mn = RealNetwork.createNet(testParam)
+    time.sleep(0.5)
 
     threads = TbThread.NormalThreads[:]
     if not isManual:
         threads += TbThread.LatchThreads
     try:
+        if isManual:
+            TbThread.LatchThread.incNum()
         TbThread.smartRun(threads, mn, testParam, logPath)
         if isManual:
             mn.openXterm()
-            Cli(mn)
+            time.sleep(1)
+            mn.enterCli()
+            TbThread.LatchThread.decNum()
         TbThread.waitLatch(threads)
     except KeyboardInterrupt:
         print('\nstopped')

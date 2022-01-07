@@ -8,8 +8,6 @@ def threadFunc(isLatchThread):
     prefix = 'Latch' if isLatchThread else 'Normal'
     def wrapper(func):
         def funcNew(*args, **kwargs):
-            if not isLatchThread:
-                time.sleep(0.1)
             print('[ %s Thread start ] %s' % (prefix,func.__name__))
             ret = func(*args, **kwargs)
             print('[ %s Thread  end  ] %s' % (prefix,func.__name__))
@@ -70,6 +68,7 @@ def smartRun(threads, *args, **kwargs):
             normalThreads.append(thrd)
     for thrd in latchThreads:
         thrd.start(*args,**kwargs)
+    time.sleep(0.5)
     for thrd in normalThreads:
         thrd.start(*args,**kwargs)
     # normal threads keep running until latchThread ends

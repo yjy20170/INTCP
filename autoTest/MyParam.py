@@ -36,13 +36,14 @@ def getTestParamSet(tpsetName):
     if tpsetName == "expr":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
-                LinksParam(DefaultLP.set(varIntv=10,loss=0), 
+                LinksParam(DefaultLP.set(varIntv=20), 
                     {'h1_pep1':{'bw':40},
                     'pep3_h2':{'bw':40}}),
                 DefaultAP.set(sendTime=120),
                 keyX='pep2_pep3.varBw')
         tpSet.add(
-                {'pep2_pep3.varBw':[0]
+                {'pep2_pep3.varBw':[0,5],
+                 'defaultLP.loss':[0.1],
                 },
                 {
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},

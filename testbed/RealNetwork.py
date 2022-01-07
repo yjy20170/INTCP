@@ -1,6 +1,7 @@
 from mininet.topo import Topo
 from mininet.link import TCLink
 from mininet.net import Mininet
+from mininet.log import info
 
 from testbed.TbNode import TbNode
 from testbed import Param
@@ -56,7 +57,7 @@ def createNet(testParam):
     # otherwise the first dozens of interests will be out of order,
     # leading to severe fake interest hole
     # so we use ping here
-    mn.ping([mn['h1'],mn['h2']])
+    mn.ping([mn['h1'],mn['h2']],outputer=info)
 
     return mn
 

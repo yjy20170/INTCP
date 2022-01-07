@@ -121,13 +121,13 @@ class PartialLinkParam(Param):
     pass
 
 class LinksParam(Param):
-    BasicKeys = ['basicLP']
+    BasicKeys = ['defaultLP']
     # dic: {'h1_pep1':{'bw':40,'loss':0.1}}
-    def __init__(self, basicLP=None, dic=None, template=None):
+    def __init__(self, defaultLP=None, dic=None, template=None):
         if template != None:
             super().__init__(template)
             return
-        self.set('basicLP', basicLP)
+        self.set('defaultLP', defaultLP)
         for linkName in dic:
             for key in dic[linkName]:
                 self.set(linkName+'.'+key,dic[linkName][key])
@@ -139,13 +139,13 @@ class LinksParam(Param):
     
     def getLP(self,linkName):
         if linkName in self.__dict__:
-            tmpLP = self.basicLP.copy()
+            tmpLP = self.defaultLP.copy()
             for key in self.get(linkName).__dict__:
                 if key in LinkParam.BasicKeys:
                     tmpLP.set(key, self.get(linkName).get(key))
             return tmpLP
         else:
-            return self.basicLP
+            return self.defaultLP
 
 # AppParam is defined by user
 class AppParam(Param):
