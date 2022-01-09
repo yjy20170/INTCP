@@ -1,6 +1,7 @@
 #ifndef __API_H__
 #define __API_H__
 
+#include <csignal>
 #include "udp_intcp.h"
 
 int chdirProgramDir();
@@ -14,5 +15,6 @@ void startMidnode(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr,
         void *(*onNewSess)(void* _sessPtr),
         uint16_t port);
 
+void flushBeforeExit();
         
 #endif

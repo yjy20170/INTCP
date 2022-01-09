@@ -100,3 +100,14 @@ void startMidnode(Cache *cachePtr, ByteMap<shared_ptr<IntcpSess>> *sessMapPtr,
 
     pthread_join(listener, nullptr);
 }
+
+void signalHandler( int signum )
+{
+    cout << "Interrupt signal (" << signum << ") received.\n";
+    fflush(stdout);
+    exit(signum); 
+}
+void flushBeforeExit(){
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+}

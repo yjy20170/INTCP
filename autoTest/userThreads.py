@@ -34,7 +34,7 @@ def kill_intcp_processes(mn,testParam):
     atomic(mn.getNodeByName('h1').cmd)('killall intcpc')
     if testParam.appParam.midCC != 'nopep':
         for node in testParam.topoParam.nodes:
-            if not node=='h1' and not node=='h2':
+            if node not in ['h1','h2']:
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
             
 @threadFunc(True)
@@ -49,12 +49,11 @@ def ThroughputTest(mn,testParam,logPath):
         for i in range(testParam.appParam.sendRound):
             print('iperfc loop %d running' %i)
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
-            time.sleep(testParam.appParam.sendTime + 10)
+            time.sleep(testParam.appParam.sendTime + 5)
             
     elif testParam.appParam.get('protocol')=="INTCP":   #only support one round
-        for i in range(testParam.appParam.sendRound):
+        for i in range(testParam.appParam.sendRound): #TODO overwrite log
             if testParam.appParam.midCC != 'nopep':
-                
                 for node in testParam.topoParam.nodes:
                     if node not in ['h1','h2']:
                         # print(node,"run intcpm")
@@ -62,9 +61,9 @@ def ThroughputTest(mn,testParam,logPath):
                         time.sleep(2)
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
-            time.sleep(testParam.appParam.sendTime+10)
+            time.sleep(testParam.appParam.sendTime+1)
             kill_intcp_processes(mn,testParam)
-            time.sleep(2)
+            time.sleep(1)
             
         return
         
@@ -95,9 +94,6 @@ def RttTest(mn, testParam, logPath):
         time.sleep(testParam.appParam.sendTime)
         
     elif testParam.appParam.get('protocol')=="INTCP":
-        
-        #time.sleep(1)
-        
         if testParam.appParam.midCC != 'nopep':
             
             for node in testParam.topoParam.nodes:

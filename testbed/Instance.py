@@ -17,19 +17,21 @@ def run(testParam, logPath, isManual):
     mn = RealNetwork.createNet(testParam)
     time.sleep(0.5)
 
-    threads = TbThread.NormalThreads[:]
-    if not isManual:
-        threads += TbThread.LatchThreads
+    threads = [t for t in TbThread.Threads
+            if not(t.isLatchThread and isManual)]
+
     try:
         if isManual:
-            TbThread.LatchThread.incNum()
-        TbThread.smartRun(threads, mn, testParam, logPath)
+            TbThread.latchNumInc()
+        for thread in threads:
+            thread.start(mn, testParam, logPath)
         if isManual:
+            time.sleep(0.5)
             mn.openXterm()
-            time.sleep(1)
             mn.enterCli()
-            TbThread.LatchThread.decNum()
-        TbThread.waitLatch(threads)
+            TbThread.latchNumDec()
+        for thread in threads:
+            thread.join()
     except KeyboardInterrupt:
         print('\nstopped')
     
@@ -45,3 +47,5 @@ def clear():
     # os.system('kill -9 $(jobs -p)')
     # os.system('kill $(jobs -l | grep Stopped | cut -d\' \' -f3)')
     os.system("for x in `ps -aux | awk {\'if ($8 == \"Tl\") print $2\'}`; do kill -9 $x; done")
+
+    TbThread.latchNumReset()

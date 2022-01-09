@@ -171,7 +171,7 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-            print('average =',result[tp])
+            print('len=',len(thrps),'average =',result[tp])
     return result
 
 def getPlotParam(group, isRttTest=False):
@@ -451,7 +451,10 @@ def anlz(tpSet, logPath, resultPath):
     if not tpSet.tpTemplate.appParam.isRttTest:
         print('-----')
         mapTpToResult = loadLog(logPath, tpSet, isDetail=False)
-        plotByGroup(tpSet, mapTpToResult, resultPath)
+        if tpSet.keyX == 'nokeyx':
+            print('tpSet no keyX')
+        else:
+            plotByGroup(tpSet, mapTpToResult, resultPath)
         summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
         print(summaryString)
         writeText('%s/summary.txt'%(resultPath), summaryString)

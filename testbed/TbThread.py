@@ -1,88 +1,70 @@
 import threading
 import time
 
-NormalThreads = []
-LatchThreads = []
+Threads = []
 
-def threadFunc(isLatchThread):
-    prefix = 'Latch' if isLatchThread else 'Normal'
-    def wrapper(func):
-        def funcNew(*args, **kwargs):
-            print('[ %s Thread start ] %s' % (prefix,func.__name__))
+LatchNum = 0
+def latchRunning():
+    return LatchNum > 0
+def latchNumInc():
+    global LatchNum
+    LatchNum += 1
+def latchNumDec():
+    global LatchNum
+    LatchNum -= 1
+def latchNumReset():
+    global LatchNum
+    LatchNum = 0
+
+class SleepException(Exception):
+    pass
+def sleepWithCaution(sec):
+    for i in range(int(sec*10)):
+        time.sleep(0.1)
+        if not latchRunning():
+            raise SleepException()
+
+def NormalFunc(func):
+    def funcNew(*args, **kwargs):
+        time.sleep(0.5)
+        print('[ Normal Thread start ] %s' % (func.__name__))
+        try:
             ret = func(*args, **kwargs)
-            print('[ %s Thread  end  ] %s' % (prefix,func.__name__))
-            return ret
-        if isLatchThread:
-            thread = LatchThread(funcNew)
-            LatchThreads.append(thread)
-        else:
-            thread = NormalThread(funcNew)
-            NormalThreads.append(thread)
-        return thread
-    return wrapper
+        except SleepException:
+            ret = None
+        print('[ Normal Thread  end  ] %s' % (func.__name__))
+        return ret
+    return funcNew
 
+def LatchFunc(func):
+    def funcNew(*args,**kwargs):
+        print('[ Latch Thread start ] %s' % (func.__name__))
+        latchNumInc()
+        ret = func(*args,**kwargs)
+        latchNumDec()
+        print('[ Latch Thread  end  ] %s' % (func.__name__))
+        return ret
+    return funcNew
 
-class NormalThread:
-    def __init__(self, func):
-        self.func = func
+class TbThread:
+    def __init__(self, isLatchThread, func):
+        wrapper = LatchFunc if isLatchThread else NormalFunc
+        self.func = wrapper(func)
+        self.isLatchThread = isLatchThread
         self.thread = None
     def start(self, *args, **kwargs):
-        self.thread = threading.Thread(daemon=True, target=self.func, args=args, kwargs=kwargs)
+        self.thread = threading.Thread(daemon=not self.isLatchThread,
+                target=self.func, args=args, kwargs=kwargs)
         self.thread.start()
     def join(self):
         self.thread.join()
 
 
-def LatchFunc(func):
-    def funcNew(*args,**kwargs):
-        LatchThread.incNum()
-        ret = func(*args,**kwargs)
-        LatchThread.decNum()
-        return ret
-    return funcNew
-class LatchThread(NormalThread):
-    Num = 0
-    def __init__(self, func):
-        super().__init__(LatchFunc(func))
-    def start(self, *args, **kwargs):
-        self.thread = threading.Thread(daemon=False, target=self.func, args=args, kwargs=kwargs)
-        super().start(*args,**kwargs)
-    @classmethod
-    def running(cls):
-        return cls.Num > 0
-    @classmethod
-    def incNum(cls):
-        cls.Num += 1
-    @classmethod
-    def decNum(cls):
-        cls.Num -= 1
-
-
-def smartRun(threads, *args, **kwargs):
-    latchThreads = []
-    normalThreads = []
-    for thrd in threads:
-        if thrd.__class__ == LatchThread:
-            latchThreads.append(thrd)
-        else:
-            normalThreads.append(thrd)
-    for thrd in latchThreads:
-        thrd.start(*args,**kwargs)
-    time.sleep(0.5)
-    for thrd in normalThreads:
-        thrd.start(*args,**kwargs)
-    # normal threads keep running until latchThread ends
-
-def waitLatch(threads):
-    latchThreads = []
-    for thrd in threads:
-        if thrd.__class__ == LatchThread:
-            latchThreads.append(thrd)
-    # for thread in normalThreads+latchThreads:
-    #NOTE do not wait normalThreads now
-    for thread in latchThreads:
-        thread.join()
-
+def threadFunc(isLatchThread):
+    def wrapper(func):
+        Threads.append(TbThread(isLatchThread, func))
+        return Threads[-1]
+    return wrapper
 
 
 atomicLock = threading.Lock()

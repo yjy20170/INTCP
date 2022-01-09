@@ -2,7 +2,7 @@ import time
 import random
 import math
 
-from .TbThread import *
+from .TbThread import threadFunc, atomic, sleepWithCaution, latchRunning
 from . import Param
 
 
@@ -59,7 +59,7 @@ def LinkUpdate(mn, testParam, logPath):
             linkNames.append(ln)
     if linkNames == []:
         return
-    while LatchThread.running():#TODO time.sleep(1000) exit too late
+    while latchRunning():
         for linkName in linkNames:
             nameA,nameB = linkName.split(Param.LinkNameSep)
             nodeA = mn.getNodeByName(nameA)
@@ -71,18 +71,18 @@ def LinkUpdate(mn, testParam, logPath):
             #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
             #         config(intf, bw=newBw)
             #     if testParam.linkParams['pep_h2'].varMethod == 'squareHighPulse':
-            #         time.sleep(5)
+            #         TbThread.sleep(5)
             #     else:
-            #         time.sleep(testParam.linkParams['pep_h2'].varIntv)
+            #         TbThread.sleep(testParam.linkParams['pep_h2'].varIntv)
 
             #     # newBw = generateBw('random',testParam.bw,testParam.varBw)
             #     newBw = generateBw('square', testParam.linkParams['pep_h2'].bw, testParam.linkParams['pep-h2'].varBw)
             #     for intf in (s2.connectionsTo(pep)[0] + s2.connectionsTo(h2)[0]):
             #         config(intf, bw=newBw)
             #     if testParam.linkParams['pep_h2'].varMethod == 'squareHighPulse':
-            #         time.sleep(testParam.linkParams['pep_h2'].varIntv)
+            #         TbThread.sleep(testParam.linkParams['pep_h2'].varIntv)
             #     else:
-            #         time.sleep(5)
+            #         TbThread.sleep(5)
             # else:
             lp = testParam.linksParam.getLP(linkName)
             newBw = generateBw(lp.varMethod, lp.bw, lp.varBw)
@@ -93,7 +93,7 @@ def LinkUpdate(mn, testParam, logPath):
                 config(intf,bw=newBw)
         # linkName is the name of last link in linkNames
          #TODO what if the links have different varIntv
-        time.sleep(testParam.linksParam.defaultLP.varIntv)
+        sleepWithCaution(testParam.linksParam.defaultLP.varIntv)
 
 
 @threadFunc(False)
@@ -107,9 +107,9 @@ def MakeItm(mn, testParam, logPath):
     
     #TODO what if the links have different itmTotal/itmDown
     anyLP = testParam.linksParam.getLP(linkNames[-1])
-    while LatchThread.running():
+    while latchRunning():
         #print("aaaaaaa")
-        time.sleep(anyLP.itmTotal-anyLP.itmDown)
+        sleepWithCaution(anyLP.itmTotal-anyLP.itmDown)
         #print("down")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)
@@ -117,7 +117,7 @@ def MakeItm(mn, testParam, logPath):
             atomic(mn.configLinkStatus)(nameA,l,'down')
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'down')
-        time.sleep(anyLP.itmDown)
+        sleepWithCaution(anyLP.itmDown)
         #print("up")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)

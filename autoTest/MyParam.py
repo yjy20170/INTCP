@@ -33,22 +33,35 @@ DefaultAP = MyAppParam(
 
 def getTestParamSet(tpsetName):
     tpSet = None
-    if tpsetName == "expr":
+    if tpsetName == "expr3":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
-                LinksParam(DefaultLP.set(varIntv=20), 
+                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
                     {'h1_pep1':{'bw':40},
                     'pep3_h2':{'bw':40}}),
-                DefaultAP.set(sendTime=120),
+                DefaultAP.set(sendTime=60),
                 keyX='pep2_pep3.varBw')
         tpSet.add(
-                {'pep2_pep3.varBw':[0,5],
-                 'defaultLP.loss':[0.1],
+                {'pep2_pep3.varBw':[0],
                 },
                 {
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-                'in_nopep':{'midCC':'nopep'},
+                # 'in_nopep':{'midCC':'nopep'},
                 'in_pep':{'midCC':'pep'}
+                }
+        )
+    #DEBUG
+    if tpsetName == "expr":
+        tpSet = TestParamSet(tpsetName,
+                Topo2,
+                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
+                    {'h1_pep1':{'bw':20},
+                    'pep2_h2':{'bw':40}}),
+                DefaultAP.set(sendTime=40))
+        tpSet.add(
+                {},
+                {
+                'in_pep':{'midCC':'pep'},
                 }
         )
 

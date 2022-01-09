@@ -958,7 +958,7 @@ void IntcpTransCB::flushIntBuf(){
                     if (segPtr->xmit >= INTCP_DEADLINK || segRto>=INTCP_RTO_MAX) {
                         state = -1;
                         LOG(ERROR, "dead link");
-                        abort();
+                        exit(0);
                     }
                     hasLossEvent = true;
                     cntTimeout++;
@@ -1137,6 +1137,7 @@ void IntcpTransCB::update()
                     rcvBuf.size(),
                     stat.cntTimeout,stat.cntDataHole);
             //NOTE
+            printf("%d\n",current - stat.startTs);
             printf("  %4ds %.2f Mbits/sec receiver\n",
                     (current-stat.startTs)/1000,
                     bytesToMbit(stat.recvedINTCP)*1000/(current-stat.lastPrintTs)
@@ -1159,6 +1160,7 @@ void IntcpTransCB::update()
         }
         stat.reset();
     }
+
     if (updated == 0) {
         updated = 1;
         nextFlushTs = current;

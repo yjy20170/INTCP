@@ -45,6 +45,7 @@ void *onNewSess(void* _sessPtr){
 }
 
 int main(){
+    flushBeforeExit();
     Cache cache(QUAD_STR_LEN);
     ByteMap<shared_ptr<IntcpSess>> sessMap;
     LOG(INFO,"entering intcps");

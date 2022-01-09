@@ -27,6 +27,7 @@ void *onNewSess(void* _sessPtr){
 }
 
 int main(int argc,char **argv){
+    flushBeforeExit();
     if(argc==2 && argv[1][0]=='c'){
         chdirProgramDir();
         char cmd[50];
