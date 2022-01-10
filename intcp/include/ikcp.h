@@ -131,6 +131,7 @@ public:
     IUINT32 lastPrintTs;
     int recvedUDP; // Mbps
     int recvedINTCP;
+    int sentINTCP;
     int cntTimeout,cntIntHole,cntDataHole;
 
     void reset(){
@@ -156,7 +157,7 @@ class IntcpTransCB
 {
 private:
 	int state;
-	IUINT32 updated, nextFlushTs;
+	IUINT32 updated, nextFlushTs, lastFlushTs;
     StatInfo stat;
 
 
@@ -172,7 +173,6 @@ private:
     list<IntRange> pendingInts;
     list<shared_ptr<IntcpSeg>> sndQueue;
     shared_ptr<char> tmpBuffer;
-
 
     /* ------------ Loss Recovery --------------- */
     // end-to-end timeout
@@ -198,7 +198,7 @@ private:
     // if there is no interest to send in short-term future, 
     // requester needs to send empty interest for sendRate notification
     // this is particularly necessary in slow start phase
-    IUINT32 lastSendIntTs; 
+    IUINT32 lastSendIntTs;
     // throughput calculation for rtt-based CC and app-limited detection
     IUINT32 lastThrpUpdateTs;
     int recvedBytesLastHRTT, recvedBytesThisHRTT;

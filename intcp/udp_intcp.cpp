@@ -201,16 +201,13 @@ cachePtr(_cachePtr)
     return;
 }
 
-
 int IntcpSess::inputUDP(char *recvBuf, int recvLen){
-    IUINT32 ts=_getMillisec();
     lock.lock();
-    if(_getMillisec()-ts>10){
-        // LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
-    }
+
     int ret;
     ret = transCB->input(recvBuf, recvLen);
     lock.unlock();
+    sleep(0);
     return ret;
 }
 
@@ -220,16 +217,14 @@ int IntcpSess::request(int rangeStart, int rangeEnd){
     lock.unlock();
     return ret;
 }
+
 int IntcpSess::recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr){
     lock.lock();
-    IUINT32 ts = _getMillisec();
     int ret = transCB->recv(recvBuf,maxBufSize, startPtr, endPtr);
-        if(_getMillisec()-ts>10){
-            LOG(DEBUG,"%ums on lock",_getMillisec()-ts);
-        }
     lock.unlock();
     return ret;
 }
+
 void IntcpSess::insertData(const char *sendBuf, int start, int end){
     // transCB->send(sendBuf,end-start);
     int ret=cachePtr->insert(nameChars,start,end,sendBuf);
@@ -243,33 +238,19 @@ void IntcpSess::insertData(const char *sendBuf, int start, int end){
 void* TransUpdateLoop(void *args){
     IntcpSess *sessPtr = (IntcpSess*)args;
 
-    // IUINT32 lastUpdateTime = -1;
     IUINT32 now, updateTime;
-    // int cnt=0,cntSleep=0;
-    // IUINT32 sumSleep=0,startTime=_getMillisec(),tmp,updateUseTime;
+
     while(1){
-        // if(++cnt==1000){
-        //     LOG(DEBUG,"intv %f mean sleep %f %d/%d",double(_getMillisec()-startTime)/cnt,double(sumSleep)/cntSleep/1000,cntSleep,cnt);
-        //     startTime=_getMillisec();
-        //     cnt=0;
-        //     sumSleep=0;
-        //     cntSleep=0;
-        // }
+
         sessPtr->lock.lock();
         updateTime = sessPtr->transCB->check();
         now = _getMillisec();
         if (updateTime <= now) {
-            // if(lastUpdateTime!=-1){
-            //     LOG(DEBUG,"update interval %d", now - lastUpdateTime);
-            // }
-            // lastUpdateTime = now;
             sessPtr->transCB->update();
             sessPtr->lock.unlock();
         } else {
             sessPtr->lock.unlock();
-            usleep(updateTime - now);
-            // sumSleep += updateTime - now;
-            // cntSleep++;
+            usleep((updateTime - now)*1000);
         }
     }
     return nullptr;

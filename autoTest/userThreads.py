@@ -81,8 +81,6 @@ def RttTest(mn, testParam, logPath):
     delFile(senderLogFilePath)
     delFile(receiverLogFilePath)
     
-    #if testParam.midCC != 'nopep':
-    #   atomic(mn.getNodeByName('pep').cmd)('../bash/runpep -C '+testParam.midCC+' &')
     #RttTestPacketNum = 1000
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(RttTestPacketNum,testParam.rttTotal,logFilePath))
     if testParam.appParam.get('protocol')=="TCP":   # h1->h2

@@ -16,7 +16,7 @@ class MyAppParam(AppParam):
 
 # don't change these
 #
-Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep','h2'],links=[['h1','pep'],['pep','h2']])
+Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
 # 
@@ -33,7 +33,7 @@ DefaultAP = MyAppParam(
 
 def getTestParamSet(tpsetName):
     tpSet = None
-    if tpsetName == "expr3":
+    if tpsetName == "expr":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
                 LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
@@ -48,20 +48,6 @@ def getTestParamSet(tpsetName):
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
                 # 'in_nopep':{'midCC':'nopep'},
                 'in_pep':{'midCC':'pep'}
-                }
-        )
-    #DEBUG
-    if tpsetName == "expr":
-        tpSet = TestParamSet(tpsetName,
-                Topo2,
-                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
-                    {'h1_pep1':{'bw':20},
-                    'pep2_h2':{'bw':40}}),
-                DefaultAP.set(sendTime=40))
-        tpSet.add(
-                {},
-                {
-                'in_pep':{'midCC':'pep'},
                 }
         )
 

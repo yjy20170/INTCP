@@ -219,6 +219,8 @@ class TestParamSet:
                     **perm))
 
             # move to next one
+            if sumLen==0:
+                break
             ptr = sumLen - 1
             pos[ptr] += 1
             done = False
