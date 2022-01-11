@@ -39,14 +39,14 @@ def getTestParamSet(tpsetName):
                 LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
                     {'h1_pep1':{'bw':40},
                     'pep3_h2':{'bw':40}}),
-                DefaultAP.set(sendTime=60),
+                DefaultAP.set(sendTime=360),
                 keyX='pep2_pep3.varBw')
         tpSet.add(
-                {'pep2_pep3.varBw':[0],
+                {'pep2_pep3.varBw':[0,5],
                 },
                 {
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-                # 'in_nopep':{'midCC':'nopep'},
+                'in_nopep':{'midCC':'nopep'},
                 'in_pep':{'midCC':'pep'}
                 }
         )

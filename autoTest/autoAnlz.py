@@ -1,5 +1,9 @@
 #!/usr/bin/python3
 
+#BUG
+# import matplotlib.font_manager as mfont
+# mfont.findfont('Times New Roman')
+
 import time
 import matplotlib.pyplot as plt
 import os

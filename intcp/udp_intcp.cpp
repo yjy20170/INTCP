@@ -202,7 +202,12 @@ cachePtr(_cachePtr)
 }
 
 int IntcpSess::inputUDP(char *recvBuf, int recvLen){
+    IUINT32 bf = _getMillisec();
     lock.lock();
+    IUINT32 af = _getMillisec();
+    if(af- bf > 10){
+        LOG(TRACE,"input wait %d",af-bf);
+    }
 
     int ret;
     ret = transCB->input(recvBuf, recvLen);
@@ -219,7 +224,12 @@ int IntcpSess::request(int rangeStart, int rangeEnd){
 }
 
 int IntcpSess::recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT32 *endPtr){
+    IUINT32 bf = _getMillisec();
     lock.lock();
+    IUINT32 af = _getMillisec();
+    if(af- bf > 10){
+        LOG(TRACE,"recv wait %d",af-bf);
+    }
     int ret = transCB->recv(recvBuf,maxBufSize, startPtr, endPtr);
     lock.unlock();
     return ret;
@@ -242,7 +252,12 @@ void* TransUpdateLoop(void *args){
 
     while(1){
 
+    IUINT32 bf = _getMillisec();
         sessPtr->lock.lock();
+    IUINT32 af = _getMillisec();
+    if(af- bf > 10){
+        LOG(TRACE,"update wait %d",af-bf);
+    }
         updateTime = sessPtr->transCB->check();
         now = _getMillisec();
         if (updateTime <= now) {
