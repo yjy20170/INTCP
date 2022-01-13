@@ -175,7 +175,7 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
             result[tp] = thrps
         else:
             result[tp] = mean(thrps,method='all')
-            print('len=',len(thrps),'average =',result[tp])
+            print('len=',len(thrps),'average =%.2f'%result[tp])
     return result
 
 def getPlotParam(group, isRttTest=False):

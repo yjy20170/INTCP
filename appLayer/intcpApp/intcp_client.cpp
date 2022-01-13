@@ -36,7 +36,7 @@ void *onNewSess(void* _sessPtr){
     IUINT32 start,end;
     IUINT32 rcn=0;
     IUINT32 printTime = 0, startTime = _getMillisec();
-    IUINT32 throughput = 0;         //bytes
+    IUINT32 recvedBytes = 0;         //bytes
     const IUINT32 CheckInterval = 1000;
 
     int loops = 0;
@@ -45,17 +45,17 @@ void *onNewSess(void* _sessPtr){
         
         ret = sessPtr->recvData(recvBuf,MaxBufSize,&start,&end);
         if(ret==0)
-            throughput += (end-start);
+            recvedBytes += (end-start);
         IUINT32 curTime = _getMillisec();
         if(printTime==0||curTime-printTime>CheckInterval){
             if(printTime!=0){
                 //NOTE
-                // printf("%4ds %3.2f Mbits/sec receiver\n",
+                // printf("%4ds %.2f Mbits/sec receiver\n",
                 //         int((curTime - startTime)/1000),
-                //         mbitToBytes(throughput)*1000/(curTime-printTime)
+                //         bytesToMbit(recvedBytes)*1000/(curTime-printTime)
                 // );
             }
-            throughput = 0;
+            recvedBytes = 0;
             printTime = curTime;
         }
         if(ret<0)

@@ -60,7 +60,7 @@ const int RTTscheme = INTCP_RTT_SCHM_EXPO;
 const IUINT32 INTCP_RTO_MIN = 20;        // normal min rto
 const IUINT32 INTCP_RTO_DEF = 10000;      //500
 const IUINT32 INTCP_RTO_MAX = 60000;
-const float INTCP_RTO_EXPO = 1.1;
+const float INTCP_RTO_EXPO = 1.1;//TODO simplify timeout mechanism
 
 const IUINT32 INTCP_SNHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
 const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs 
@@ -69,15 +69,15 @@ const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs
 const int CCscheme = INTCP_CC_SCHM_RTTB;
 
 const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600 -> 100
-const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS
+const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS//TODO calculated by SENDRATE_MIN
 const IUINT32 INTCP_RTT0 = 50; // like hybla
 
 // RTT-based
 const float QueueingThreshold = 20000; // unit: byte
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
-const IUINT32 INTCP_SNDQ_MAX = 20000*INTCP_MSS; //NOTE
-const IUINT32 INTCP_INTB_MAX = INTCP_SNDQ_MAX;
+const IUINT32 INTCP_SNDQ_MAX = 10000*INTCP_MSS; //NOTE
+const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 
 const float INTCP_SENDRATE_MIN = 0.1; //Mbps
@@ -89,13 +89,13 @@ const float INTCP_SENDRATE_MIN = 0.1; //Mbps
 struct IntcpSeg
 {
     IUINT32 cmd;    //need send,1B
-    IUINT16 wnd;    //need send,2B
+    IINT16 wnd;    //need send,2B
     IUINT32 ts;        //need send,4B
     IUINT32 sn;        //need send,4B
     IUINT32 len;    //need send,4B
     //intcp
     IUINT32 rangeStart;    //need send,4B 
-    IUINT32 rangeEnd;    //need send,4B 
+    IUINT32 rangeEnd;    //TODO don't need send,4B 
     
     // IUINT32 firstTs; //first time this interest is sent. ts >= firstTs
     // bool rttUpdate; // is this interest allowed to be used in rtt update
@@ -190,6 +190,10 @@ private:
     
     
     /* ----- hop-by-hop Congestion Control ----- */
+    // Flow control
+    int rmt_sndq_rest;
+    int intOutputLimit;
+
     int ccState;
     int ccDataLen;
     IUINT32 cwnd;
@@ -259,7 +263,8 @@ private:
     
     void moveToRcvQueue();
     
-    IUINT16 getSendRate();
+    IINT16 getDataSendRate();
+    IINT16 getIntDev();
     
     void updateCwnd(IUINT32 dataLen);
     

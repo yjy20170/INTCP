@@ -221,6 +221,29 @@ static inline char *decode16u(char *p, unsigned short *w)
 	return p;
 }
 
+static inline char *encode16(char *p, short w)
+{
+#if IWORDS_BIG_ENDIAN || IWORDS_MUST_ALIGN
+	*(unsigned char*)(p + 0) = (w & 255);
+	*(unsigned char*)(p + 1) = (w >> 8);
+#else
+	memcpy(p, &w, 2);
+#endif
+	p += 2;
+	return p;
+}
+static inline char *decode16(char *p, short *w)
+{
+#if IWORDS_BIG_ENDIAN || IWORDS_MUST_ALIGN
+	*w = *(unsigned char*)(p + 1);
+	*w = *(unsigned char*)(p + 0) + (*w << 8);
+#else
+	memcpy(w, p, 2);
+#endif
+	p += 2;
+	return p;
+}
+
 /* encode 32 bits unsigned int (lsb) */
 static inline char *encode32u(char *p, IUINT32 l)
 {
