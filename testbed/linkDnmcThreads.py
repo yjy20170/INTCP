@@ -57,6 +57,7 @@ def LinkUpdate(mn, testParam, logPath):
     for ln in testParam.topoParam.linkNames():
         if testParam.linksParam.getLP(ln).varBw>0:
             linkNames.append(ln)
+            sleeptime = testParam.linksParam.getLP(ln).varIntv
     if linkNames == []:
         return
     while latchRunning():
@@ -93,7 +94,8 @@ def LinkUpdate(mn, testParam, logPath):
                 config(intf,bw=newBw)
         # linkName is the name of last link in linkNames
          #TODO what if the links have different varIntv
-        sleepWithCaution(testParam.linksParam.defaultLP.varIntv)
+        #sleepWithCaution(testParam.linksParam.defaultLP.varIntv)
+        sleepWithCaution(sleeptime)
 
 
 @threadFunc(False)

@@ -3,7 +3,7 @@
 import sys
 import os
 import argparse
-
+import time
 sys.path.append(os.path.dirname(os.sys.path[0]))
 from testbed import Instance
 
@@ -25,33 +25,37 @@ if __name__=='__main__':
 
     os.chdir(sys.path[0])
 
-    if not isAnlz:
-        os.system("../appLayer/intcpApp/makes.sh")
+    #if not isAnlz:
+        #os.system("../appLayer/intcpApp/makes.sh")
 
+    
+    tpSetNames = ["bp_itm_test_1"]#,"bp_rtt_test_1","bp_loss_test_1"
+    try:
+        for sno,tpSetName in enumerate(tpSetNames):
+            if len(tpSetNames)!=1:
+                print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
+            tpSet = MyParam.getTestParamSet(tpSetName)
 
-    tpSetNames = ["expr"]
-    for sno,tpSetName in enumerate(tpSetNames):
-        if len(tpSetNames)!=1:
-            print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
-        tpSet = MyParam.getTestParamSet(tpSetName)
+            logPath = '%s/%s' % ('./logs', tpSetName)
+            resultPath = '%s/%s' % ('./result', tpSetName)
 
-        logPath = '%s/%s' % ('./logs', tpSetName)
-        resultPath = '%s/%s' % ('./result', tpSetName)
+            if not isAnlz:
+                FileUtils.createFolder(logPath)
+                FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
+            
+                for i,tp in enumerate(tpSet.testParams):
+                    if len(tpSet.testParams)!=1:
+                            print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
+                    print(tp.serialize())
+                    Instance.run(tp, logPath, isManual)
 
-        if not isAnlz:
-            FileUtils.createFolder(logPath)
-            FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
-        
-            for i,tp in enumerate(tpSet.testParams):
-                if len(tpSet.testParams)!=1:
-                    print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
-                print(tp.serialize())
-                Instance.run(tp, logPath, isManual)
+                FileUtils.fixOwnership(logPath, 'r')
 
-            FileUtils.fixOwnership(logPath, 'r')
-
-        if not isManual:
-            autoAnlz.anlz(tpSet, logPath, resultPath)
+            if not isManual:
+                time.sleep(1)
+                autoAnlz.anlz(tpSet, logPath, resultPath)
+    except KeyboardInterrupt:
+        print('\nStopped')
 
     print('all experiments finished.')
     os.system('sudo killall -9 xterm >/dev/null 2>&1')

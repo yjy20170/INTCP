@@ -1346,7 +1346,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             congSignal = false;
         }else{
             //printf("ccDataLen=%u bytes,cwnd = %u\n",ccDataLen,cwnd);
-            int cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
+            float cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
             bool allowInc = allow_cwnd_increase();
             if(ccDataLen*cwndGain > cwnd*INTCP_MSS && allowInc){
                 cwnd += 1;

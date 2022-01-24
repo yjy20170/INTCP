@@ -70,7 +70,7 @@ const int CCscheme = INTCP_CC_SCHM_RTTB;
 
 const IUINT32 INTCP_SSTHRESH_INIT = 600; // 300 -> 600 -> 100
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS//TODO calculated by SENDRATE_MIN
-const IUINT32 INTCP_RTT0 = 50; // like hybla
+const IUINT32 INTCP_RTT0 = 10; // like hybla
 
 // RTT-based
 const float QueueingThreshold = 20000; // unit: byte

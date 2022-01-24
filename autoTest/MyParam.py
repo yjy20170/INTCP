@@ -14,11 +14,28 @@ class MyAppParam(AppParam):
             'sendTime', 'sendRound'
     ]
 
+def get_simple_topo(n):
+	name = "%d_mid"%(n)
+	numMidNode = n
+	nodes = []
+	links = []
+	nodes.append('h1')
+	for i in range(n):
+		nodes.append('m%d'%(i+1))
+	nodes.append('h2')
+	print(nodes)
+	for i in range(n+1):
+		links.append([nodes[i],nodes[i+1]])
+	print(links)
+	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
+	
 # don't change these
 #
 Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+#Topo20 = get_simple_topo(20)
+Topo20 = Topo1
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
@@ -32,41 +49,191 @@ DefaultAP = MyAppParam(
 
 
 def getTestParamSet(tpsetName):
-    tpSet = None
-    if tpsetName == "expr1":
-        tpSet = TestParamSet(tpsetName,
-                Topo1,
-                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
-                    {'h1_pep1':{'bw':20},
-                    'pep1_h2':{'bw':40,'rtt':100}}),
-                DefaultAP.set(sendTime=360))
-        tpSet.add(
-                {},
-                {
-                # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-                'in_pep':{'midCC':'pep'}
-                }
-        )
-    if tpsetName == "expr":
-        tpSet = TestParamSet(tpsetName,
-                Topo3,
-                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
-                    {'h1_pep1':{'bw':40},
-                    'pep3_h2':{'bw':40}}),
-                DefaultAP.set(sendTime=360),
-                keyX='pep2_pep3.varBw',
-                keysCurveDiff=['midCC'])
-        tpSet.add(
-                {'pep2_pep3.varBw':[0,5,10],
-                },
-                {
-                # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-                'in_nopep':{'midCC':'nopep'},
-                'in_pep':{'midCC':'pep'}
-                }
-        )
-
-    return tpSet
+	tpSet = None
+	if tpsetName == "expr1":
+		tpSet = TestParamSet(tpsetName,
+		        Topo1,
+		        LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
+		            {'h1_pep1':{'bw':20},
+		            'pep1_h2':{'bw':40,'rtt':100}}),
+		        DefaultAP.set(sendTime=360))
+		tpSet.add(
+		        {},
+		        {
+		        # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
+		        'in_pep':{'midCC':'pep'}
+		        }
+		)
+	if tpsetName == "expr":
+		tpSet = TestParamSet(tpsetName,
+		        Topo20,
+		        LinksParam(DefaultLP.set(bw=20,rtt=10,loss=0.1), 
+		            {}),
+		        DefaultAP.set(sendTime=60),
+		        keyX='defaultLP.loss',
+		        keysCurveDiff=['protocol'])
+		tpSet.add(
+		        {'defaultLP.loss':[0.1,0,1],
+		        },
+		        {
+		        #'in_nopep':{'midCC':'nopep'},
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'e2eCC':'cubic','protocol':'TCP'}
+		        }
+		)
+	if tpsetName == "bp_varbw_test_1":
+		tpSet = TestParamSet(tpsetName,
+			Topo1,
+			LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+			    {'h1_pep1':{'rtt':50,'varBw':15},
+			    'pep1_h2':{'rtt':100}}),
+			DefaultAP.set(sendTime=120,sendRound=1),
+			keyX = 'h1_pep1.varIntv',
+			keysCurveDiff=['protocol'])
+		tpSet.add(
+			{'h1_pep1.varIntv':[2,4,6,8,10]
+			},
+			{
+			'in_pep':{'midCC':'pep','protocol':'INTCP'},
+			'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+			#'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+			
+			}
+		)
+	if tpsetName == "bp_varbw_test_2":
+		tpSet = TestParamSet(tpsetName,
+		        Topo1,
+		        LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+		            {'h1_pep1':{'rtt':50,'varIntv':8},
+		            'pep1_h2':{'rtt':100}}),
+		        DefaultAP.set(sendTime=120,sendRound=1),
+		        keyX = 'h1_pep1.varBw',
+		        keysCurveDiff=['protocol'])
+		tpSet.add(
+		        {'h1_pep1.varBw':[0,4,8,12,16]
+		        },
+		        {
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+		        #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+		        
+		        }
+		)
+	if tpsetName == "bp_rtt_test_1":
+		tpSet = TestParamSet(tpsetName,
+		        Topo1,
+		        LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+		            {'h1_pep1':{'rtt':50},
+		            'pep1_h2':{'rtt':100,'loss':0.1}}),
+		        DefaultAP.set(sendTime=120,sendRound=1),
+		        keyX = 'pep1_h2.rtt',
+		        keysCurveDiff=['protocol','e2eCC'])
+		tpSet.add(
+		        {'pep1_h2.rtt':[20,50,100,150,200]#,4,6,8]
+		        },
+		        {
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+		        'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'}
+		        
+		        }
+		)
+	if tpsetName == "bp_loss_test_1":
+		tpSet = TestParamSet(tpsetName,
+		        Topo1,
+		        LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+		            {'h1_pep1':{'rtt':50},
+		            'pep1_h2':{'rtt':100}}),
+		        DefaultAP.set(sendTime=120,sendRound=1),
+		        keyX = 'pep1_h2.loss',
+		        keysCurveDiff=['protocol','e2eCC'])
+		tpSet.add(
+		        {'pep1_h2.loss':[0.1,0.5,1,2]#,4,6,8]
+		        },
+		        {
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+		        'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'}
+		        
+		        }
+		)
+	if tpsetName == "bp_varbw_test_3":
+		tpSet = TestParamSet(tpsetName,
+			Topo1,
+			LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+			    {'h1_pep1':{'rtt':6,'varBw':15},
+			    'pep1_h2':{'rtt':6}}),
+			DefaultAP.set(sendTime=120,sendRound=1),
+			keyX = 'h1_pep1.varIntv',
+			keysCurveDiff=['protocol'])
+		tpSet.add(
+			{'h1_pep1.varIntv':[2,4,6,8,10]
+			},
+			{
+			'in_pep':{'midCC':'pep','protocol':'INTCP'},
+			'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+			#'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+			
+			}
+		)
+	if tpsetName == "bp_varbw_test_4":
+		tpSet = TestParamSet(tpsetName,
+		        Topo1,
+		        LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=120), 
+		            {'h1_pep1':{'rtt':6,'varIntv':8},
+		            'pep1_h2':{'rtt':6}}),
+		        DefaultAP.set(sendTime=120,sendRound=1),
+		        keyX = 'h1_pep1.varBw',
+		        keysCurveDiff=['protocol'])
+		tpSet.add(
+		        {'h1_pep1.varBw':[0,4,8,12,16]
+		        },
+		        {
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+		        #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+		        
+		        }
+		)
+	if tpsetName == "isl_loss_test_1":
+		tpSet = TestParamSet(tpsetName,
+		        Topo3,
+		        LinksParam(DefaultLP.set(bw=20,rtt=15,sendTime=120), 
+		            {'h1_pep1':{'rtt':6,'loss':0},
+		            'pep3_h2':{'rtt':6,'loss':0}}),
+		        DefaultAP.set(sendTime=120,sendRound=1),
+		        keyX = 'defaultLP.loss',
+		        keysCurveDiff=['protocol','e2eCC'])
+		tpSet.add(
+		        {'defaultLP.loss':[0,0.1,0.5,1,2]#,4,6,8]
+		        },
+		        {
+		        'in_pep':{'midCC':'pep','protocol':'INTCP'},
+		        'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+		        'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'}
+		        
+		        }
+		)
+	if tpsetName == "bp_itm_test_1":
+		tpSet = TestParamSet(tpsetName,
+			Topo1,
+			LinksParam(DefaultLP.set(rtt=6,bw=20,loss=0,sendTime=120), 
+			    {'h1_pep1':{'bw':40,'itmTotal':20},
+			    }),
+			DefaultAP.set(sendTime=120,sendRound=1),
+			keyX = 'h1_pep1.itmDown',
+			keysCurveDiff=['protocol'])
+		tpSet.add(
+			{'h1_pep1.itmDown':[0,1,2,3,4]
+			},
+			{
+			'in_pep':{'midCC':'pep','protocol':'INTCP'},
+			'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+			#'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+			
+			}
+		)
+	return tpSet
 
 
 
