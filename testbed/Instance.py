@@ -11,29 +11,26 @@ from . import linkDnmcThreads # for threadFunc execution
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
 def run(testParam, logPath, isManual):
-    try:
-        print("cleanup mininet...")
-        clear()
-        
-        mn = RealNetwork.createNet(testParam)
+    print("cleanup mininet...")
+    clear()
+    
+    mn = RealNetwork.createNet(testParam)
+    time.sleep(0.5)
+
+    threads = [t for t in TbThread.Threads
+            if not(t.isLatchThread and isManual)]
+
+    if isManual:
+        TbThread.latchNumInc()
+    for thread in threads:
+        thread.start(mn, testParam, logPath)
+    if isManual:
         time.sleep(0.5)
-
-        threads = [t for t in TbThread.Threads
-                if not(t.isLatchThread and isManual)]
-
-        if isManual:
-            TbThread.latchNumInc()
-        for thread in threads:
-            thread.start(mn, testParam, logPath)
-        if isManual:
-            time.sleep(0.5)
-            mn.openXterm()
-            mn.enterCli()
-            TbThread.latchNumDec()
-        for thread in threads:
-            thread.join()
-    except KeyboardInterrupt:
-        print('\nstopped')
+        mn.openXterm()
+        mn.enterCli()
+        TbThread.latchNumDec()
+    for thread in threads:
+        thread.join()
     
     return
 

@@ -1,3 +1,4 @@
+from asyncio import protocols
 import time
 
 from testbed import Param
@@ -36,6 +37,14 @@ def kill_intcp_processes(mn,testParam):
         for node in testParam.topoParam.nodes:
             if node not in ['h1','h2']:
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
+def kill_pep_processes(mn,testParam):
+    atomic(mn.getNodeByName('h2').cmd)('killall iperf3')
+    atomic(mn.getNodeByName('h1').cmd)('killall iperf3')
+    if testParam.appParam.midCC != 'nopep':
+        for node in testParam.topoParam.nodes:
+            if node not in ['h1','h2']:
+                atomic(mn.getNodeByName(node).cmd)('killall pepsal')
+
             
 @threadFunc(True)
 def ThroughputTest(mn,testParam,logPath):
@@ -44,28 +53,31 @@ def ThroughputTest(mn,testParam,logPath):
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
     
-    if testParam.appParam.get('protocol')=="TCP":      #only support e2e TCP
-        atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
-        for i in range(testParam.appParam.sendRound):
-            print('iperfc loop %d running' %i)
-            atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
-            time.sleep(testParam.appParam.sendTime + 5)
-            
-    elif testParam.appParam.get('protocol')=="INTCP":   #only support one round
-        for i in range(testParam.appParam.sendRound): #TODO overwrite log
-            if testParam.appParam.midCC != 'nopep':
-                for node in testParam.topoParam.nodes:
-                    if node not in ['h1','h2']:
-                        # print(node,"run intcpm")
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+    for i in range(testParam.appParam.sendRound): #TODO log is overwritten now
+        #NOTE open pep; cleaript
+        if testParam.appParam.midCC != 'nopep':
+            for node in testParam.topoParam.nodes:
+                if node not in ['h1','h2']:
+                    if useTCP:
+                        atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                    else:
                         atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                        time.sleep(2)
+                    time.sleep(2)
+        if useTCP:      #only support e2e TCP
+            atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
+            atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+        else:
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
-            time.sleep(testParam.appParam.sendTime+1)
+        time.sleep(testParam.appParam.sendTime + 5)
+        if useTCP:
+            kill_pep_processes(mn,testParam)
+        else:
             kill_intcp_processes(mn,testParam)
-            time.sleep(1)
+        time.sleep(1)
             
-        return
+    return
         
 #thread for test rtt
 @threadFunc(True)
@@ -83,33 +95,29 @@ def RttTest(mn, testParam, logPath):
     
     #RttTestPacketNum = 1000
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(RttTestPacketNum,testParam.rttTotal,logFilePath))
-    if testParam.appParam.get('protocol')=="TCP":   # h1->h2
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
-        
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+
+    if testParam.appParam.midCC != 'nopep':
+        for node in testParam.topoParam.nodes:
+            if not node=='h1' and not node=='h2':
+                if useTCP:
+                    atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                else:
+                    atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
+                time.sleep(2)
+                #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
+    #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
+    atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
+    atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
+    if useTCP:
         atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
-        time.sleep(testParam.appParam.sendTime)
-        
-    elif testParam.appParam.get('protocol')=="INTCP":
-        if testParam.appParam.midCC != 'nopep':
-            
-            for node in testParam.topoParam.nodes:
-                if not node=='h1' and not node=='h2':
-                    # print(node,"run intcpm")
-                    atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                    time.sleep(2)
-                    #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
-
-        #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
-        
+    else:
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
-        #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
-        time.sleep(testParam.appParam.sendTime)
-        return
+    #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
+    time.sleep(testParam.appParam.sendTime + 5)
+    return
 
 # for intcp only
 # @threadFunc(True)

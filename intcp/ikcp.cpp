@@ -837,7 +837,7 @@ int IntcpTransCB::input(char *data, int size)
         if(cmd==INTCP_CMD_INT){
             intHopOwd = _getMillisec() - ts;
             rmtSendRate = float(wnd)/100;
-            LOG(TRACE, "recv int %u [%u,%u)",sn,rangeStart,rangeEnd);
+            LOG(TRACE, "%u recv int %u [%u,%u) rSR %.1f",_getMillisec(),sn,rangeStart,rangeEnd,rmtSendRate);
             if(!(rangeStart==0 && rangeEnd==0)){
                 detectIntHole(rangeStart,rangeEnd,sn);
                 parseInt(rangeStart,rangeEnd);
@@ -866,8 +866,8 @@ int IntcpTransCB::input(char *data, int size)
                     lastThrpUpdateTs = current;
                 if(_itimediff(current,lastThrpUpdateTs)>hopSrtt){
                     recvedBytesLastHRTT = recvedBytesThisHRTT;
-                    thrpLastHRTT = bytesToMbit(recvedBytesThisHRTT)/hopSrtt*1000;
-                    LOG(TRACE,"receive rate = %.2fMbps",bytesToMbit(recvedBytesLastHRTT)*1000/hopSrtt);
+                    thrpLastHRTT = bytesToMbit(recvedBytesThisHRTT)/(current-lastThrpUpdateTs)*1000;
+                    LOG(TRACE,"receive rate = %.2fMbps", thrpLastHRTT);
                     recvedBytesThisHRTT = 0;
                     lastThrpUpdateTs = current;
                 }
@@ -1091,6 +1091,7 @@ void IntcpTransCB::flushData(){
     }
     
     //TODO CC -- cwnd/sendingRate; design token bucket
+    LOG(DEBUG,"%.1f %u",rmtSendRate,flushIntv);
     dataOutputLimit += mbitToBytes(rmtSendRate*flushIntv/1000);
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,sndQueue.size());
     //int dataOutputLimit = 65536;
@@ -1282,6 +1283,7 @@ IINT16 IntcpTransCB::getDataSendRate(){
         }
         rate = max(rate, INTCP_SENDRATE_MIN);
     }
+    rate = min(rate, INTCP_SENDRATE_MAX);
     return IINT16(rate*100);
 }
 // deviation of sendQueueBytes - INTCP_SNDQ_MAX
@@ -1337,8 +1339,9 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             if(CCscheme == INTCP_CC_SCHM_LOSSB){
                 cwnd = max(IUINT32(cwnd/2),INTCP_CWND_MIN);
             }else if(CCscheme == INTCP_CC_SCHM_RTTB){
-                LOG(DEBUG,"--- %u %d C %u ↓%.1f ---",current,hopSrtt,cwnd,thrpLastHRTT);
+                LOG(TRACE,"--- %u %d C %u ↓%.1f ---",current,hopSrtt,cwnd,thrpLastHRTT);
                 IUINT32 cwndNew = mbitToBytes(thrpLastHRTT)/1000*minHrtt/INTCP_MSS;
+                // IUINT32 cwndNew = mbitToBytes(thrpLastHRTT)*0.8/1000*hopSrtt/INTCP_MSS;
                 cwnd = max(cwndNew,INTCP_CWND_MIN);
             }
             lastCwndDecrTs = current;
@@ -1346,7 +1349,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             congSignal = false;
         }else{
             //printf("ccDataLen=%u bytes,cwnd = %u\n",ccDataLen,cwnd);
-            int cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
+            float cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
             bool allowInc = allow_cwnd_increase();
             if(ccDataLen*cwndGain > cwnd*INTCP_MSS && allowInc){
                 cwnd += 1;

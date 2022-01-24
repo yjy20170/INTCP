@@ -33,31 +33,109 @@ DefaultAP = MyAppParam(
 
 def getTestParamSet(tpsetName):
     tpSet = None
-    if tpsetName == "expr1":
+    if tpsetName == "bp_itm_test_1":
+        tpSet = TestParamSet(tpsetName,
+            Topo1,
+            LinksParam(DefaultLP.set(rtt=6,bw=20,loss=0,sendTime=120), 
+            {'h1_pep1':{'bw':40,'itmTotal':20},
+            }),
+            DefaultAP.set(sendTime=120,sendRound=1),
+            keyX = 'h1_pep1.itmDown',
+            keysCurveDiff=['protocol'])
+        tpSet.add(
+            {'h1_pep1.itmDown':[0,3]#1,2,3,4]
+            },
+            {
+            'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            # 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+            #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+            }
+        )
+    if tpsetName == "bp_varbw_test_1":
         tpSet = TestParamSet(tpsetName,
                 Topo1,
-                LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
-                    {'h1_pep1':{'bw':20},
-                    'pep1_h2':{'bw':40,'rtt':100}}),
-                DefaultAP.set(sendTime=360))
+                LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=30), 
+                    {'h1_pep1':{'rtt':6,'varBw':16},
+                    'pep1_h2':{'rtt':6}}),
+                DefaultAP.set(sendTime=30),
+                keyX = 'h1_pep1.varIntv',
+                keysCurveDiff=['protocol'])
         tpSet.add(
-                {},
+                {'h1_pep1.varIntv':[8]#[2]#,4,6,8]
+                },
                 {
-                # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},
-                'in_pep':{'midCC':'pep'}
+                # 'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                # 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+                # 'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                
+                }
+        )
+    if tpsetName == "bp_varbw_test_2":
+        tpSet = TestParamSet(tpsetName,
+                Topo1,
+                LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=30), 
+                    {'h1_pep1':{'rtt':50,'varIntv':8},
+                    'pep1_h2':{'rtt':100}}),
+                DefaultAP.set(sendTime=30),
+                keyX = 'h1_pep1.varBw',
+                keysCurveDiff=['protocol'])
+        tpSet.add(
+                {'h1_pep1.varBw':[0,4,8,12,16]
+                },
+                {
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'}
+                #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                
                 }
         )
     if tpsetName == "expr":
         tpSet = TestParamSet(tpsetName,
                 Topo3,
+                LinksParam(DefaultLP.set(rtt=5,bw=50,loss=0.1),
+                    {'h1_pep1':{'rtt':100,'loss':0},
+                    'pep1_pep2':{'bw':20}}),
+                DefaultAP.set(sendTime=30),
+                keyX='defaultLP.loss',
+                keysCurveDiff=['protocol'])
+        tpSet.add(
+                {'defaultLP.loss':[0,0.1,0.01]#0.1,0.5,1],
+                },
+                {
+                # 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                'in_pep':{'midCC':'pep','protocol':'INTCP'}
+                }
+        )
+    if tpsetName == "expr0":
+        tpSet = TestParamSet(tpsetName,
+                Topo1,
+                LinksParam(DefaultLP.set(loss=0,sendTime=120), 
+                    {'h1_pep1':{'bw':20,'rtt':6,'varBw':5},
+                    'pep1_h2':{'bw':20,'rtt':6}}),
+                DefaultAP.set(sendTime=60),
+                keyX = 'h1_pep1.varIntv',
+                keysCurveDiff=['protocol'])
+        tpSet.add(
+                {'h1_pep1.varIntv':[10]#[2,4,6,8]
+                },
+                {
+                # 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                'in_pep':{'midCC':'pep','protocol':'INTCP'}
+                }
+        )
+    if tpsetName == "expr3":
+        tpSet = TestParamSet(tpsetName,
+                Topo3,
                 LinksParam(DefaultLP.set(varIntv=20,loss=0.1), 
                     {'h1_pep1':{'bw':40},
-                    'pep3_h2':{'bw':40}}),
+                    'pep3_h2':{'bw':40},
+                    'pep2_pep3':{'bw':40,'varBw':15}}),
                 DefaultAP.set(sendTime=360),
-                keyX='pep2_pep3.varBw',
+                keyX='pep2_pep3.varIntv',
                 keysCurveDiff=['midCC'])
         tpSet.add(
-                {'pep2_pep3.varBw':[0,5,10],
+                {'pep2_pep3.varIntv':[2,4,6,8],
                 },
                 {
                 # 'bbr':{'e2eCC':'bbr','protocol':'TCP'},

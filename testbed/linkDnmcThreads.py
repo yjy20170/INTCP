@@ -23,7 +23,7 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
-  
+
 
 def routeReset(mn,testParam):
     nodes = testParam.topoParam.nodes
@@ -35,28 +35,29 @@ def routeReset(mn,testParam):
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
     
+#TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
+def changeLinkConfig(intf,bw=None,delay=None,loss=None):
+    cmds = []
+    if bw:
+        bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
+        cmds += bwcmds
+    #TODO add rtt and loss
+    if delay or loss:
+        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay=delay,loss=loss)
+        cmds += dlcmds
+    for cmd in cmds:
+        atomic(intf.tc)(cmd)
+
 @threadFunc(False)
 def LinkUpdate(mn, testParam, logPath):
-    #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
-    def config(intf,bw=None,rtt=None,loss=None):
-        cmds = []
-        if bw:
-            bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
-            cmds += bwcmds
-        #TODO add rtt and loss
-        if rtt:
-            pass
-        if loss:
-            pass
-        for cmd in cmds:
-            atomic(intf.tc)(cmd)
-
     global K
     K = 1
     linkNames = []
+    sleeptime = 0
     for ln in testParam.topoParam.linkNames():
         if testParam.linksParam.getLP(ln).varBw>0:
             linkNames.append(ln)
+            sleeptime = testParam.linksParam.getLP(ln).varIntv#TODO
     if linkNames == []:
         return
     while latchRunning():
@@ -86,14 +87,16 @@ def LinkUpdate(mn, testParam, logPath):
             # else:
             lp = testParam.linksParam.getLP(linkName)
             newBw = generateBw(lp.varMethod, lp.bw, lp.varBw)
+
             for intf in (nodeA.connectionsTo(switch)[0]+
                     switch.connectionsTo(nodeA)[0]+
                     switch.connectionsTo(nodeB)[0]+
                     nodeB.connectionsTo(switch)[0]):
-                config(intf,bw=newBw)
+                changeLinkConfig(intf,bw=newBw)
         # linkName is the name of last link in linkNames
          #TODO what if the links have different varIntv
-        sleepWithCaution(testParam.linksParam.defaultLP.varIntv)
+        # print(newBw)
+        sleepWithCaution(sleeptime)
 
 
 @threadFunc(False)
@@ -108,7 +111,7 @@ def MakeItm(mn, testParam, logPath):
     #TODO what if the links have different itmTotal/itmDown
     anyLP = testParam.linksParam.getLP(linkNames[-1])
     while latchRunning():
-        #print("aaaaaaa")
+        
         sleepWithCaution(anyLP.itmTotal-anyLP.itmDown)
         #print("down")
         for l in linkNames:

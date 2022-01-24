@@ -27,31 +27,35 @@ if __name__=='__main__':
 
     if not isAnlz:
         os.system("../appLayer/intcpApp/makes.sh")
+        os.system("../pepsal_min/bash/makepep")
 
 
-    tpSetNames = ["expr"]
-    for sno,tpSetName in enumerate(tpSetNames):
-        if len(tpSetNames)!=1:
-            print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
-        tpSet = MyParam.getTestParamSet(tpSetName)
+    tpSetNames = ["expr"]#["bp_itm_test_1"]
+    try:
+        for sno,tpSetName in enumerate(tpSetNames):
+            if len(tpSetNames)!=1:
+                print('\nStart TestParamSet \'%s\' (%d/%d)' % (tpSetName,sno+1,len(tpSetNames)))
+            tpSet = MyParam.getTestParamSet(tpSetName)
 
-        logPath = '%s/%s' % ('./logs', tpSetName)
-        resultPath = '%s/%s' % ('./result', tpSetName)
+            logPath = '%s/%s' % ('./logs', tpSetName)
+            resultPath = '%s/%s' % ('./result', tpSetName)
 
-        if not isAnlz:
-            FileUtils.createFolder(logPath)
-            FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
-        
-            for i,tp in enumerate(tpSet.testParams):
-                if len(tpSet.testParams)!=1:
-                    print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
-                print(tp.serialize())
-                Instance.run(tp, logPath, isManual)
+            if not isAnlz:
+                FileUtils.createFolder(logPath)
+                FileUtils.writeText('%s/template.txt'%(logPath), tpSet.tpTemplate.serialize())
+            
+                for i,tp in enumerate(tpSet.testParams):
+                    if len(tpSet.testParams)!=1:
+                        print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
+                    print(tp.serialize())
+                    Instance.run(tp, logPath, isManual)
 
-            FileUtils.fixOwnership(logPath, 'r')
+                FileUtils.fixOwnership(logPath, 'r')
 
-        if not isManual:
-            autoAnlz.anlz(tpSet, logPath, resultPath)
+            if not isManual:
+                autoAnlz.anlz(tpSet, logPath, resultPath)
 
+    except KeyboardInterrupt:
+        print('\nstopped')
     print('all experiments finished.')
     os.system('sudo killall -9 xterm >/dev/null 2>&1')
