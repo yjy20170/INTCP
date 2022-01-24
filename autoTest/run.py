@@ -3,7 +3,7 @@
 import sys
 import os
 import argparse
-
+import time
 sys.path.append(os.path.dirname(os.sys.path[0]))
 from testbed import Instance
 
@@ -53,9 +53,10 @@ if __name__=='__main__':
                 FileUtils.fixOwnership(logPath, 'r')
 
             if not isManual:
+                time.sleep(1)
                 autoAnlz.anlz(tpSet, logPath, resultPath)
-
     except KeyboardInterrupt:
-        print('\nstopped')
+        print('\nStopped')
+
     print('all experiments finished.')
     os.system('sudo killall -9 xterm >/dev/null 2>&1')

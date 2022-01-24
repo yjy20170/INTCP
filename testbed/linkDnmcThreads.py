@@ -95,7 +95,7 @@ def LinkUpdate(mn, testParam, logPath):
                 changeLinkConfig(intf,bw=newBw)
         # linkName is the name of last link in linkNames
          #TODO what if the links have different varIntv
-        # print(newBw)
+        #sleepWithCaution(testParam.linksParam.defaultLP.varIntv)
         sleepWithCaution(sleeptime)
 
 

@@ -204,7 +204,7 @@ def getPlotParam(group, isRttTest=False):
             marker = 's'
             linestyle = '-'
             if group[0].appParam.e2eCC == 'hybla':
-                color = 'orangered'
+                color = 'green'
             elif group[0].appParam.e2eCC == 'cubic':
                 color = 'royalblue'
             else:
@@ -344,7 +344,8 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             else:
                 stringCC = ''
             string = stringCC + ' ' + ' '.join([curve[0].segToStr(key) for key in keys])
-            
+            if "protocol=INTCP" in string:
+            	string = string.replace("e2eCC=cubic","")
             legends.append(string)
         keyX = tpSet.keyX
         isRttTest = tpSet.tpTemplate.appParam.isRttTest

@@ -14,11 +14,28 @@ class MyAppParam(AppParam):
             'sendTime', 'sendRound'
     ]
 
+def get_simple_topo(n):
+	name = "%d_mid"%(n)
+	numMidNode = n
+	nodes = []
+	links = []
+	nodes.append('h1')
+	for i in range(n):
+		nodes.append('m%d'%(i+1))
+	nodes.append('h2')
+	print(nodes)
+	for i in range(n+1):
+		links.append([nodes[i],nodes[i+1]])
+	print(links)
+	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
+	
 # don't change these
 #
 Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+#Topo20 = get_simple_topo(20)
+Topo20 = Topo1
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
