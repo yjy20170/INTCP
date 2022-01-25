@@ -30,7 +30,7 @@ if __name__=='__main__':
         os.system("../pepsal_min/bash/makepep")
 
 
-    tpSetNames = ["expr"]#["bp_itm_test_1"]
+    tpSetNames = ['pure']#["bp_itm_test_1"]#["expr"]#
     try:
         for sno,tpSetName in enumerate(tpSetNames):
             if len(tpSetNames)!=1:

@@ -50,17 +50,28 @@ DefaultAP = MyAppParam(
 
 def getTestParamSet(tpsetName):
     tpSet = None
+
+    if tpsetName == "pure":
+        tpSet = TestParamSet(tpsetName,
+            Topo1,
+            LinksParam(DefaultLP.set(bw=40,rtt=100), 
+            {'pep1_h2':{'bw':40,'itmDown':3,'itmTotal':20},
+            }
+            ),
+            DefaultAP)
+        tpSet.add({})
+
     if tpsetName == "bp_itm_test_1":
         tpSet = TestParamSet(tpsetName,
             Topo1,
-            LinksParam(DefaultLP.set(rtt=6,bw=20,loss=0,sendTime=120), 
-            {'h1_pep1':{'bw':40,'itmTotal':20},
+            LinksParam(DefaultLP.set(rtt=6,bw=20,loss=0), 
+            {'h1_pep1':{'bw':40,'itmTotal':40},
             }),
-            DefaultAP.set(sendTime=120,sendRound=1),
+            DefaultAP.set(sendTime=120),
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol'])
         tpSet.add(
-            {'h1_pep1.itmDown':[0,3]#1,2,3,4]
+            {'h1_pep1.itmDown':[3]#1,2,3,4]
             },
             {
             'in_pep':{'midCC':'pep','protocol':'INTCP'},
@@ -71,7 +82,7 @@ def getTestParamSet(tpsetName):
     if tpsetName == "bp_varbw_test_1":
         tpSet = TestParamSet(tpsetName,
                 Topo1,
-                LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=30), 
+                LinksParam(DefaultLP.set(bw=20,loss=0), 
                     {'h1_pep1':{'rtt':6,'varBw':16},
                     'pep1_h2':{'rtt':6}}),
                 DefaultAP.set(sendTime=30),
@@ -91,7 +102,7 @@ def getTestParamSet(tpsetName):
     if tpsetName == "bp_varbw_test_2":
         tpSet = TestParamSet(tpsetName,
                 Topo1,
-                LinksParam(DefaultLP.set(bw=20,loss=0,sendTime=30), 
+                LinksParam(DefaultLP.set(bw=20,loss=0), 
                     {'h1_pep1':{'rtt':50,'varIntv':8},
                     'pep1_h2':{'rtt':100}}),
                 DefaultAP.set(sendTime=30),
@@ -127,7 +138,7 @@ def getTestParamSet(tpsetName):
     if tpsetName == "expr0":
         tpSet = TestParamSet(tpsetName,
                 Topo1,
-                LinksParam(DefaultLP.set(loss=0,sendTime=120), 
+                LinksParam(DefaultLP.set(loss=0), 
                     {'h1_pep1':{'bw':20,'rtt':6,'varBw':5},
                     'pep1_h2':{'bw':20,'rtt':6}}),
                 DefaultAP.set(sendTime=60),

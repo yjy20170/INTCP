@@ -128,9 +128,10 @@ class LinksParam(Param):
             super().__init__(template)
             return
         self.set('defaultLP', defaultLP)
-        for linkName in dic:
-            for key in dic[linkName]:
-                self.set(linkName+'.'+key,dic[linkName][key])
+        if dic:
+            for linkName in dic:
+                for key in dic[linkName]:
+                    self.set(linkName+'.'+key,dic[linkName][key])
 
     def get(self,key):
         if key not in self.__dict__:

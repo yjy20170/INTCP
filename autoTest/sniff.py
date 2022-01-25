@@ -8,9 +8,12 @@ from scapy.all import *
 sys.path.append(os.path.dirname(os.sys.path[0]))
 from appLayer.tcpApp import Utils
 
+timeFilter = 0
 def getArgsFromCli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--t',action='store_const', const=True, default=False, help='sniffer for tcp packets')
+    parser.add_argument('-f',type=int, default=0)
+
     args = parser.parse_args()
     return args
 
@@ -38,13 +41,21 @@ def Callback_udp(packet):
                 break
             cmd,wnd,ts,sn,length,rangeStart,rangeEnd = unpack(bytePayload,pos)
             pos += (23+length)
+
+            cur = int(time.time()*1000)%2**32
             # if cmd==81: #data only
                 # print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
-            if cmd==86:
-                print("time - ts",(int(time.time()*1000)-1636382539776) - ts)
+            
+            if cmd==81:
+                # print('cur',int(time.time()*1000)%2**32,'ts',ts)
+                if cur - ts > timeFilter:
+                    print(f"{cur} ({sn}) time - ts {cur - ts}")
+            # if cmd==80:
+            #     # print('cur',int(time.time()*1000)%2**32,'ts',ts)
+            #     if int(time.time()*1000)%2**32 - ts > timeFilter:
+            #         print(f"({sn})int time - ts {int(time.time()*1000)%2**32 - ts}")
     except:
         return
-
 
 def Callback_tcp(packet):
     #TCP packet
@@ -55,12 +66,13 @@ def Callback_tcp(packet):
         print('seq',packet[TCP].seq,'length',length,'time',Utils.getStrTime())
         #print(packet[IP].src,":",packet[TCP].sport,'-->',packet[IP].dst,":",packet[TCP].dport)
     except:
-        return 
+        return
 
 if __name__=="__main__":
     print('begin to catch packets..',flush=True)
     args = getArgsFromCli()
+    timeFilter = args.f
     if args.t:
         sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
-    else:
+    else:#DEBUG dst
         sniff(filter='dst host 10.0.1.1', prn=Callback_udp) #udp packet from server to client
