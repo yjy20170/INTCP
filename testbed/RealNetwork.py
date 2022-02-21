@@ -76,8 +76,8 @@ def gen_simple_trace():
     total_midnodes = 4
     isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
     #links_params = None
-    link_param_1 = {"topo":[1,2],"rtt":[50,50,50],"loss":[2,2,2],"bw":[40,40,40]}
-    link_param_2 = {"topo":[3,4],"rtt":[20,20,20],"loss":[0.01,0.01,0.01],"bw":[40,40,40]}
+    link_param_1 = {"topo":[1,2],"rtt":[50,50,50],"loss":[0.1,0.1,0.1],"bw":[20,20,20]}
+    link_param_2 = {"topo":[3,4],"rtt":[20,20,20],"loss":[0,0,0],"bw":[20,20,20]}
     links_params = ([link_param_1]+[link_param_2])*20
     return max_midnodes,total_midnodes,isls,links_params
 

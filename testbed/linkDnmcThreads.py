@@ -32,7 +32,7 @@ def changeLinkConfig(intf,bw=None,delay=None,loss=None):
    
     #TODO add rtt and loss
     if delay or loss:
-        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay=delay,loss=loss,intf=intf)
+        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay='%fms'%delay,loss=loss,intf=intf)
         cmds += dlcmds
     if bw:
         bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
