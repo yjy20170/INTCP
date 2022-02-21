@@ -31,7 +31,7 @@ int main(int argc,char **argv){
     if(argc==2 && argv[1][0]=='c'){
         chdirProgramDir();
         char cmd[50];
-        sprintf(cmd,"../../intcp/cleaript.sh");
+        sprintf(cmd,"iptables -t mangle -F");
         system(cmd);
         LOG(INFO,"ip table cleared.");
         return 0;

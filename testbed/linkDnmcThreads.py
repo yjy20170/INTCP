@@ -2,6 +2,8 @@ import time
 import random
 import math
 
+from mininet.log import info
+
 from .TbThread import threadFunc, atomic, sleepWithCaution, latchRunning
 from . import Param
 from .RealNetwork import setRoute, clearRoute, splitLoss
@@ -23,17 +25,6 @@ def generateBw(policy, meanbw,varbw, prd=10):
         return newBw
     else:
         raise Exception
-
-
-def routeReset(mn,testParam):
-    nodes = testParam.topoParam.nodes
-    for i in range(len(nodes)-1):
-        if i == len(nodes)-2:
-            seg = 100
-        else:
-            seg = i+1
-        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
-    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
     
 #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
 def changeLinkConfig(intf,bw=None,delay=None,loss=None):
@@ -142,6 +133,15 @@ def DynamicLinkUpdate(mn,testParam,logPath):
         
         #done for this loop
         sleepWithCaution(10)
+def routeReset(mn,testParam):
+    nodes = testParam.topoParam.nodes
+    for i in range(len(nodes)-1):
+        if i == len(nodes)-2:
+            seg = 100
+        else:
+            seg = i+1
+        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
+    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
 
 @threadFunc(False)
 def MakeItm(mn, testParam, logPath):
@@ -156,10 +156,9 @@ def MakeItm(mn, testParam, logPath):
     
     #TODO what if the links have different itmTotal/itmDown
     anyLP = testParam.linksParam.getLP(linkNames[-1])
-    while latchRunning():
-        
+    while latchRunning():        
         sleepWithCaution(anyLP.itmTotal-anyLP.itmDown)
-        #print("down")
+        # print("down")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)
             atomic(mn.getNodeByName(nameA).cmd)('echo')
@@ -167,15 +166,27 @@ def MakeItm(mn, testParam, logPath):
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'down')
         sleepWithCaution(anyLP.itmDown)
-        #print("up")
+        # print("up")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)
             atomic(mn.getNodeByName(nameA).cmd)('echo')
             atomic(mn.configLinkStatus)(nameA,l,'up')
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'up')
-            routeReset(mn,testParam)
-    
+        
+        routeReset(mn,testParam)
+        mn.ping([mn['h1'],mn['h2']],outputer=info)
+        # for linkName in linkNames:
+        #     nameA,nameB = linkName.split(Param.LinkNameSep)
+        #     nodeA = mn.getNodeByName(nameA)
+        #     switch = mn.getNodeByName(linkName)
+        #     nodeB = mn.getNodeByName(nameB)
+        #     lp = testParam.linksParam.getLP(linkName)
+        #     for intf in (nodeA.connectionsTo(switch)[0]+
+        #             switch.connectionsTo(nodeA)[0]+
+        #             switch.connectionsTo(nodeB)[0]+
+        #             nodeB.connectionsTo(switch)[0]):
+        #         changeLinkConfig(intf,bw=lp.bw,delay=lp.rtt/4,loss=splitLoss(lp.loss,2))
             
             # if changing s2 - h2
             # mn.getNodeByName('h2').cmd('route add default gw 10.0.2.90 &')

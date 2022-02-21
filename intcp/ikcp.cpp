@@ -53,11 +53,11 @@ lastThrpUpdateTs(0),
 recvedBytesThisHRTT(0),
 recvedBytesLastHRTT(0),
 hasLossEvent(false),
-thrpLastHRTT(-1),
+thrpLastHRTT(0),
 conseqTimeout(0),
 lastSendIntTs(0),
 lastFlushTs(0),
-intOutputLimit(INTCP_INT_RANGE_LIMIT)
+intOutputLimit(INTCP_SNDQ_MAX)
 {
     stat.init();
 
@@ -677,17 +677,19 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
                 // memcpy(intsecDataSeg->data+sizeof(IUINT32)*3, &intSeg->firstTs, sizeof(IUINT32));
                 
-                IUINT32 t0 = _getUsec(),loop=0,front=true;
+                IUINT32 t0 = _getUsec(),loop=0,front=true,t2,t3,t4;
                 if(rcvBuf.empty()){
                     rcvBuf.push_back(intsecDataSeg);
                 }else{
                     IUINT32 head = (*rcvBuf.begin())->rangeStart, tail = (*--rcvBuf.end())->rangeStart;
                     bool found=false;
                     list<shared_ptr<IntcpSeg>>::iterator dataIter;
+                    t2 = _getUsec();
                     if(intsecDataSeg->rangeStart > (head+tail)/2){
                         front=false;
                         auto bound=rcvBuf.begin();
                         IUINT32 isgStart = intsecDataSeg->rangeStart;
+                        t3 = _getUsec();
                         for (dataIter = rcvBuf.end(); dataIter != bound; ) {
                             --dataIter;
                             ++loop;
@@ -696,6 +698,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                                 break;
                             }
                         }
+                        t4 = _getUsec();
                         if(found){
                             rcvBuf.insert(++dataIter,intsecDataSeg);
                         }else{
@@ -704,6 +707,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                     }else{
                         auto bound=rcvBuf.end();
                         IUINT32 isgEnd = intsecDataSeg->rangeEnd;
+                        t3 = _getUsec();
                         for (dataIter = rcvBuf.begin(); dataIter != bound; ) {
                             ++loop;
                             if (isgEnd <= (*dataIter)->rangeStart) {
@@ -712,12 +716,15 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                             }
                             ++dataIter;
                         }
+                        t4 = _getUsec();
                         rcvBuf.insert(dataIter,intsecDataSeg);
                     }
                 }
                 IUINT32 t1 = _getUsec();
                 if(t1-t0>100){
-                    LOG(TRACE,"%d loop %d/%ld avg %.4f fr %d",t1-t0,loop,rcvBuf.size(),float(t1-t0)/loop,front);
+                // if(float(t1-t0)/loop > 100){
+                    LOG(TRACE,"%d loop %d/%ld fr %d t:%d %d %d %d,h %d t %d",t1-t0,loop,rcvBuf.size(),front,
+                            t2-t0,t3-t2,t4-t3,t1-t4,(*rcvBuf.begin())->rangeStart, (*--rcvBuf.end())->rangeStart);
                 }
 
                 //------------------------------
@@ -836,6 +843,9 @@ int IntcpTransCB::input(char *data, int size)
 
         if(cmd==INTCP_CMD_INT){
             intHopOwd = _getMillisec() - ts;
+            // if(intHopOwd>110){
+            //     LOG(DEBUG,"(%u)%u",sn,intHopOwd);
+            // }
             rmtSendRate = float(wnd)/100;
             LOG(TRACE, "%u recv int %u [%u,%u) rSR %.1f",_getMillisec(),sn,rangeStart,rangeEnd,rmtSendRate);
             if(!(rangeStart==0 && rangeEnd==0)){
@@ -855,6 +865,11 @@ int IntcpTransCB::input(char *data, int size)
             if(wnd!=0) LOG(TRACE,"%d",wnd);
 
             if(current>ts){
+                // if(current-ts > 210){
+                //     LOG(DEBUG,"%u (%u)%d",current,sn,current-ts);
+                // }else{
+                //     // LOG(DEBUG,"         %u (%u)%d",current,sn,current-ts);
+                // }
                 updateHopRTT(current-ts);
             }else{
                 LOG(TRACE,"_getMillisec()>ts");
@@ -947,6 +962,8 @@ void IntcpTransCB::flushIntQueue(){
 }
 
 void IntcpTransCB::flushIntBuf(){
+    if(intBufBytes==0) return;
+
     IUINT32 current = _getMillisec();
     IUINT32 flushIntv = INTCP_UPDATE_INTERVAL;
     if(lastFlushTs != 0){
@@ -956,13 +973,14 @@ void IntcpTransCB::flushIntBuf(){
     // if(nodeRole==INTCP_ROLE_REQUESTER && rmt_sndq_rest<= 0){
     //     return;
     // }
+    int newOutput;
     if(srtt!=0){
         //TODO thrpLastHRTT -> thrp at producer
-        intOutputLimit += float(rmt_sndq_rest)*flushIntv/srtt + mbitToBytes(thrpLastHRTT)*flushIntv/1000;
-    }else{
-        intOutputLimit += mbitToBytes(INTCP_SENDRATE_MIN)*flushIntv/1000;
+        newOutput = float(rmt_sndq_rest)*flushIntv/srtt + mbitToBytes(thrpLastHRTT)*flushIntv/1000;
+        newOutput = max(newOutput, mbitToBytes(INTCP_SENDRATE_MIN)*int(flushIntv)/1000);
+        intOutputLimit += newOutput;
     }
-    LOG(TRACE,"%d %d %d %d",rmt_sndq_rest,flushIntv,srtt,intOutputLimit);
+    LOG(TRACE,"%d %d %d %d %ld %d",rmt_sndq_rest,flushIntv,srtt,intOutputLimit,intQueue.size(),intBufBytes);
     char *sentEnd=tmpBuffer.get();
     int sizeToSend=0;
     // from intBuf to udp
@@ -1009,11 +1027,11 @@ void IntcpTransCB::flushIntBuf(){
                 }
             }
             if(segPtr->xmit > 0){
-                if(segPtr->xmit > 1){
-                    LOG(DEBUG,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
+                if(segPtr->xmit > 0){// 1
+                    LOG(TRACE,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                                 segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                 }
-                if (segPtr->xmit >= INTCP_DEADLINK ) {//|| segRto>=INTCP_RTO_MAX
+                if (segPtr->xmit >= INTCP_DEADLINK){// || segRto>=INTCP_RTO_MAX) {
                     state = -1;
                     LOG(ERROR, "dead link");
                     exit(0);
@@ -1068,8 +1086,8 @@ void IntcpTransCB::flushIntBuf(){
             // }
         }
     }
-    if(!reach_limit){
-        intOutputLimit = 0;//min();
+    if(srtt!=0 && !reach_limit){
+        intOutputLimit = min(intOutputLimit,newOutput);
     }
     stat.cntTimeout += cntTimeout;
     if(cntTimeout>0){
@@ -1092,7 +1110,8 @@ void IntcpTransCB::flushData(){
     
     //TODO CC -- cwnd/sendingRate; design token bucket
     LOG(TRACE,"%.1f %u",rmtSendRate,flushIntv);
-    dataOutputLimit += mbitToBytes(rmtSendRate*flushIntv/1000);
+    int newOutput = mbitToBytes(rmtSendRate*flushIntv/1000);
+    dataOutputLimit += newOutput;
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,sndQueue.size());
     //int dataOutputLimit = 65536;
 
@@ -1112,13 +1131,13 @@ void IntcpTransCB::flushData(){
             break;
         }else{
             dataOutputLimit -= segPtr->len;
+            stat.sentINTCP += segPtr->len;
         }
 
         sizeToSend = (int)(sentEnd - tmpBuffer.get());
         if (sizeToSend + (INTCP_OVERHEAD + segPtr->len) > INTCP_MTU) {
             output(tmpBuffer.get(), sizeToSend, INTCP_ROLE_REQUESTER);
             sentEnd = tmpBuffer.get();
-            stat.sentINTCP += sizeToSend;
         }
 
         segPtr->sn = dataNextSn++;
@@ -1140,7 +1159,7 @@ void IntcpTransCB::flushData(){
     }
     //if cwnd is not enough for data, the remain wnd can be used for next loop
     if(!reach_limit){
-        dataOutputLimit = 0;//min();
+        dataOutputLimit = min(dataOutputLimit,newOutput);//0;
     }
         
     // if(cwnd!=0) {
@@ -1150,11 +1169,11 @@ void IntcpTransCB::flushData(){
     sizeToSend = (int)(sentEnd - tmpBuffer.get());
     if (sizeToSend > 0) {
         output(tmpBuffer.get(), sizeToSend, INTCP_ROLE_REQUESTER);
-        stat.sentINTCP += sizeToSend;
     }
 }
 
 void IntcpTransCB::flush(){
+    IUINT32 tmp = _getMillisec();
     // 'update' haven't been called. 
     if (updated == 0) return;
     
@@ -1165,7 +1184,7 @@ void IntcpTransCB::flush(){
     if(nodeRole != INTCP_ROLE_REQUESTER){
         flushData();
     }
-    lastFlushTs = _getMillisec();
+    lastFlushTs = tmp;
 }
 
 
@@ -1178,6 +1197,11 @@ void IntcpTransCB::update()
 {
     IUINT32 current = _getMillisec();
     if(current-stat.lastPrintTs>1000){
+        //DEBUG
+        // int t = (current-stat.startTs)/1000%5;
+        // if(t<2 && current-stat.startTs>5000){
+        //     rcvBuf.clear();
+        // }
         if(nodeRole==INTCP_ROLE_REQUESTER){
             LOG(DEBUG,"%u. %4d %d C %4u ↑%.1f ↓%.1f+%.2f iB %d rB %ld T %d D %d",
                     current,srtt,hopSrtt,
@@ -1285,6 +1309,8 @@ IINT16 IntcpTransCB::getDataSendRate(){
     }
     rate = min(rate, INTCP_SENDRATE_MAX);
     return IINT16(rate*100);
+    //DEBUG
+    // return IINT16(15*100);
 }
 // deviation of sendQueueBytes - INTCP_SNDQ_MAX
 IINT16 IntcpTransCB::getIntDev(){
@@ -1354,7 +1380,7 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
             if(ccDataLen*cwndGain > cwnd*INTCP_MSS && allowInc){
                 cwnd += 1;
                 ccDataLen = 0;
-            }else if (ccDataLen*cwndGain*5 > cwnd*INTCP_MSS && (!allowInc)){
+            }else if (ccDataLen*cwndGain > 5*cwnd*INTCP_MSS && (!allowInc)){
                 cwnd = max(INTCP_CWND_MIN,cwnd-1);
                 ccDataLen = 0;
             }
