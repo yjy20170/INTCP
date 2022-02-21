@@ -4,7 +4,7 @@ import math
 
 from .TbThread import threadFunc, atomic, sleepWithCaution, latchRunning
 from . import Param
-
+from .RealNetwork import setRoute, clearRoute, splitLoss
 
 ### thread for dynamic link params control
 #TODO K for each link? or independent thread for each link?
@@ -38,18 +38,22 @@ def routeReset(mn,testParam):
 #TODO make sure that the dynamic network params configuring wil not impact the value of other unchanged params 
 def changeLinkConfig(intf,bw=None,delay=None,loss=None):
     cmds = []
+   
+    #TODO add rtt and loss
+    if delay or loss:
+        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay=delay,loss=loss,intf=intf)
+        cmds += dlcmds
     if bw:
         bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
         cmds += bwcmds
-    #TODO add rtt and loss
-    if delay or loss:
-        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay=delay,loss=loss)
-        cmds += dlcmds
     for cmd in cmds:
         atomic(intf.tc)(cmd)
 
+
 @threadFunc(False)
 def LinkUpdate(mn, testParam, logPath):
+    if testParam.appParam.dynamic:
+        return
     global K
     K = 1
     linkNames = []
@@ -99,8 +103,50 @@ def LinkUpdate(mn, testParam, logPath):
         sleepWithCaution(sleeptime)
 
 
+
+@threadFunc(False)
+def DynamicLinkUpdate(mn,testParam,logPath):
+    if not testParam.appParam.dynamic:
+        return
+    __,__,isls,links_params = testParam.topoParam
+    prev_topo = None
+    for links_param in links_params:
+        topo = links_param["topo"]
+        rtts = links_param["rtt"]
+        losses = links_param["loss"]
+        bws = links_param["bw"]
+
+        #set route
+        #print(topo)
+        if topo!= prev_topo:
+            clearRoute(mn,isls,prev_topo)
+            setRoute(mn,isls,topo)
+        prev_topo = topo
+
+        #set link config
+        nodes = ['h1']+['m%d'%(topo[i]) for i in range(len(topo))] + ['h2']
+        
+        for i in range(len(nodes)-1):
+            nameA = nodes[i]
+            nameB = nodes[i+1]
+            name_switch = nameA + Param.LinkNameSep + nameB
+            nodeA = mn.getNodeByName(nameA)
+            nodeB = mn.getNodeByName(nameB)
+            switch = mn.getNodeByName(name_switch)
+            for intf in (nodeA.connectionsTo(switch)[0]+
+                    switch.connectionsTo(nodeA)[0]+
+                    switch.connectionsTo(nodeB)[0]+
+                    nodeB.connectionsTo(switch)[0]):
+                #b = 1 #do nothing 
+                changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=splitLoss(losses[i],2))
+        
+        #done for this loop
+        sleepWithCaution(10)
+
 @threadFunc(False)
 def MakeItm(mn, testParam, logPath):
+    if testParam.appParam.dynamic:
+        return
     linkNames = []
     for ln in testParam.topoParam.linkNames():
         if testParam.linksParam.getLP(ln).itmDown>0:

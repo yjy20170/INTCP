@@ -13,8 +13,15 @@ from . import linkDnmcThreads # for threadFunc execution
 def run(testParam, logPath, isManual):
     print("cleanup mininet...")
     clear()
-    
-    mn = RealNetwork.createNet(testParam)
+
+    #static
+    if not testParam.appParam.dynamic:
+        mn = RealNetwork.createNet(testParam)
+
+    #dynamic
+    else:
+        mn = RealNetwork.create_dynamic_net(testParam.topoParam)
+
     time.sleep(0.5)
 
     threads = [t for t in TbThread.Threads
@@ -23,10 +30,14 @@ def run(testParam, logPath, isManual):
     if isManual:
         TbThread.latchNumInc()
     for thread in threads:
+        #static
         thread.start(mn, testParam, logPath)
+
+        #dynamic
+        #thread.start(mn,links_params,isls,logPath)
     if isManual:
-        time.sleep(0.5)
-        mn.openXterm()
+        time.sleep(5)
+        #mn.openXterm()
         mn.enterCli()
         TbThread.latchNumDec()
     for thread in threads:

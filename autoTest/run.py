@@ -11,7 +11,7 @@ import MyParam
 import FileUtils
 import autoAnlz
 import userThreads # for threadFunc execution
-
+import get_trace
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
@@ -26,11 +26,12 @@ if __name__=='__main__':
     os.chdir(sys.path[0])
 
     if not isAnlz:
-        os.system("../appLayer/intcpApp/makes.sh")
-        os.system("../pepsal_min/bash/makepep")
+        a = 1
+        #os.system("../appLayer/intcpApp/makes.sh")
+        #os.system("../pepsal_min/bash/makepep")
 
 
-    tpSetNames = ["expr"]#["bp_itm_test_1"]
+    tpSetNames = ["dynamic_test"]#["expr"]#
     try:
         for sno,tpSetName in enumerate(tpSetNames):
             if len(tpSetNames)!=1:
@@ -47,7 +48,8 @@ if __name__=='__main__':
                 for i,tp in enumerate(tpSet.testParams):
                     if len(tpSet.testParams)!=1:
                         print('\nStart TestParam(%d/%d) in \'%s\'' % (i+1,len(tpSet.testParams),tpSetName))
-                    print(tp.serialize())
+                    if not tp.appParam.dynamic:
+                        print(tp.serialize())
                     Instance.run(tp, logPath, isManual)
 
                 FileUtils.fixOwnership(logPath, 'r')

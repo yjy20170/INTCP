@@ -1,5 +1,5 @@
 from testbed.Param import *
-from testbed.RealNetwork import splitLoss
+from testbed.RealNetwork import * #splitLoss
 
 SegUnit['max_queue_size']='packets'
 SegUnit['txqueuelen']='packets'
@@ -11,22 +11,16 @@ class MyAppParam(AppParam):
             # 'max_queue_size', 'txqueuelen',
             'protocol','e2eCC', 'midCC',
             'isRttTest',
-            'sendTime', 'sendRound'
+            'sendTime', 'sendRound',
+            'dynamic'
     ]
 
-def get_simple_topo(n):
+#n is midnode number
+def gen_linear_topo(n):
 	name = "%d_mid"%(n)
 	numMidNode = n
-	nodes = []
-	links = []
-	nodes.append('h1')
-	for i in range(n):
-		nodes.append('m%d'%(i+1))
-	nodes.append('h2')
-	print(nodes)
-	for i in range(n+1):
-		links.append([nodes[i],nodes[i+1]])
-	print(links)
+	nodes = ['h1']+['m%d'%(i+1) for i in range(n)]+['h2']
+	links = [[nodes[i],nodes[i+1]] for i in range(n+1)]
 	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
 	
 # don't change these
@@ -34,8 +28,10 @@ def get_simple_topo(n):
 Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
-#Topo20 = get_simple_topo(20)
-Topo20 = Topo1
+#Topo20 = gen_linear_topo(20)
+#Topo20 = Topo1
+dynamic_topo = gen_simple_trace()
+
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
@@ -45,11 +41,17 @@ DefaultLP = LinkParam(
 DefaultAP = MyAppParam(
         # max_queue_size=1000,txqueuelen=1000,
         sendTime=180,sendRound=1,isRttTest=0,
-        e2eCC='cubic', midCC='nopep',protocol='INTCP')
+        e2eCC='cubic', midCC='nopep',protocol='INTCP',dynamic=0)
 
 
 def getTestParamSet(tpsetName):
     tpSet = None
+    if tpsetName == "dynamic_test":
+        tpSet = TestParamSet(tpsetName,
+            dynamic_topo,None,
+            DefaultAP.set(dynamic=1),
+            keysCurveDiff=['protocol'])
+        tpSet.add({},{'in_pep':{'midCC':'pep','protocol':'INTCP'}})
     if tpsetName == "bp_itm_test_1":
         tpSet = TestParamSet(tpsetName,
             Topo1,
@@ -60,7 +62,7 @@ def getTestParamSet(tpsetName):
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol'])
         tpSet.add(
-            {'h1_pep1.itmDown':[0,3]#1,2,3,4]
+            {'h1_pep1.itmDown':[3,0]#1,2,3,4]
             },
             {
             'in_pep':{'midCC':'pep','protocol':'INTCP'},

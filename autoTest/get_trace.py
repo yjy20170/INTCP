@@ -90,6 +90,9 @@ def get_trace(#base_output_dir,
     links_params = []
     midnode_id_map_dict = {}
     global_midnode_id = 0
+    #first_satellites = [] #connect with h1
+    #last_satellites = []  #connect with h2
+    isls = []
     for t in range(simulation_start_time_ns, simulation_end_time_ns, dynamic_state_update_interval_ns):
         links_param = {}
         with open(satellite_network_dynamic_state_dir + "/fstate_" + str(t) + ".txt", "r") as f_in:
@@ -146,7 +149,15 @@ def get_trace(#base_output_dir,
                     hop_rtt_ns = (hop_length_src_to_dst_m + hop_length_dst_to_src_m) * 1000000000.0 / 299792458.0
                     hop_rtt_ms = hop_rtt_ns / 1e6
                     hop_rtt_ms_list.append(round(hop_rtt_ms,2))
-                links_param["topo"] = list(map(lambda x:midnode_id_map_dict[x],current_path[1:-1]))
+                renamed_current_path = list(map(lambda x:midnode_id_map_dict[x],current_path[1:-1]))
+                if (0,renamed_current_path[0]) not in isls:
+                    isls.append((0,renamed_current_path[0]))
+                if (renamed_current_path[-1],-1) not in isls:
+                    isls.append((renamed_current_path[-1],-1))
+                for i in range(path_length-3):
+                    if (renamed_current_path[i],renamed_current_path[i+1]) not in isls:
+                        isls.append((renamed_current_path[i],renamed_current_path[i+1]))
+                links_param["topo"] = renamed_current_path 
                 links_param["rtt"] = hop_rtt_ms_list
                 links_param["loss"] = [0]*(path_length-1)
                 links_param["bw"] = [20]*(path_length-1)
@@ -169,7 +180,7 @@ def get_trace(#base_output_dir,
     #print("")
     #total_midnode_num = len(node_list)
     
-    return max_path_length-2,global_midnode_id,links_params
+    return max_path_length-2,global_midnode_id,isls,links_params
     
     # Write data file
     #data_filename = data_dir + "/networkx_rtt_" + str(src) + "_to_" + str(dst) + ".txt"
@@ -190,13 +201,15 @@ def get_trace(#base_output_dir,
     local_shell.remove(tf.name)
     '''
 
-'''
+
 # for test
-max_midnode_num,total_midnode_num,links_params = get_trace(6,9,0,600)
+'''
+max_midnode_num,total_midnode_num,isls,links_params = get_trace(6,9,0,600)
 print(" > max_midnode_num:",max_midnode_num)
 print(" > total_midnode_num:",total_midnode_num)
+print(" > isls:",len(isls),isls)
 print(" > links_params:",len(links_params))
-for i in range(len(links_params)):
+for i in range(5):  #len(links_params)
     print("     > topo:",links_params[i]["topo"])
     print("     > rtt:",links_params[i]["rtt"])
     print("     > loss:",links_params[i]["loss"])

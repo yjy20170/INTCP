@@ -161,10 +161,12 @@ class TestParam(Param):
         if first in self.BasicKeys + list(self.__dict__.keys()):
             return key
         else:
-            if first in self.topoParam.__dict__:
-                return 'topoParam.' + key
-            elif first in self.appParam.__dict__:
+            #print(first)
+            #print(self.appParam.__dict__)
+            if first in self.appParam.__dict__:
                 return 'appParam.' + key
+            elif first in self.topoParam.__dict__:
+                return 'topoParam.' + key
             else:
                 return 'linksParam.' + key
     def get(self, key):

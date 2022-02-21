@@ -5,9 +5,19 @@ from mininet.log import info
 
 from testbed.TbNode import TbNode
 from testbed import Param
+#from TbNode import TbNode
+#import Param
 
 def splitLoss(loss,n):
     return 100*(1-(1-loss/100)**(1/n))
+
+#n is midnode number
+def gen_linear_topo(n):
+	name = "%d_mid"%(n)
+	numMidNode = n
+	nodes = ['h1']+['m%d'%(i+1) for i in range(n)]+['h2']
+	links = [[nodes[i],nodes[i+1]] for i in range(n+1)]
+	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
     
 #TODO automatic; provide IP to application
 def createNet(testParam):
@@ -61,7 +71,133 @@ def createNet(testParam):
 
     return mn
 
+def gen_simple_trace():
+    max_midnodes = 2
+    total_midnodes = 4
+    isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
+    #links_params = None
+    link_param_1 = {"topo":[1,2],"rtt":[50,50,50],"loss":[2,2,2],"bw":[40,40,40]}
+    link_param_2 = {"topo":[3,4],"rtt":[20,20,20],"loss":[0.01,0.01,0.01],"bw":[40,40,40]}
+    links_params = ([link_param_1]+[link_param_2])*20
+    return max_midnodes,total_midnodes,isls,links_params
 
+def setRoute(mn,isls,topo):
+    segs = []
+    segs.append(isls.index((0,topo[0]))+2)
+    for i in range(len(topo)-1):
+        segs.append(isls.index((topo[i],topo[i+1]))+2)
+    segs.append(isls.index((topo[-1],-1))+2)
+    nodes = ['h1']+['m%d'%(topo[i]) for i in range(len(topo))]+['h2']
+    #print(nodes)
+
+    #set default gw
+    for i in range(len(nodes)-1):
+        #mn.getNodeByName(nodes[i]).cmd('route del default')
+        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%(segs[i]))
+    #mn.getNodeByName(nodes[-1]).cmd('route del default')
+    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%(segs[-1]))
+
+    #set other gw
+    for i in range(1,len(nodes)-1):
+        for j in range(i-1):
+            mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(segs[j],segs[i-1]))
+        mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
+    #ping h1 h2
+
+#clear route for previous topo
+def clearRoute(mn,isls,topo):
+    if topo is None:
+        return
+    segs = []
+    segs.append(isls.index((0,topo[0]))+2)
+    for i in range(len(topo)-1):
+        segs.append(isls.index((topo[i],topo[i+1]))+2)
+    segs.append(isls.index((topo[-1],-1))+2)
+    nodes = ['h1']+['m%d'%(topo[i]) for i in range(len(topo))]+['h2']
+    #print(nodes)
+
+    #delete default gw
+    for i in range(len(nodes)-1):
+        mn.getNodeByName(nodes[i]).cmd('route del default gw 10.0.%d.2'%(segs[i]))
+    mn.getNodeByName(nodes[-1]).cmd('route del default gw 10.0.%d.1'%(segs[-1]))
+
+    #delete other gw
+    for i in range(1,len(nodes)-1):
+        for j in range(i-1):
+            mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(segs[j],segs[i-1]))
+        mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
+    #ping h1 h2
+
+#create net for dynamic topo
+def create_dynamic_net(dynamic_topo):
+    if dynamic_topo is None:
+        dynamic_topo = gen_simple_trace
+    max_midnodes,total_midnodes,isls,links_params = dynamic_topo
+    topo = Topo()
+
+    #create nodes
+    nodes = ['h1','h2','h0'] + ['m%d'%(i+1) for i in range(total_midnodes)] 
+    #for i in range(total_midnodes):
+    #    nodes.append('m%d'%(i+1))
+    for i in range(len(nodes)):
+        topo.addHost(nodes[i], cls=TbNode)
+    
+    #create links and set ip
+    create_all_links(topo,isls)
+    
+    #set initial route
+    mn = Mininet(topo)
+    mn.start()
+    
+    #setRoute(mn,isls,[1,2])
+    #setRoute(mn,isls,[3,4])
+    #mn.enterCli()
+    return mn
+
+def create_test_net():
+    topo = Topo()
+    topo.addHost('h1',cls=TbNode)
+    for i in range(2,10):
+        node_name = 'h%d'%(i)
+        topo.addHost(node_name,cls=TbNode)
+        linkName = 'h1' +'_'+ node_name
+        linkNameRvs = node_name+'_'+'h1'
+        topo.addSwitch(linkName)
+        topo.addLink('h1',linkName, intfName1 = linkName, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.1/24'%i})
+        topo.addLink(node_name,linkName, intfName1 = linkNameRvs, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.2/24'%i})
+    mn = Mininet(topo)
+    mn.start()
+    mn.enterCli()
+    return
+
+#10.0.1.1 reserve for h1, 10.0.100.2 reserve for h2
+def create_all_links(topo,isls):
+    #TODO
+    for i,isl in enumerate(isls):
+        numA,numB = isl
+        nameA = 'h1' if numA==0 else 'm%d'%(numA)
+        nameB = 'h2' if numB==-1 else 'm%d'%(numB)
+        linkName = nameA + Param.LinkNameSep + nameB
+        linkNameRvs = nameB + Param.LinkNameSep+ nameA
+        topo.addSwitch(linkName)
+        topo.addLink(nameA,linkName, intfName1 = linkName, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.1/24'%(i+2)},bw = 10,delay=10,loss=0)
+        topo.addLink(nameB,linkName, intfName1 = linkNameRvs, cls = TCLink, 
+                params1 = {'ip':'10.0.%d.2/24'%(i+2)},bw = 10,delay=10,loss=0)
+
+    #set fixed ip for h1 and h2
+    topo.addSwitch('h1_h0')
+    topo.addSwitch('h0_h2')
+    topo.addLink('h1','h1_h0', intfName1 = 'h1_h0', cls = TCLink, 
+                params1 = {'ip':'10.0.1.1/24'})
+    topo.addLink('h0','h1_h0', intfName1 = 'h0_h1', cls = TCLink, 
+                params1 = {'ip':'10.0.1.2/24'})
+    topo.addLink('h0','h0_h2', intfName1 = 'h0_h2', cls = TCLink, 
+                params1 = {'ip':'10.0.100.1/24'})
+    topo.addLink('h2','h0_h2', intfName1 = 'h2_h0', cls = TCLink, 
+                params1 = {'ip':'10.0.100.2/24'})      
 
 def createNet_deprecated(testParam):
     topo=Topo()
@@ -154,4 +290,9 @@ def createNet_deprecated(testParam):
         mn.start()
 
     return mn
-    
+
+'''
+if __name__ =="__main__":
+    trace = gen_simple_trace()
+    create_dynamic_net(trace)
+'''

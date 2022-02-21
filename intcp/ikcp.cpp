@@ -677,7 +677,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
                 // memcpy(intsecDataSeg->data+sizeof(IUINT32)*3, &intSeg->firstTs, sizeof(IUINT32));
                 
-                // IUINT32 t0 = _getUsec(),loop=0,front=true;
+                IUINT32 t0 = _getUsec(),loop=0,front=true;
                 if(rcvBuf.empty()){
                     rcvBuf.push_back(intsecDataSeg);
                 }else{
@@ -685,12 +685,12 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                     bool found=false;
                     list<shared_ptr<IntcpSeg>>::iterator dataIter;
                     if(intsecDataSeg->rangeStart > (head+tail)/2){
-                        // front=false;
+                        front=false;
                         auto bound=rcvBuf.begin();
                         IUINT32 isgStart = intsecDataSeg->rangeStart;
                         for (dataIter = rcvBuf.end(); dataIter != bound; ) {
                             --dataIter;
-                            // ++loop;
+                            ++loop;
                             if (isgStart >= (*dataIter)->rangeEnd) {
                                 found = true;
                                 break;
@@ -705,7 +705,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                         auto bound=rcvBuf.end();
                         IUINT32 isgEnd = intsecDataSeg->rangeEnd;
                         for (dataIter = rcvBuf.begin(); dataIter != bound; ) {
-                            // ++loop;
+                            ++loop;
                             if (isgEnd <= (*dataIter)->rangeStart) {
                                 found = true;
                                 break;
@@ -715,10 +715,10 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                         rcvBuf.insert(dataIter,intsecDataSeg);
                     }
                 }
-                // IUINT32 t1 = _getUsec();
-                // if(t1-t0>100){
-                //     LOG(TRACE,"%d loop %d/%ld avg %.4f fr %d",t1-t0,loop,rcvBuf.size(),float(t1-t0)/loop,front);
-                // }
+                IUINT32 t1 = _getUsec();
+                if(t1-t0>100){
+                    LOG(TRACE,"%d loop %d/%ld avg %.4f fr %d",t1-t0,loop,rcvBuf.size(),float(t1-t0)/loop,front);
+                }
 
                 //------------------------------
                 // update intBuf
@@ -857,7 +857,7 @@ int IntcpTransCB::input(char *data, int size)
             if(current>ts){
                 updateHopRTT(current-ts);
             }else{
-                LOG(WARN,"_getMillisec()>ts");
+                LOG(TRACE,"_getMillisec()>ts");
             }
             if(hopSrtt!=0){ //only begin calculating throughput when hoprtt exists
                 recvedBytesThisHRTT+=len;
@@ -1013,7 +1013,7 @@ void IntcpTransCB::flushIntBuf(){
                     LOG(DEBUG,"----- Timeout [%d,%d) xmit %d cur %u rto %d -----",
                                 segPtr->rangeStart, segPtr->rangeEnd, segPtr->xmit, _getMillisec(),rto);
                 }
-                if (segPtr->xmit >= INTCP_DEADLINK || segRto>=INTCP_RTO_MAX) {
+                if (segPtr->xmit >= INTCP_DEADLINK ) {//|| segRto>=INTCP_RTO_MAX
                     state = -1;
                     LOG(ERROR, "dead link");
                     exit(0);
@@ -1091,7 +1091,7 @@ void IntcpTransCB::flushData(){
     }
     
     //TODO CC -- cwnd/sendingRate; design token bucket
-    LOG(DEBUG,"%.1f %u",rmtSendRate,flushIntv);
+    LOG(TRACE,"%.1f %u",rmtSendRate,flushIntv);
     dataOutputLimit += mbitToBytes(rmtSendRate*flushIntv/1000);
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,sndQueue.size());
     //int dataOutputLimit = 65536;
