@@ -130,13 +130,10 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
     // }
 
     list<shared_ptr<IntcpSeg>>::iterator p;
-    int recover = 0;
     shared_ptr<IntcpSeg> seg;
 
     if (rcvQueue.empty())
         return -1;
-    if (rcvQueue.size() >= INTCP_WND_RCV)
-        recover = 1;
 
     if(nodeRole == INTCP_ROLE_MIDNODE){
         shared_ptr<IntcpSeg> firstSeg = *rcvQueue.begin();
@@ -219,7 +216,7 @@ int IntcpTransCB::request(IUINT32 rangeStart,IUINT32 rangeEnd){
     if(intBufBytes >= INTCP_INTB_MAX){
         return -1;
     }
-    IntRange intr;
+    ByteRange intr;
     intr.startByte = rangeStart;
     intr.endByte = rangeEnd;
     intQueue.push_back(intr);
@@ -425,7 +422,7 @@ void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
                 LOG(WARN,"rangeStart %d rangeEnd %d",rangeStart,rangeEnd);
                 return;
             }
-            IntRange ir;
+            ByteRange ir;
             ir.ts = _getMillisec();
             ir.startByte = sentEnd;
             ir.endByte = rangeEnd;
@@ -461,7 +458,7 @@ void IntcpTransCB::parseInt(IUINT32 rangeStart, IUINT32 rangeEnd){
 void IntcpTransCB::notifyNewData(const char *buffer, IUINT32 dataStart, IUINT32 dataEnd){
     if(pendingInts.empty())
         return;
-    list<IntRange>::iterator p, next;
+    list<ByteRange>::iterator p, next;
     IntcpSeg* seg;
     for (p = pendingInts.begin(); p != pendingInts.end(); p = next) {
         next = p; next++;
@@ -480,7 +477,7 @@ void IntcpTransCB::notifyNewData(const char *buffer, IUINT32 dataStart, IUINT32 
             } else {
                 p->startByte = minEnd;
                 if (maxStart!=intStart) {
-                    IntRange ir;
+                    ByteRange ir;
                     ir.ts = ts;
                     ir.startByte = intStart;
                     ir.endByte = maxStart;
@@ -677,49 +674,95 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 memcpy(intsecDataSeg->data+sizeof(IUINT32)*2, &cur_tmp, sizeof(IUINT32));
                 // memcpy(intsecDataSeg->data+sizeof(IUINT32)*3, &intSeg->firstTs, sizeof(IUINT32));
                 
+                //TODO entirely rewrite
                 IUINT32 t0 = _getUsec(),loop=0,front=true,t2,t3,t4;
-                if(rcvBuf.empty()){
-                    rcvBuf.push_back(intsecDataSeg);
-                }else{
-                    IUINT32 head = (*rcvBuf.begin())->rangeStart, tail = (*--rcvBuf.end())->rangeStart;
-                    bool found=false;
-                    list<shared_ptr<IntcpSeg>>::iterator dataIter;
-                    t2 = _getUsec();
-                    if(intsecDataSeg->rangeStart > (head+tail)/2){
-                        front=false;
-                        auto bound=rcvBuf.begin();
-                        IUINT32 isgStart = intsecDataSeg->rangeStart;
-                        t3 = _getUsec();
-                        for (dataIter = rcvBuf.end(); dataIter != bound; ) {
-                            --dataIter;
-                            ++loop;
-                            if (isgStart >= (*dataIter)->rangeEnd) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        t4 = _getUsec();
-                        if(found){
-                            rcvBuf.insert(++dataIter,intsecDataSeg);
-                        }else{
-                            rcvBuf.insert(dataIter,intsecDataSeg);
-                        }
-                    }else{
-                        auto bound=rcvBuf.end();
-                        IUINT32 isgEnd = intsecDataSeg->rangeEnd;
-                        t3 = _getUsec();
-                        for (dataIter = rcvBuf.begin(); dataIter != bound; ) {
-                            ++loop;
-                            if (isgEnd <= (*dataIter)->rangeStart) {
-                                found = true;
-                                break;
-                            }
-                            ++dataIter;
-                        }
-                        t4 = _getUsec();
-                        rcvBuf.insert(dataIter,intsecDataSeg);
+                IUINT32 ns = intsecDataSeg->rangeStart, ne = intsecDataSeg->rangeEnd;
+                
+                list<RcvBufItr>::iterator itrNext, itrPrev;
+                bool found = false;
+                for(itrNext=rcvBufItrs.begin();itrNext!=rcvBufItrs.end();itrNext++){
+                    if(itrNext->startByte >= ne){
+                        found = true;
+                        break;
                     }
                 }
+                itrPrev = found?itrNext:rcvBufItrs.end();
+                bool isPrevContinuous = itrPrev!=rcvBufItrs.begin() && (--itrPrev)->endByte == ns;
+                if(found){
+                    rcvBuf.insert(itrNext->itr, intsecDataSeg);
+                    if(itrNext->startByte==ne){
+                        if(isPrevContinuous){
+                            itrPrev->endByte = itrNext->endByte;
+                            rcvBufItrs.erase(itrNext);
+                        }else{
+                            itrNext->startByte = ns;
+                        }
+                    }else{
+                        if(isPrevContinuous){
+                            itrPrev->endByte = ne;
+                        }else{
+                            auto tmpItr = itrNext->itr;
+                            --tmpItr;
+                            RcvBufItr ptr = {
+                                .startByte=ns,
+                                .endByte=ne,
+                                .itr = tmpItr};
+                            rcvBufItrs.insert(itrNext,ptr);
+                        }
+                    }
+                }else{
+                    rcvBuf.push_back(intsecDataSeg);
+                    if(isPrevContinuous){
+                        itrPrev->endByte = ne;
+                    }else{
+                        auto tmpItr = rcvBuf.end();
+                        --tmpItr;
+                        RcvBufItr ptr = {
+                            .startByte=ns,
+                            .endByte=ne,
+                            .itr = tmpItr};
+                        rcvBufItrs.push_back(ptr);
+                    }
+                }
+                    // IUINT32 head = (*rcvBuf.begin())->rangeStart, tail = (*--rcvBuf.end())->rangeStart;
+                    // bool found=false;
+                    // list<shared_ptr<IntcpSeg>>::iterator dataIter;
+                    // t2 = _getUsec();
+                    // if(intsecDataSeg->rangeStart > (head+tail)/2){
+                    // // if(false){
+                    //     front=false;
+                    //     auto bound=rcvBuf.begin();
+                    //     IUINT32 isgStart = intsecDataSeg->rangeStart;
+                    //     t3 = _getUsec();
+                    //     for (dataIter = rcvBuf.end(); dataIter != bound; ) {
+                    //         --dataIter;
+                    //         ++loop;
+                    //         if (isgStart >= (*dataIter)->rangeEnd) {
+                    //             found = true;
+                    //             break;
+                    //         }
+                    //     }
+                    //     t4 = _getUsec();
+                    //     if(found){
+                    //         rcvBuf.insert(++dataIter,intsecDataSeg);
+                    //     }else{
+                    //         rcvBuf.insert(dataIter,intsecDataSeg);
+                    //     }
+                    // }else{
+                    //     auto bound=rcvBuf.end();
+                    //     IUINT32 isgEnd = intsecDataSeg->rangeEnd;
+                    //     t3 = _getUsec();
+                    //     for (dataIter = rcvBuf.begin(); dataIter != bound; ) {
+                    //         ++loop;
+                    //         if (isgEnd <= (*dataIter)->rangeStart) {
+                    //             found = true;
+                    //             break;
+                    //         }
+                    //         ++dataIter;
+                    //     }
+                    //     t4 = _getUsec();
+                    //     rcvBuf.insert(dataIter,intsecDataSeg);
+                    // }
                 IUINT32 t1 = _getUsec();
                 if(t1-t0>100){
                 // if(float(t1-t0)/loop > 100){
@@ -778,7 +821,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
 // (suppose interest is in order now)
 // move available data from rcvBuf -> rcvQueue
 void IntcpTransCB::moveToRcvQueue(){
-    
+    //TODO add rcvBufItrs logic
     while (!rcvBuf.empty()) {
         if(nodeRole == INTCP_ROLE_MIDNODE){
             // LOG(DEBUG,"rq size %ld rw %u",rcvQueue.size(), INTCP_WND_RCV);
@@ -795,6 +838,14 @@ void IntcpTransCB::moveToRcvQueue(){
             } else {
                 break;
             }
+        }
+    }
+    if(nodeRole == INTCP_ROLE_REQUESTER){
+        while(!rcvBufItrs.empty() && rcvNxt >= rcvBufItrs.begin()->endByte){
+            rcvBufItrs.erase(rcvBufItrs.begin());
+        }
+        if(rcvNxt>rcvBufItrs.begin()->startByte){
+            rcvBufItrs.begin()->startByte = rcvNxt;
         }
     }
 }
@@ -933,7 +984,7 @@ void IntcpTransCB::flushIntQueue(){
         
         bool first = true;
         //NOTE assume that rangeEnd of interest in intQueue is in order
-        for(list<IntRange>::iterator iter=intQueue.begin();iter!=intQueue.end();){
+        for(list<ByteRange>::iterator iter=intQueue.begin();iter!=intQueue.end();){
             if(first){
                 newseg->rangeStart = iter->startByte;
                 newseg->rangeEnd = _imin_(iter->endByte, newseg->rangeStart+INTCP_INT_RANGE_LIMIT);

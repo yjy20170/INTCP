@@ -40,6 +40,7 @@ void *onNewSess(void* _sessPtr){
     const IUINT32 CheckInterval = 1000;
 
     int loops = 0;
+    //DEBUG 1->0
     while(1){
         usleep(10);//sleep 0.01ms
         
