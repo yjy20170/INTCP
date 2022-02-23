@@ -34,18 +34,53 @@ def kill_intcp_processes(mn,testParam):
     atomic(mn.getNodeByName('h2').cmd)('killall intcps')
     atomic(mn.getNodeByName('h1').cmd)('killall intcpc')
     if testParam.appParam.midCC != 'nopep':
-        for node in testParam.topoParam.nodes:
-            if node not in ['h1','h2']:
+        if not testParam.appParam.dynamic:     #static topo
+            for node in testParam.topoParam.nodes:
+                if node not in ['h1','h2']:
+                    atomic(mn.getNodeByName(node).cmd)('killall intcpm')
+        else:   #dynamic topo
+            max_midnodes,total_midnodes,isls,links_params = testParam.topoParam
+            nodes = ['m%d'%(i+1) for i in range(total_midnodes)]+['gs1','gs2']
+            for node in nodes:
                 atomic(mn.getNodeByName(node).cmd)('killall intcpm')
+
 def kill_pep_processes(mn,testParam):
     atomic(mn.getNodeByName('h2').cmd)('killall iperf3')
     atomic(mn.getNodeByName('h1').cmd)('killall iperf3')
     if testParam.appParam.midCC != 'nopep':
-        for node in testParam.topoParam.nodes:
-            if node not in ['h1','h2']:
+        if not testParam.appParam.dynamic:  #static topo
+            for node in testParam.topoParam.nodes:
+                if node not in ['h1','h2']:
+                    atomic(mn.getNodeByName(node).cmd)('killall pepsal')
+        else:   #dynamic topo
+            for node in ['gs1','gs2']:
                 atomic(mn.getNodeByName(node).cmd)('killall pepsal')
 
-            
+def start_midnode_processes(mn,testParam,useTCP):
+    if testParam.appParam.midCC != 'nopep':
+        if not testParam.appParam.dynamic:      #static topo
+            for node in testParam.topoParam.nodes:
+                if node not in ['h1','h2']:
+                    if useTCP:
+                        atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                    else:
+                        atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
+                    time.sleep(2)
+        else:   #dynamic topo
+            if useTCP:
+                for node in ['gs1','gs2']:
+                    atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                    time.sleep(2)
+            else:   #start all midnodes now
+                max_midnodes,total_midnodes,isls,links_params = testParam.topoParam
+                nodes = ['gs1','gs2']+['m%d'%(i+1) for i in range(total_midnodes)]
+                for node in nodes:
+                    atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
+                    time.sleep(1)
+    else:
+        if testParam.appParam.dynamic:
+            time.sleep(2)   #wait the dynamic update thread to set route
+
 @threadFunc(True)
 def ThroughputTest(mn,testParam,logPath):
     if testParam.appParam.get('isRttTest'):
@@ -56,15 +91,8 @@ def ThroughputTest(mn,testParam,logPath):
     useTCP = testParam.appParam.get('protocol')=="TCP"
     for i in range(testParam.appParam.sendRound): #TODO log is overwritten now
         #NOTE open pep; cleaript
-        if testParam.appParam.midCC != 'nopep':
-            for node in testParam.topoParam.nodes:
-                if node not in ['h1','h2']:
-                    if useTCP:
-                        atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
-                    else:
-                        atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                    time.sleep(2)
-        if useTCP:      #only support e2e TCP
+        start_midnode_processes(mn,testParam,useTCP)
+        if useTCP:      #only support e2e TCP1
             atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
         else:
@@ -96,15 +124,7 @@ def RttTest(mn, testParam, logPath):
     #RttTestPacketNum = 1000
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(RttTestPacketNum,testParam.rttTotal,logFilePath))
     useTCP = testParam.appParam.get('protocol')=="TCP"
-
-    if testParam.appParam.midCC != 'nopep':
-        for node in testParam.topoParam.nodes:
-            if not node=='h1' and not node=='h2':
-                if useTCP:
-                    atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
-                else:
-                    atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                time.sleep(2)
+    start_midnode_processes(mn,testParam,useTCP)
                 #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
     #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
     atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
@@ -121,8 +141,10 @@ def RttTest(mn, testParam, logPath):
 
 # for intcp only
 # @threadFunc(True)
+'''
 def PerformTest(mn, testParam, logPath):
     if not testParam.appParam.get('protocol')=="INTCP":
         return
     print("performance test begin")
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+'''

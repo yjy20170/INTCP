@@ -1,9 +1,12 @@
 from testbed.Param import *
 from testbed.RealNetwork import * #splitLoss
+from get_trace import get_trace
 
 SegUnit['max_queue_size']='packets'
 SegUnit['txqueuelen']='packets'
 SegUnit['sendTime']='s'
+SegUnit['dynamic_intv']='s'
+
 class MyAppParam(AppParam):
     BasicKeys = [
             # 'max_queue_size' in tc rtt limit: packets https://stackoverflow.com/questions/18792347/what-does-option-limit-in-tc-netem-mean-and-do
@@ -12,7 +15,7 @@ class MyAppParam(AppParam):
             'protocol','e2eCC', 'midCC',
             'isRttTest',
             'sendTime', 'sendRound',
-            'dynamic'
+            'dynamic','dynamic_intv'
     ]
 
 #n is midnode number
@@ -28,10 +31,10 @@ def gen_linear_topo(n):
 Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
-#Topo20 = gen_linear_topo(20)
-#Topo20 = Topo1
-dynamic_topo = gen_simple_trace()
 
+#dynamic_topo = gen_simple_trace()   #for test
+#dynamic_real_topo = get_trace(6,9,0,180)
+dynamic_topo_exp2 = gen_link_change_trace()
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
@@ -41,7 +44,7 @@ DefaultLP = LinkParam(
 DefaultAP = MyAppParam(
         # max_queue_size=1000,txqueuelen=1000,
         sendTime=180,sendRound=1,isRttTest=0,
-        e2eCC='cubic', midCC='nopep',protocol='INTCP',dynamic=0)
+        e2eCC='cubic', midCC='nopep',protocol='INTCP',dynamic=0,dynamic_intv=1)
 
 
 def getTestParamSet(tpsetName):
@@ -49,10 +52,50 @@ def getTestParamSet(tpsetName):
     if tpsetName == "dynamic_test":
         tpSet = TestParamSet(tpsetName,
             dynamic_topo,None,
-            DefaultAP.set(dynamic=1),
+            DefaultAP.set(dynamic=1,sendTime=60),
             keysCurveDiff=['protocol'])
-        tpSet.add({},{'in_pep':{'midCC':'pep','protocol':'INTCP'}})
-
+        tpSet.add({},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'}
+            })
+    if tpsetName == "dynamic_complex_test":
+        tpSet = TestParamSet(tpsetName,
+            dynamic_real_topo,None,
+            DefaultAP.set(dynamic=1,sendTime=120),
+            keysCurveDiff=['protocol'])
+        tpSet.add({},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+             'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+             'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
+             'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+            })
+    if tpsetName == "dynamic_exp_2": #change dynamic_intv
+        tpSet = TestParamSet(tpsetName,
+            dynamic_topo_exp2,None,
+            DefaultAP.set(dynamic=1,sendTime=120),
+            keyX = 'dynamic_intv',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                'dynamic_intv':[5,10,15,20] #1
+            },
+            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
+             #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+            })
     if tpsetName == "pure":
         tpSet = TestParamSet(tpsetName,
             Topo1,
