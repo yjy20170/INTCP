@@ -32,7 +32,7 @@ def changeLinkConfig(intf,bw=None,delay=None,loss=None):
    
     #TODO add rtt and loss
     if delay or loss:
-        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay='%fms'%delay,loss=loss,intf=intf)
+        dlcmds, parent = atomic(intf.delayCmds)(is_change=True,delay='%fms'%delay,loss=loss)
         cmds += dlcmds
     if bw:
         bwcmds, parent = atomic(intf.bwCmds)(is_change=True,bw=bw)
@@ -99,36 +99,40 @@ def DynamicLinkUpdate(mn,testParam,logPath):
         return
     __,__,isls,links_params = testParam.topoParam
     prev_topo = None
-    for links_param in links_params:
-        topo = links_param["topo"]
-        rtts = links_param["rtt"]
-        losses = links_param["loss"]
-        bws = links_param["bw"]
+    while True:     
+        for links_param in links_params:
+            topo = links_param["topo"]
+            rtts = links_param["rtt"]
+            losses = links_param["loss"]
+            bws = links_param["bw"]
 
-        #set route
-        #print(topo)
-        if topo!= prev_topo:
-            clearRoute(mn,isls,prev_topo)
-            setRoute(mn,isls,topo)
-        prev_topo = topo
+            #set route
+            #print(topo)
+            if topo!= prev_topo:
+                clearRoute(mn,isls,prev_topo)
+                setRoute(mn,isls,topo)
+            prev_topo = topo
 
-        #set link config
-        nodes = ['h1']+['m%d'%(topo[i]) for i in range(len(topo))] + ['h2']
-        
-        for i in range(len(nodes)-1):
-            nameA = nodes[i]
-            nameB = nodes[i+1]
-            name_switch = nameA + Param.LinkNameSep + nameB
-            nodeA = mn.getNodeByName(nameA)
-            nodeB = mn.getNodeByName(nameB)
-            switch = mn.getNodeByName(name_switch)
-            for intf in (nodeA.connectionsTo(switch)[0]+
-                    nodeB.connectionsTo(switch)[0]):
-                #b = 1 #do nothing 
-                changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=splitLoss(losses[i],2))
-        
-        #done for this loop
-        sleepWithCaution(10)
+            #set link config
+            nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))] + ['gs2','h2']
+            
+            for i in range(len(nodes)-1):
+                nameA = nodes[i]
+                nameB = nodes[i+1]
+                name_switch = nameA + Param.LinkNameSep + nameB
+                nodeA = mn.getNodeByName(nameA)
+                nodeB = mn.getNodeByName(nameB)
+                switch = mn.getNodeByName(name_switch)
+                for intf in (nodeA.connectionsTo(switch)[0]+
+                        switch.connectionsTo(nodeA)[0]+
+                        switch.connectionsTo(nodeB)[0]+
+                        nodeB.connectionsTo(switch)[0]):
+                    #b = 1 #do nothing
+                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=splitLoss(losses[i],2))
+            
+            #done for this loop
+            sleepWithCaution(testParam.appParam.dynamic_intv)
+
 def routeReset(mn,testParam):
     nodes = testParam.topoParam.nodes
     for i in range(len(nodes)-1):

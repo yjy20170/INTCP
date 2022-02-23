@@ -207,8 +207,14 @@ def getPlotParam(group, isRttTest=False):
                 color = 'green'
             elif group[0].appParam.e2eCC == 'cubic':
                 color = 'royalblue'
+            elif group[0].appParam.e2eCC == 'westwood':
+                color = 'purple'
             else:
-                color = 'g'
+                color = 'black'
+        if group[0].appParam.midCC == 'nopep':
+            marker = 'x'
+        else:
+            marker = 's'
     else:
         if group[0].appParam.midCC == 'nopep':
             color = 'purple'
@@ -289,6 +295,30 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=Fal
     plt.savefig('%s/%s.png' % (resultPath, title))
     return
     
+def simplify_curve_name(string):
+    if "protocol=INTCP" in string:
+        string = string.replace("e2eCC=cubic","")
+        string = string.replace("protocol=INTCP","")
+        if "midCC=pep" in string:
+            string = string.replace("midCC=pep","")
+            string = "hop INTCP"+ string
+        elif "midCC=nopep" in string:
+            string = string.replace("midCC=nopep","")
+            string = "e2e INTCP"+ string
+        else:
+            string = "e2e INTCP"+ string
+    if "protocol=TCP" in string:
+        string = string.replace("protocol=TCP","")
+    for tcpCC in ["cubic","reno","hybla","westwood"]:
+        if "e2eCC=%s"%tcpCC in string and "midCC=%s"%tcpCC in string:
+            string = string.replace("e2eCC=%s"%tcpCC,"")
+            string = string.replace("midCC=%s"%tcpCC,"")
+            string = tcpCC+ " split " + string
+        elif "e2eCC=%s"%tcpCC in string and "midCC=nopep" in string:
+            string = string.replace("e2eCC=%s"%tcpCC,"")
+            string = string.replace("midCC=nopep","")
+            string = tcpCC + string
+    return string
 
 def plotByGroup(tpSet, mapNeToResult, resultPath):
     pointGroups = []
@@ -344,8 +374,7 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             else:
                 stringCC = ''
             string = stringCC + ' ' + ' '.join([curve[0].segToStr(key) for key in keys])
-            if "protocol=INTCP" in string:
-            	string = string.replace("e2eCC=cubic","")
+            string = simplify_curve_name(string)
             legends.append(string)
         keyX = tpSet.keyX
         isRttTest = tpSet.tpTemplate.appParam.isRttTest

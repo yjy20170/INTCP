@@ -133,9 +133,9 @@ def get_trace(#base_output_dir,
                 hop_rtt_ms_list = []
                 path_length = len(current_path)
                 for node in current_path[1:-1]:
-                	if node not in midnode_id_map_dict.keys():
-                		global_midnode_id += 1
-                		midnode_id_map_dict[node] = global_midnode_id
+                	if node not in midnode_id_map_dict.keys(): 
+                            global_midnode_id += 1
+                            midnode_id_map_dict[node] = global_midnode_id
                 max_path_length = max(max_path_length,path_length)
                 for i in range(path_length-1):
                     node1 = current_path[i]
@@ -158,9 +158,9 @@ def get_trace(#base_output_dir,
                     if (renamed_current_path[i],renamed_current_path[i+1]) not in isls:
                         isls.append((renamed_current_path[i],renamed_current_path[i+1]))
                 links_param["topo"] = renamed_current_path 
-                links_param["rtt"] = hop_rtt_ms_list
-                links_param["loss"] = [0]*(path_length-1)
-                links_param["bw"] = [20]*(path_length-1)
+                links_param["rtt"] = [50]+hop_rtt_ms_list+[50]
+                links_param["loss"] = [0]+[0.01]*(path_length+1)+[0]
+                links_param["bw"] = [20]*(path_length+1)
                 links_params.append(links_param)
                 # Write change nicely to the console
                 #print("Change at t=" + str(t) + " ns (= " + str(t / 1e9) + " seconds)")
