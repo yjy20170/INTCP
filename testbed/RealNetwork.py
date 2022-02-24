@@ -76,9 +76,9 @@ def gen_simple_trace():
     total_midnodes = 4
     isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
     #links_params = None
-    link_param_1 = {"topo":[1,2],"rtt":[20,20,20,20,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
-    link_param_2 = {"topo":[3,4],"rtt":[20,20,50,20,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
-    links_params = ([link_param_1]+[link_param_2])*20
+    link_param_1 = {"topo":[1,2],"rtt":[20,10,50,10,20],"loss":[0,0.1,0.5,0.1,0],"bw":[20,20,20,20,20]}
+    link_param_2 = {"topo":[3,4],"rtt":[20,10,10,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
+    links_params = [link_param_2]+[link_param_1]
     return max_midnodes,total_midnodes,isls,links_params
 
 def gen_link_change_trace():
@@ -212,6 +212,7 @@ def create_all_links(topo,isls,bw=10,delay=10,loss=0):
                 params1 = {'ip':'10.0.100.1/24'},bw=bw,delay=delay,loss=loss)
     topo.addLink('h2','gs2_h2', intfName1 = 'h2_gs2', cls = TCLink, 
                 params1 = {'ip':'10.0.100.2/24'},bw=bw,delay=delay,loss=loss)      
+    #initialize all links
 
 def createNet_deprecated(testParam):
     topo=Topo()

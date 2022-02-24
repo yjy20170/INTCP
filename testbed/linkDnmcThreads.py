@@ -108,13 +108,6 @@ def DynamicLinkUpdate(mn,testParam,logPath):
             losses = links_param["loss"]
             bws = links_param["bw"]
 
-            #set route
-            #print(topo)
-            if topo!= prev_topo:
-                clearRoute(mn,isls,prev_topo)
-                setRoute(mn,isls,topo)
-            prev_topo = topo
-
             #set link config
             nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))] + ['gs2','h2']
             
@@ -132,8 +125,16 @@ def DynamicLinkUpdate(mn,testParam,logPath):
                     #b = 1 #do nothing
                     changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=splitLoss(losses[i],2))
             
+            #set route
+            #print(topo)
+            if topo!= prev_topo:
+                clearRoute(mn,isls,prev_topo)
+                setRoute(mn,isls,topo)
+            prev_topo = topo
+
             #done for this loop
             sleepWithCaution(testParam.appParam.dynamic_intv)
+            #sleepWithCaution(120)
 
 def routeReset(mn,testParam):
     nodes = testParam.topoParam.nodes

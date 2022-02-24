@@ -18,12 +18,12 @@ class MyAppParam(AppParam):
             'dynamic','dynamic_intv'
     ]
 
-#n is midnode number
+# n is satllite number
 def gen_linear_topo(n):
 	name = "%d_mid"%(n)
 	numMidNode = n
-	nodes = ['h1']+['m%d'%(i+1) for i in range(n)]+['h2']
-	links = [[nodes[i],nodes[i+1]] for i in range(n+1)]
+	nodes = ['h1','gs1']+['m%d'%(i+1) for i in range(n)]+['gs2','h2']
+	links = [[nodes[i],nodes[i+1]] for i in range(len(nodes)-1)]
 	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
 	
 # don't change these
@@ -32,7 +32,7 @@ Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1
 Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
 
-#dynamic_topo = gen_simple_trace()   #for test
+dynamic_topo = gen_simple_trace()   #for test
 #dynamic_real_topo = get_trace(6,9,0,180)
 dynamic_topo_exp2 = gen_link_change_trace()
 # 
@@ -52,15 +52,16 @@ def getTestParamSet(tpsetName):
     if tpsetName == "dynamic_test":
         tpSet = TestParamSet(tpsetName,
             dynamic_topo,None,
-            DefaultAP.set(dynamic=1,sendTime=60),
+            DefaultAP.set(dynamic=1,sendTime=120,dynamic_intv=20),
             keysCurveDiff=['protocol'])
         tpSet.add({},
             {'in_pep':{'midCC':'pep','protocol':'INTCP'},
-             'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
              #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
              #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
              #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'}
+             #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
             })
     if tpsetName == "dynamic_complex_test":
         tpSet = TestParamSet(tpsetName,
@@ -87,14 +88,34 @@ def getTestParamSet(tpsetName):
             {
                 'dynamic_intv':[5,10,15,20] #1
             },
-            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
              #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
              #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
-             'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
              #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
              #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+            })
+    if tpsetName == "dynamic_exp_3": #change dynamic_intv
+        tpSet = TestParamSet(tpsetName,
+            dynamic_topo,None,
+            DefaultAP.set(dynamic=1,sendTime=120),
+            keyX = 'dynamic_intv',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                'dynamic_intv':[5,10,15] #1,30,60,20
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
+             #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
             })
     if tpsetName == "pure":
         tpSet = TestParamSet(tpsetName,

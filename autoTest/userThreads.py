@@ -58,25 +58,24 @@ def kill_pep_processes(mn,testParam):
 
 def start_midnode_processes(mn,testParam,useTCP):
     if testParam.appParam.midCC != 'nopep':
-        if not testParam.appParam.dynamic:      #static topo
-            for node in testParam.topoParam.nodes:
-                if node not in ['h1','h2']:
-                    if useTCP:
-                        atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
-                    else:
+        if useTCP:      # tcp => open pepsal on gs1 and gs2 
+            for node in ['gs1','gs2']:
+                atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                time.sleep(2)
+        else:           # intcp => open intcpm on ground station and satellites
+            if not testParam.appParam.dynamic:      #static topo
+                for node in testParam.topoParam.nodes:
+                    if node not in ['h1','h2']:
                         atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                    time.sleep(2)
-        else:   #dynamic topo
-            if useTCP:
-                for node in ['gs1','gs2']:
-                    atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
-                    time.sleep(2)
-            else:   #start all midnodes now
+                        time.sleep(2)
+            else:   #dynamic topo
                 max_midnodes,total_midnodes,isls,links_params = testParam.topoParam
                 nodes = ['gs1','gs2']+['m%d'%(i+1) for i in range(total_midnodes)]
                 for node in nodes:
                     atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
                     time.sleep(1)
+                #if testParam.appParam.dynamic_intv > total_midnodes:
+                #    time.sleep(testParam.appParam.dynamic_intv-total_midnodes)  #avoid the first link change
     else:
         if testParam.appParam.dynamic:
             time.sleep(2)   #wait the dynamic update thread to set route
@@ -97,6 +96,7 @@ def ThroughputTest(mn,testParam,logPath):
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
         else:
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+            time.sleep(1)
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
         time.sleep(testParam.appParam.sendTime + 5)
         if useTCP:
@@ -127,12 +127,14 @@ def RttTest(mn, testParam, logPath):
     start_midnode_processes(mn,testParam,useTCP)
                 #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
     #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
-    atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
-    atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
     if useTCP:
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
         atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
     else:
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
     #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
