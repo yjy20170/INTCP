@@ -121,7 +121,7 @@ def getTestParamSet(tpsetName):
         tpSet = TestParamSet(tpsetName,
             Topo1,
             LinksParam(DefaultLP.set(bw=40,rtt=100), 
-            {'pep1_h2':{'bw':40,'itmDown':3,'itmTotal':20},
+            {'pep1_h2':{'bw':40,'itmDown':0,'itmTotal':20},
             }
             ),
             DefaultAP)

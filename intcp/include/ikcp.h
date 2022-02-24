@@ -105,7 +105,7 @@ struct IntcpSeg
     char data[1];    //need send
 };
 
-struct IntRange
+struct ByteRange
 {
     //TODO remove ts?
     // ts is for rtt caclulation: 
@@ -151,6 +151,15 @@ public:
     }
 };
 
+struct RcvBufItr
+{
+    //TODO remove ts?
+    // ts is for rtt caclulation: 
+    // when response interest in pendingInts, 
+    // copy the ts of interest to data packet header
+    IUINT32 startByte, endByte;
+    list<shared_ptr<IntcpSeg>>::iterator itr;
+};
 //---------------------------------------------------------------------
 // IntcpTransCB
 //---------------------------------------------------------------------
@@ -165,13 +174,15 @@ private:
    	int nodeRole;
 
     //requester
-    list<IntRange> intQueue;
+    list<ByteRange> intQueue;
     list<shared_ptr<IntcpSeg>> intBuf;
     list<shared_ptr<IntcpSeg>> rcvBuf;
+    list<RcvBufItr> rcvBufItrs;
+
 	IUINT32 rcvNxt; // for ordered data receiving
     list<shared_ptr<IntcpSeg>> rcvQueue;
     //responder
-    list<IntRange> pendingInts;
+    list<ByteRange> pendingInts;
     list<shared_ptr<IntcpSeg>> sndQueue;
     shared_ptr<char> tmpBuffer;
 

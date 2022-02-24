@@ -84,8 +84,6 @@ def LinkUpdate(mn, testParam, logPath):
             newBw = generateBw(lp.varMethod, lp.bw, lp.varBw)
 
             for intf in (nodeA.connectionsTo(switch)[0]+
-                    switch.connectionsTo(nodeA)[0]+
-                    switch.connectionsTo(nodeB)[0]+
                     nodeB.connectionsTo(switch)[0]):
                 changeLinkConfig(intf,bw=newBw)
         # linkName is the name of last link in linkNames
@@ -186,8 +184,6 @@ def MakeItm(mn, testParam, logPath):
         #     nodeB = mn.getNodeByName(nameB)
         #     lp = testParam.linksParam.getLP(linkName)
         #     for intf in (nodeA.connectionsTo(switch)[0]+
-        #             switch.connectionsTo(nodeA)[0]+
-        #             switch.connectionsTo(nodeB)[0]+
         #             nodeB.connectionsTo(switch)[0]):
         #         changeLinkConfig(intf,bw=lp.bw,delay=lp.rtt/4,loss=splitLoss(lp.loss,2))
             
