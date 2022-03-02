@@ -56,18 +56,18 @@ def kill_pep_processes(mn,testParam):
             for node in ['gs1','gs2']:
                 atomic(mn.getNodeByName(node).cmd)('killall pepsal')
 
-def start_midnode_processes(mn,testParam,useTCP):
+def start_midnode_processes(mn,testParam,useTCP,pep_nodelay=0):
     if testParam.appParam.midCC != 'nopep':
         if useTCP:      # tcp => open pepsal on gs1 and gs2 
             for node in ['gs1','gs2']:
-                atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC}>/dev/null 2>&1 &')
+                atomic(mn.getNodeByName(node).cmd)(f'../pepsal_min/bash/runpep {testParam.appParam.midCC} {pep_nodelay} >/dev/null 2>&1 &')
                 time.sleep(2)
         else:           # intcp => open intcpm on ground station and satellites
             if not testParam.appParam.dynamic:      #static topo
                 for node in testParam.topoParam.nodes:
-                    if node not in ['h1','h2']:
+                    if node not in ['h1','h2','dummy']: #dummy node for flow test
                         atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
-                        time.sleep(2)
+                        time.sleep(1)
             else:   #dynamic topo
                 max_midnodes,total_midnodes,isls,links_params = testParam.topoParam
                 nodes = ['gs1','gs2']+['m%d'%(i+1) for i in range(total_midnodes)]
@@ -82,7 +82,7 @@ def start_midnode_processes(mn,testParam,useTCP):
 
 @threadFunc(True)
 def ThroughputTest(mn,testParam,logPath):
-    if testParam.appParam.get('isRttTest'):
+    if testParam.appParam.get('isRttTest') or testParam.appParam.get('isFlowTest'):
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
@@ -92,17 +92,20 @@ def ThroughputTest(mn,testParam,logPath):
         #NOTE open pep; cleaript
         start_midnode_processes(mn,testParam,useTCP)
         if useTCP:      #only support e2e TCP1
-            atomic(mn.getNodeByName('h2').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
-            atomic(mn.getNodeByName('h1').cmd)('iperf3 -c 10.0.100.2 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+            #print("2")
+            atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
+            time.sleep(1)
+            atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
         else:
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
             time.sleep(1)
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
         time.sleep(testParam.appParam.sendTime + 5)
-        if useTCP:
-            kill_pep_processes(mn,testParam)
-        else:
-            kill_intcp_processes(mn,testParam)
+        if testParam.appParam.sendRound>1:
+            if useTCP:
+                kill_pep_processes(mn,testParam)
+            else:
+                kill_intcp_processes(mn,testParam)
         time.sleep(1)
             
     return
@@ -124,21 +127,51 @@ def RttTest(mn, testParam, logPath):
     #RttTestPacketNum = 1000
     #atomic(mn.getNodeByName('h2').cmd)('python ../tcp_test/server.py -c %d -rt %d > %s &'%(RttTestPacketNum,testParam.rttTotal,logFilePath))
     useTCP = testParam.appParam.get('protocol')=="TCP"
-    start_midnode_processes(mn,testParam,useTCP)
-                #atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm > %s/%s.txt &'%(logPath, testParam.name+"_"+node))
-    #atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps > %s/%s.txt &'%(logPath, testParam.name+"_"+"h2"))
+    start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
+                
+    # h2 -> h1 for both TCP and INTCP test
     if useTCP:
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
-        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
-        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
+        if False:   # transport layer owd, which can not support pep now
+            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t > %s &'%(receiverLogFilePath))
+            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t > %s &'%(senderLogFilePath))
+            time.sleep(1)
+            atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
+            atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
+        else:       # app layer owd
+            atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/server.py > %s &'%(logFilePath))
+            atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/client.py -l %f >/dev/null 2>&1 &'%(0))
     else:
         atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py > %s &'%(senderLogFilePath))
         atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py > %s &'%(receiverLogFilePath))
+        time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &')
     #atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(clientLogFilePath))
     time.sleep(testParam.appParam.sendTime + 5)
+    return
+
+@threadFunc(True)
+def FlowTest(mn, testParam, logPath):
+    if not testParam.appParam.get('isFlowTest'):
+        return
+    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+    delFile(logFilePath)
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+    start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
+    data_size = testParam.appParam.data_size
+    if useTCP:
+        a = 1   #do nothing
+        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/client.py -f %f >/dev/null 2>&1 &'%(data_size))
+        time.sleep(testParam.appParam.sendTime)
+        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+    else:
+        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &') 
+        time.sleep(testParam.appParam.sendTime)
+        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
     return
 
 # for intcp only

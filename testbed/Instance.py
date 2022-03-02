@@ -36,8 +36,8 @@ def run(testParam, logPath, isManual):
         #dynamic
         #thread.start(mn,links_params,isls,logPath)
     if isManual:
-        time.sleep(5)
-        mn.openXterm()
+        time.sleep(1)
+        #mn.openXterm()
         mn.enterCli()
         TbThread.latchNumDec()
     for thread in threads:

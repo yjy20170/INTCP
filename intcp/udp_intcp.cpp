@@ -210,7 +210,12 @@ int IntcpSess::inputUDP(char *recvBuf, int recvLen){
     }
 
     int ret;
+        IUINT32 cf = _getMillisec();
     ret = transCB->input(recvBuf, recvLen);
+        IUINT32 df = _getMillisec();
+        if(df- cf > 3){
+            LOG(DEBUG,"input use %d",df-cf);
+        }
     lock.unlock();
     sleep(0);
     return ret;
@@ -230,7 +235,12 @@ int IntcpSess::recvData(char *recvBuf, int maxBufSize, IUINT32 *startPtr, IUINT3
     if(af- bf > 10){
         LOG(DEBUG,"recv wait %d",af-bf);
     }
+        IUINT32 cf = _getMillisec();
     int ret = transCB->recv(recvBuf,maxBufSize, startPtr, endPtr);
+        IUINT32 df = _getMillisec();
+        if(df- cf > 3){
+            LOG(DEBUG,"recv use %d",df-cf);
+        }
     lock.unlock();
     return ret;
 }
@@ -260,7 +270,12 @@ void* TransUpdateLoop(void *args){
         updateTime = sessPtr->transCB->check();
         now = _getMillisec();
         if (updateTime <= now) {
+        IUINT32 cf = _getMillisec();
             sessPtr->transCB->update();
+        IUINT32 df = _getMillisec();
+        if(df- cf > 3){
+            LOG(DEBUG,"update use %d",df-cf);
+        }
             sessPtr->lock.unlock();
         } else {
             sessPtr->lock.unlock();
@@ -362,10 +377,11 @@ void *udpRecvLoop(void *_args){
     shared_ptr<IntcpSess> sessPtr;
     IUINT32 lastLoop = _getMillisec(), timeSum1=0, timeSum2=0, timeSum3=0, timeTmp;
 
+    int recvedUDPlen = 0;
     while(1){
         timeTmp = _getMillisec();
-        if(timeTmp-lastLoop > 20){
-            LOG(TRACE,"%5u %5u %5u %5u", timeTmp-lastLoop,timeSum1,timeSum2,timeSum3);
+        if(timeTmp-lastLoop > 10){
+            LOG(TRACE,"udp %d",recvedUDPlen/1024/1024);
         }
         lastLoop = timeTmp;
 
@@ -383,8 +399,8 @@ void *udpRecvLoop(void *_args){
             memcpy(&recvAddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
         }
         LOG(TRACE, "recv udp len=%d",recvLen);
-        timeSum1 = _getMillisec()-timeTmp;
-        timeTmp = _getMillisec();
+        recvedUDPlen += recvLen;
+
         //DEBUG
         // IUINT8 cmd;
         // decode8u(recvBuf, &cmd);
@@ -435,10 +451,7 @@ void *udpRecvLoop(void *_args){
              //nodeRole=server
             args->sessMapPtr->setValue(quad.chars, QUAD_STR_LEN, sessPtr);
         }
-        timeSum2 = _getMillisec()-timeTmp;
-        timeTmp = _getMillisec();
         sessPtr->inputUDP(recvBuf, recvLen);
-        timeSum3 = _getMillisec()-timeTmp;
     }
 
     return nullptr;

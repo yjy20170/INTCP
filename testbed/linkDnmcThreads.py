@@ -143,6 +143,10 @@ def routeReset(mn,testParam):
             seg = i+1
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
+    for i in range(2,len(nodes)-1):
+        for seg in range(1,i):
+            mn.getNodeByName(nodes[i]).cmd(
+                    'route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(seg,i))
 
 @threadFunc(False)
 def MakeItm(mn, testParam, logPath):
@@ -159,15 +163,18 @@ def MakeItm(mn, testParam, logPath):
     anyLP = testParam.linksParam.getLP(linkNames[-1])
     while latchRunning():        
         sleepWithCaution(anyLP.itmTotal-anyLP.itmDown)
-        # print("down")
+        #print(anyLP.itmTotal-anyLP.itmDown)
+        #print("down")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)
+            #print(nameA,nameB,l)
             atomic(mn.getNodeByName(nameA).cmd)('echo')
             atomic(mn.configLinkStatus)(nameA,l,'down')
             atomic(mn.getNodeByName(nameB).cmd)('echo')
             atomic(mn.configLinkStatus)(nameB,l,'down')
         sleepWithCaution(anyLP.itmDown)
-        # print("up")
+        #print(anyLP.itmDown)
+        #print("up")
         for l in linkNames:
             nameA,nameB = l.split(Param.LinkNameSep)
             atomic(mn.getNodeByName(nameA).cmd)('echo')

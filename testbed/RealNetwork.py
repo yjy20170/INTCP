@@ -61,7 +61,7 @@ def createNet(testParam):
         for seg in range(1,i):
             mn.getNodeByName(nodes[i]).cmd(
                     'route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(seg,i))
-
+    mn.getNodeByName(nodes[-1]).cmd('ethtool -K %s_%s tso off'%(nodes[-1],nodes[-2]))
     #BUG bug in Mininet
     # there must be some traffic between the endpoints before running intcp, 
     # otherwise the first dozens of interests will be out of order,
@@ -70,14 +70,28 @@ def createNet(testParam):
     mn.ping([mn['h1'],mn['h2']],outputer=info)
 
     return mn
-
-def gen_simple_trace():
-    max_midnodes = 2
-    total_midnodes = 4
-    isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
+def gen_test_trace(): # only for test, the first second 
+    max_midnodes = 16
+    total_midnodes = 50
+    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),
+            (8,9),(9,10),(10,11),(11,12),(12,13),(13,14),(14,15),(15,16),(16,-1)]
     #links_params = None
-    link_param_1 = {"topo":[1,2],"rtt":[20,10,50,10,20],"loss":[0,0.1,0.5,0.1,0],"bw":[20,20,20,20,20]}
-    link_param_2 = {"topo":[3,4],"rtt":[20,10,10,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
+    link_param_1 = {"topo":[(i+1) for i in range(16)],
+                    #"rtt":[50,6.43,13.08,13.08,8.96,4.15,8.96,4.15,8.96,4.15,8.96,4.15,8.96,4.15,8.96,13.08,13.08,4.33,50],
+                    "rtt":[50]+[10]*18+[50],
+                    "loss":[0]+[0.1]*18+[0],
+                    "bw":[20]*18+[20,20]}
+    links_params = [link_param_1]
+    return max_midnodes,total_midnodes,isls,links_params
+
+def gen_extreme_trace(): #extreme topo ,when link change per 1s can beat bbr
+    max_midnodes = 6
+    total_midnodes = 12
+    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,-1),
+            (0,7),(7,8),(8,9),(9,10),(10,11),(11,12),(12,-1)]
+    #links_params = None
+    link_param_1 = {"topo":[1,2,3,4,5,6],"rtt":[20,10,10,10,10,10,10,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
+    link_param_2 = {"topo":[7,8,9,10,11,12],"rtt":[20,10,20,20,20,20,20,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
     links_params = [link_param_2]+[link_param_1]
     return max_midnodes,total_midnodes,isls,links_params
 
@@ -162,6 +176,9 @@ def create_dynamic_net(dynamic_topo):
     mn = Mininet(topo)
     mn.start()
     
+    mn.getNodeByName(nodes[-1]).cmd('ethtool -K %s_%s tso off'%('h2','gs2'))
+    mn.ping([mn['h1'],mn['h2']],outputer=info)
+
     #setRoute(mn,isls,[1,2])
     #setRoute(mn,isls,[3,4])
     #mn.enterCli()

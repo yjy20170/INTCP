@@ -27,7 +27,8 @@ def unpack(bytePayload,pos):
     rangeStart = int.from_bytes(bytePayload[pos+15:pos+19],byteorder='little')
     rangeEnd = int.from_bytes(bytePayload[pos+19:pos+23],byteorder='little')
     return  cmd,wnd,ts,sn,length,rangeStart,rangeEnd
-    
+
+sumUdpLen = 0
 def Callback_udp(packet):
     try:
         #udp packet
@@ -35,6 +36,9 @@ def Callback_udp(packet):
             return
         bytePayload =packet.payload.payload.payload.original
         udpLength = len(bytePayload)
+        global sumUdpLen
+        sumUdpLen += udpLength
+        print(sumUdpLen/1024/1024)
         pos = 0
         while True:
             if pos+23>udpLength:
@@ -43,13 +47,13 @@ def Callback_udp(packet):
             pos += (23+length)
 
             cur = int(time.time()*1000)%2**32
-            # if cmd==81: #data only
-                # print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
+            if cmd==81: #data only
+                print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
             
-            if cmd==81:
+            #if cmd==81:
                 # print('cur',int(time.time()*1000)%2**32,'ts',ts)
-                if cur - ts > timeFilter:
-                    print(f"{cur} ({sn}) time - ts {cur - ts}")
+                #if cur - ts > timeFilter:
+                   # print(f"{cur} ({sn}) time - ts {cur - ts}")
             # if cmd==80:
             #     # print('cur',int(time.time()*1000)%2**32,'ts',ts)
             #     if int(time.time()*1000)%2**32 - ts > timeFilter:
@@ -63,6 +67,7 @@ def Callback_tcp(packet):
         if not packet[IP].proto==6:
             return
         length = len(packet[TCP].payload.original)
+        #if packet[TCP].dport==3000:
         print('seq',packet[TCP].seq,'length',length,'time',Utils.getStrTime())
         #print(packet[IP].src,":",packet[TCP].sport,'-->',packet[IP].dst,":",packet[TCP].dport)
     except:
@@ -73,6 +78,7 @@ if __name__=="__main__":
     args = getArgsFromCli()
     timeFilter = args.f
     if args.t:
-        sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
+        #sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
+        sniff(filter='dst host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
     else:#DEBUG dst
         sniff(filter='dst host 10.0.1.1', prn=Callback_udp) #udp packet from server to client

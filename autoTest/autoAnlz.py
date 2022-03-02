@@ -53,14 +53,20 @@ def getOwdTotal(tp):
         rttTotal += lp.rtt
         rttMin = min(rttMin,lp.rtt)
     owdTotal = rttTotal*0.5
-    if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":
+    first_hop_rtt = tp.linksParam.getLP(tp.topoParam.linkNames()[0]).rtt
+    last_hop_rtt = tp.linksParam.getLP(tp.topoParam.linkNames()[-1]).rtt
+    if tp.appParam.protocol=="INTCP" and not tp.appParam.midCC=="nopep":    # hop INTCP 
         retranThreshold = rttTotal*0.5 + rttMin
+    elif tp.appParam.protocol=="TCP" and not tp.appParam.midCC=="nopep":    # split tcp
+        #retranThreshold = rttTotal*0.5 + min(first_hop_rtt,last_hop_rtt,rttTotal-first_hop_rtt-last_hop_rtt)
+        retranThreshold = rttTotal*0.5 +(rttTotal-first_hop_rtt-last_hop_rtt)
     else:
         retranThreshold = rttTotal*1.5
     return owdTotal,retranThreshold
     
 def getTCDelay(tp):
-    sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
+    #sender = "h1" if tp.appParam.protocol=="TCP" else "h2"
+    sender = "h2"
     for linkName in tp.topoParam.linkNames():
         if sender in linkName:
             return tp.linksParam.getLP(linkName).rtt/4
@@ -83,6 +89,8 @@ def parseLine(line,protocol):
         
 def generateLog(logPath,tpSet):
     for tp in tpSet.testParams:
+        if tp.appParam.protocol == "TCP":   # record app layer owd for tcp
+            continue
         senderLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"send")
         receiverLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"recv")
         logFilePath = '%s/%s.txt'%(logPath,tp.name)
@@ -114,15 +122,40 @@ def generateLog(logPath,tpSet):
                     
         for seq in sendTimeDict.keys():
             if seq in recvTimeDict.keys():
-                owdDict[seq] = 1000*(recvTimeDict[seq]-sendTimeDict[seq])+tcDelay
+                owd_s = recvTimeDict[seq]-sendTimeDict[seq]
+                if owd_s > -10 and owd_s <0:    # abnormal owd
+                    continue
+                if owd_s < 0: # only occur when recvtime exceed 1000
+                    owd_s = owd_s + 1000
+                owdDict[seq] = 1000*owd_s + tcDelay
             else:
-                print(seq,end=',')  
+                a = 1
+                #print(seq,end=',')  
         print("\n----%s------"%(tp.name))
         with open(logFilePath,"w") as f:
             for seq,owd in owdDict.items():
                 f.write("seq %d owd_obs %f\n"%(seq,owd)) 
         #print(sendTimeDict.keys())
         #print(recvTimeDict.keys())
+
+def screen_owd(thrps,tp,retranPacketOnly,owd_total,retran_threshold):
+    res = []
+    if not retranPacketOnly:
+        for owd in thrps:
+            if owd > owd_total:
+                res.append(owd)
+    else:   # only retran packet
+        if False:    #tp.appParam.protocol=="INTCP"
+            for owd in thrps:
+                if owd > retran_threshold:
+                    res.append(owd)
+        else:
+            prev_owd = 0
+            for owd in thrps:
+                if owd > retran_threshold and owd > prev_owd:
+                    res.append(owd)
+                prev_owd = owd
+    return res
 
 def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=False):
     result = {}
@@ -134,13 +167,20 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
         result[tp] = thrps
         with open(logFilePath,'r') as f:
             lines = f.readlines()
-            if not tpSet.tpTemplate.appParam.isRttTest:
+            if not tpSet.tpTemplate.appParam.isRttTest and not tpSet.tpTemplate.appParam.isFlowTest:
                 for line in lines:
                     if 'receiver' in line:
                         numString = line.split('bits')[0][-7:-2]
                         num = float(numString)/(1 if line.split('bits')[0][-1]=='M' else 1000)
                         thrps.append(num)
                         print(num)
+            elif tpSet.tpTemplate.appParam.isFlowTest:
+                for idx,line in enumerate(lines):
+                    if idx==0:
+                        flow1 = float(line)
+                    elif idx==1:
+                        flow2 = float(line)
+                        thrps.append((flow2-flow1)/1000000)
             else:
                 #print("load rtt log")
                 if intcpRtt:    #false
@@ -158,21 +198,19 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
                 else:
                     #prev_owd = 0
                     owd_total,retran_threshold = getOwdTotal(tp)
-                    #limit = min(owd_total+50,retran_threshold) if retranPacketOnly else owd_total
-                    limit = retran_threshold if retranPacketOnly else owd_total
-                    if tp.appParam.protocol=="TCP" or tp.appParam.protocol=="INTCP":
-                        for line in lines:
-                            if "owd_obs" in line:
-                                pos_obs = line.find("owd_obs")
-                                try:
-                                    owd = float(line[pos_obs+8:])
-                                    if owd>limit:
-                                        thrps.append(owd)
-                                except:
-                                    continue
+                    for line in lines:
+                        if "owd_obs" in line:
+                            pos_obs = line.find("owd_obs")
+                            try:
+                                owd = float(line[pos_obs+8:])
+                                thrps.append(owd)
+                            except:
+                                continue
+                    thrps = screen_owd(thrps,tp,retranPacketOnly,owd_total,retran_threshold)
 
         if isDetail or tpSet.tpTemplate.appParam.isRttTest:
             result[tp] = thrps
+            print(thrps)
         else:
             result[tp] = mean(thrps,method='all')
             print('len=',len(thrps),'average =%.2f'%result[tp])
@@ -199,7 +237,12 @@ def getPlotParam(group, isRttTest=False):
         if group[0].appParam.protocol == 'INTCP':
             marker = 'x'
             linestyle = '--'
-            color = 'red'
+            if group[0].linksParam.defaultLP.loss==0:
+                color = 'red'
+            elif group[0].linksParam.defaultLP.loss==0.1:
+                color = 'green'
+            else:
+                color = 'royalblue'
         else:
             marker = 's'
             linestyle = '-'
@@ -209,8 +252,10 @@ def getPlotParam(group, isRttTest=False):
                 color = 'royalblue'
             elif group[0].appParam.e2eCC == 'westwood':
                 color = 'purple'
-            else:
+            elif group[0].appParam.e2eCC == 'bbr':
                 color = 'black'
+            elif group[0].appParam.e2eCC == 'pcc':
+                color = 'orange'
         if group[0].appParam.midCC == 'nopep':
             marker = 'x'
         else:
@@ -258,10 +303,12 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
         plt.fill_between(x,y_mean,y_lower,color=color,alpha=alpha)
         plt.fill_between(x,y_mean,y_upper,color=color,alpha=alpha)
 
-def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=False):
+def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=False,isFlowTest=False):
     plt.figure(figsize=(8,5),dpi = 320)
-    if not isRttTest:
+    if not isRttTest and not isFlowTest:
         plt.ylim((0,20))
+    elif isFlowTest:
+        plt.ylim((100,120))
     else:
         plt.ylim((0,1000))
     legend_font = {'size':12}#"family" : "Times New Roman",
@@ -286,6 +333,8 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=Fal
     if isRttTest:
         plt.ylabel('one way delay(ms)',size=12)#family="Times New Roman",
         #plt.ylabel('error rate')
+    elif isFlowTest:
+        plt.ylabel('flow(Mbyte)',size=12)
     else:
         plt.ylabel('throughput(Mbps)',size=12)#family="Times New Roman",
     plt.title(title,size=15)#family="Times New Roman",
@@ -309,7 +358,7 @@ def simplify_curve_name(string):
             string = "e2e INTCP"+ string
     if "protocol=TCP" in string:
         string = string.replace("protocol=TCP","")
-    for tcpCC in ["cubic","reno","hybla","westwood"]:
+    for tcpCC in ["cubic","reno","hybla","westwood","bbr","pcc"]:
         if "e2eCC=%s"%tcpCC in string and "midCC=%s"%tcpCC in string:
             string = string.replace("e2eCC=%s"%tcpCC,"")
             string = string.replace("midCC=%s"%tcpCC,"")
@@ -378,13 +427,20 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
             legends.append(string)
         keyX = tpSet.keyX
         isRttTest = tpSet.tpTemplate.appParam.isRttTest
+        isFlowTest = tpSet.tpTemplate.appParam.isFlowTest
+        print("isFlowTest",isFlowTest)
         if isRttTest:
             title = '%s - OneWayDelay' % (keyX)
+        elif isFlowTest:
+            print("fuck")
+            title = '%s - Flow' % (keyX)
+            print(title)
         else:
             title = '%s - throughput' % (keyX)
+            print(title)
         if tpSet.keysPlotDiff != []:
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
-        plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest)
+        plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,isRttTest=isRttTest,isFlowTest=isFlowTest)
 
 #TODO appParam.total_loss is removed now
 def getCdfParam(tp):
@@ -419,26 +475,29 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
                 x_max = cur_max
             else:
                 x_max = max(cur_max,x_max)
-    x_min  = 0
+    x_min = 0
+    x_max = 600
     #DEBUG
     #x_max = min(x_max,2000)
-    x_max = 1000
+    #x_max = 1000
     x = np.linspace(x_min,x_max,num=500)
-    
-    plt.xlim((0,1000))
+    plt.xlim((x_min,x_max))
+
     if not retranPacketOnly:
         plt.ylim((0.8,1.01)) 
-    #plt.xlim((x_min,x_max))
+    else:
+        plt.ylim((0,1.01))
+    
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
         print(tp.name,min(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
-            color,linestyle = getCdfParam(tp)
+            #color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            #plt.step(x,y)
-            plt.step(x,y,linestyle=linestyle,color=color)
+            plt.step(x,y)
+            #plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             legends.append(' '.join([tp.segToStr(key) for key in keys]))
     title = 'cdf'
@@ -493,24 +552,22 @@ def anlz(tpSet, logPath, resultPath):
         print(summaryString)
         writeText('%s/summary.txt'%(resultPath), summaryString)
         writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
-    else:
+
+    elif tpSet.tpTemplate.appParam.isRttTest:
         #print('entering rtt analyse')
         
         generateLog(logPath,tpSet)
         
-        mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
-        
-        drawCDF(tpSet,mapTpToResult,resultPath)
-        
+        # all packets cdf
+        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False)
+        #drawCDF(tpSet,mapTpToResult,resultPath)
         #drawSeqGraph(tpSet,mapTpToResult, resultPath)
         
-        #retranPacketOnly
+        # retranPacketOnly cdf
         mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=False,retranPacketOnly=True)
         drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
         
-        #intcpRtt
-        #mapTpToResult = loadLog(logPath, tpSet,isDetail=False,intcpRtt=True)
-        #drawCDF(tpSet,mapTpToResult,resultPath,intcpRtt = True)
+    
     fixOwnership(resultPath,'r')
 
 """

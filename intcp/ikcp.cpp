@@ -898,7 +898,8 @@ int IntcpTransCB::input(char *data, int size)
             //     LOG(DEBUG,"(%u)%u",sn,intHopOwd);
             // }
             rmtSendRate = float(wnd)/100;
-            LOG(TRACE, "%u recv int %u [%u,%u) rSR %.1f",_getMillisec(),sn,rangeStart,rangeEnd,rmtSendRate);
+            LOG(TRACE, "%u recv int %u [%u,%u) %u rSR %.1f",
+                _getMillisec(),sn,rangeStart,rangeEnd,rangeEnd-rangeStart,rmtSendRate);
             if(!(rangeStart==0 && rangeEnd==0)){
                 detectIntHole(rangeStart,rangeEnd,sn);
                 parseInt(rangeStart,rangeEnd);
@@ -1040,7 +1041,9 @@ void IntcpTransCB::flushIntBuf(){
     int cntAll=0,cntTimeout=0,cntRetransed=0;
 
     bool reach_limit = false;
+    int loop=0;
     for (p = intBuf.begin(); p != intBuf.end(); p=next) {
+        loop++;
         cntAll++;
         next=p;next++;
         IUINT32 current = _getMillisec();
@@ -1092,6 +1095,7 @@ void IntcpTransCB::flushIntBuf(){
                 stat.xmit++;
             }
             //clear hole
+            //DEBUG
             if(nodeRole != INTCP_ROLE_MIDNODE){
                 list<Hole>::iterator iter,next;
                 for(iter=dataHoles.begin(); iter!=dataHoles.end();iter=next){
@@ -1137,6 +1141,7 @@ void IntcpTransCB::flushIntBuf(){
             // }
         }
     }
+    LOG(TRACE,"loop %d",loop);
     if(srtt!=0 && !reach_limit){
         intOutputLimit = min(intOutputLimit,newOutput);
     }
@@ -1161,6 +1166,8 @@ void IntcpTransCB::flushData(){
     
     //TODO CC -- cwnd/sendingRate; design token bucket
     LOG(TRACE,"%.1f %u",rmtSendRate,flushIntv);
+    //DEBUG
+    // rmtSendRate = 19;
     int newOutput = mbitToBytes(rmtSendRate*flushIntv/1000);
     dataOutputLimit += newOutput;
     LOG(TRACE,"dataOutputLimit %d bytes %ld",dataOutputLimit,sndQueue.size());
@@ -1249,17 +1256,20 @@ void IntcpTransCB::update()
     IUINT32 current = _getMillisec();
     if(current-stat.lastPrintTs>1000){
         //DEBUG
-        // int t = (current-stat.startTs)/1000%5;
-        // if(t<2 && current-stat.startTs>5000){
-        //     rcvBuf.clear();
-        // }
+         //int t = (current-stat.startTs)/1000%5;
+         //if(t<2 && current-stat.startTs>5000){
+            rcvBuf.clear();
+            rcvBufItrs.clear();
+         //}
+        
         if(nodeRole==INTCP_ROLE_REQUESTER){
-            LOG(DEBUG,"%u. %4d %d C %4u ↑%.1f ↓%.1f+%.2f iB %d rB %ld T %d D %d",
+            LOG(DEBUG,"%u. %4d %d C %4u ↑%.1f ↓%.1f+%.2f iQ %ld iB %d rB %ld T %d D %d",
                     current,srtt,hopSrtt,
                     cwnd,
                     float(getDataSendRate())/100,
                     bytesToMbit(stat.recvedINTCP)*1000/(current-stat.lastPrintTs),
                     bytesToMbit(stat.recvedUDP-stat.recvedINTCP)*1000/(current-stat.lastPrintTs),
+                    intQueue.size(),
                     intBufBytes/INTCP_MSS,
                     rcvBuf.size(),
                     stat.cntTimeout,stat.cntDataHole);

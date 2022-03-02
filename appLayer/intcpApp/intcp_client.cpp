@@ -1,9 +1,11 @@
 #include "../../intcp/include/api.h"
+#include <unistd.h>
 #include "config.h"
 #include <thread>
 #include <sys/time.h>
 #undef LOG_LEVEL
 #define LOG_LEVEL DEBUG
+//#define FLOW_TEST
 
 using namespace std;
 
@@ -14,6 +16,10 @@ IUINT32 _round_up(IUINT32 x,IUINT32 y){
 void request_func(IntcpSess * _sessPtr){
     int sendStart = 0, ret;
     while(1){
+#ifdef FLOW_TEST
+        //if(sendStart > TOTAL_DATA_LEN)
+        //    break;
+#endif
         ret = _sessPtr->request(sendStart, sendStart+REQ_LEN);
         if(ret == -1){// intBuf is full
             LOG(TRACE,"intBuf is full");

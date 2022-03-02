@@ -35,7 +35,7 @@ default_satellite_network_dir = "./hypatia_trace/starlink_550_isls_plus_grid_gro
 #return (max_midnode_num,total_midnode_num,links_params)
 #links_params in a list of dictionary, each element has key "topo" "rtt" "loss" and "bw"
 
-def get_trace(#base_output_dir,
+def get_trace(#base_output_dir,         #do not set bw and loss
                          city1,   #<100
                          city2,   #<100
                          #satgenpy_dir_with_ending_slash,
@@ -159,8 +159,8 @@ def get_trace(#base_output_dir,
                         isls.append((renamed_current_path[i],renamed_current_path[i+1]))
                 links_param["topo"] = renamed_current_path 
                 links_param["rtt"] = [50]+hop_rtt_ms_list+[50]
-                links_param["loss"] = [0]+[0.01]*(path_length+1)+[0]
-                links_param["bw"] = [20]*(path_length+1)
+                links_param["loss"] = [0]+[0.1]*(path_length-1)+[0]
+                links_param["bw"] = [20]*(path_length-1)+[5,20]
                 links_params.append(links_param)
                 # Write change nicely to the console
                 #print("Change at t=" + str(t) + " ns (= " + str(t / 1e9) + " seconds)")
@@ -176,7 +176,7 @@ def get_trace(#base_output_dir,
                                                     # if current_path is not None else "Unreachable") + "\n")
 
     #print("  > Total node number... %d"%(len(node_list)))
-    #print("  > Max path length... %d"%(max_path_length))
+    #print("  > Max path length... %d"%(max_path_length)path_length)
     #print("")
     #total_midnode_num = len(node_list)
     
@@ -200,7 +200,36 @@ def get_trace(#base_output_dir,
     print("Produced plot: " + pdf_filename)
     local_shell.remove(tf.name)
     '''
-
+def get_complete_trace(#base_output_dir,         #set bw and loss
+            city1,   #<100
+            city2,   #<100
+            #satgenpy_dir_with_ending_slash,
+            start_ts_s,
+            duration_s,    #<=600
+            satellite_network_dir = default_satellite_network_dir,
+            dynamic_state_update_interval_ms = 1000,
+            simulation_end_time_s = 600,
+            uplink_bw = 5,
+            downlink_bw = 20,
+            isl_bw = 20,
+            ground_link_bw = 20,
+            uplink_loss = 0.1,
+            downlink_loss = 0.1,
+            isl_loss = 0.1,
+            ground_link_loss=0,
+            varbw = False):
+    max_midnode_num,total_midnode_num,isls,links_params = get_trace(city1,city2,start_ts_s,duration_s)
+    downlink_change_ts = []
+    prev_downlink_sat_id = -1
+    for idx,links_param in enumerate(links_params):
+        sats = len(links_param["topo"])
+        downlink_sat_id = links_param["topo"][0]        #get downlink change time
+        if downlink_sat_id != prev_downlink_sat_id:
+            downlink_change_ts.append(idx)
+            prev_downlink_sat_id = downlink_sat_id
+        links_param["loss"] = [ground_link_loss,downlink_loss]+[isl_loss]*(sats-1)+[uplink_loss,ground_link_loss]
+        links_param["bw"] = [ground_link_bw,downlink_bw]+[isl_bw]*(sats-1)+[uplink_bw,ground_link_bw]
+    return  max_midnode_num,total_midnode_num,isls,links_params
 
 # for test
 '''
@@ -216,3 +245,4 @@ for i in range(5):  #len(links_params)
     print("     > bw:",links_params[i]["bw"])
     print("")
 '''
+#get_complete_trace(6,9,0,600)

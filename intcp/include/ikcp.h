@@ -44,11 +44,11 @@ using namespace std;
 
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
-const IUINT32 INTCP_MTU = 1400;
+const IUINT32 INTCP_MTU = 1472;
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
-const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms
+const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms//DEBUG
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -70,7 +70,7 @@ const int CCscheme = INTCP_CC_SCHM_RTTB;
 
 const IUINT32 INTCP_SSTHRESH_INIT = 100; // 300 -> 600 -> 100
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS//TODO calculated by SENDRATE_MIN
-const IUINT32 INTCP_RTT0 = 10; // like hybla
+const IUINT32 INTCP_RTT0 = 10; // like hybla 10->5
 
 // RTT-based
 const float QueueingThreshold = 10000; // unit: byte //20000
