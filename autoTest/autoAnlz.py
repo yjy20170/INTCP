@@ -212,6 +212,8 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
             result[tp] = thrps
             print(thrps)
         else:
+            if len(thrps)>tp.appParam.sendTime:
+                thrps = thrps[:tp.appParam.sendTime]
             result[tp] = mean(thrps,method='all')
             print('len=',len(thrps),'average =%.2f'%result[tp])
     return result
@@ -237,12 +239,17 @@ def getPlotParam(group, isRttTest=False):
         if group[0].appParam.protocol == 'INTCP':
             marker = 'x'
             linestyle = '--'
-            if group[0].linksParam.defaultLP.loss==0:
+            color = 'red'
+            '''
+            if group[0].linksParam.defaultLP.bw==5:
                 color = 'red'
-            elif group[0].linksParam.defaultLP.loss==0.1:
+            elif group[0].linksParam.defaultLP.bw==10:
                 color = 'green'
+            elif group[0].linksParam.defaultLP.bw==20:
+                color = 'purple'
             else:
                 color = 'royalblue'
+            '''
         else:
             marker = 's'
             linestyle = '-'
@@ -306,7 +313,7 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
 def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=False,isFlowTest=False):
     plt.figure(figsize=(8,5),dpi = 320)
     if not isRttTest and not isFlowTest:
-        plt.ylim((0,20))
+        plt.ylim((0,5))
     elif isFlowTest:
         plt.ylim((100,120))
     else:
@@ -449,11 +456,11 @@ def getCdfParam(tp):
     else:
         linestyle = '-'
     
-    loss_dict = {0.5:"blue",5:"green",2:"orangered"}
+    loss_dict = {0.2:"blue",0.5:"green",1:"orangered"}
     nodes_dict = {1:"blue",2:"orangered",3:"green"}
     midcc_dict = {'pep':"green",'nopep':'orangered'}
     
-    color = loss_dict[tp.appParam.total_loss]
+    color = loss_dict[tp.linksParam.defaultLP.loss]
     #color = nodes_dict[tp.topoParam.numMidNode]
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
@@ -493,13 +500,15 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
     for tp in tpSet.testParams:
         print(tp.name,min(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
-            #color,linestyle = getCdfParam(tp)
+            color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            plt.step(x,y)
-            #plt.step(x,y,linestyle=linestyle,color=color)
+            #plt.step(x,y)
+            plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
-            legends.append(' '.join([tp.segToStr(key) for key in keys]))
+            string = ' '.join([tp.segToStr(key) for key in keys])
+            string = simplify_curve_name(string)
+            legends.append(string)
     title = 'cdf'
     if intcpRtt:
         title += "_intcpRtt"

@@ -77,6 +77,11 @@ def start_midnode_processes(mn,testParam,useTCP,pep_nodelay=0):
                 #if testParam.appParam.dynamic_intv > total_midnodes:
                 #    time.sleep(testParam.appParam.dynamic_intv-total_midnodes)  #avoid the first link change
     else:
+        '''
+        for node in ['m%d'%(10*i+9) for i in range(1)]:
+            atomic(mn.getNodeByName(node).cmd)('../appLayer/intcpApp/intcpm >/dev/null 2>&1 &')
+            time.sleep(1)
+        '''
         if testParam.appParam.dynamic:
             time.sleep(2)   #wait the dynamic update thread to set route
 

@@ -137,7 +137,11 @@ int IntcpTransCB::recv(char *buffer, int maxBufSize, IUINT32 *startPtr, IUINT32 
 
     if(nodeRole == INTCP_ROLE_MIDNODE){
         shared_ptr<IntcpSeg> firstSeg = *rcvQueue.begin();
-        if(firstSeg->len <= maxBufSize){
+        if(firstSeg->rangeEnd-firstSeg->rangeStart!=firstSeg->len){
+            LOG(DEBUG,"inconsistent range:rangeStart %u rangeEnd %u length %u",firstSeg->rangeStart,firstSeg->rangeEnd,firstSeg->len);
+            rcvQueue.pop_front();   //discard
+        }
+        else if(firstSeg->len <= maxBufSize){
             *startPtr = firstSeg->rangeStart;
             *endPtr = firstSeg->rangeEnd;
             memcpy(buffer, firstSeg->data, firstSeg->len);
@@ -301,6 +305,7 @@ void IntcpTransCB::updateHopRTT(IINT32 hop_rtt){
 }
 
 void IntcpTransCB::detectIntHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){
+    return;
     IUINT32 current = _getMillisec();
     if(intSnRightBound==-1 || current-intRightBoundTs>INTCP_SNHOLE_TIMEOUT){
         intSnRightBound = sn+1;
@@ -493,6 +498,7 @@ void IntcpTransCB::notifyNewData(const char *buffer, IUINT32 dataStart, IUINT32 
 //---------------------------------------------------------------------
 bool IntcpTransCB::detectDataHole(IUINT32 rangeStart, IUINT32 rangeEnd, IUINT32 sn){        //return true when find a new hole
     bool found_new_loss = false;
+    //return false;
     IUINT32 current = _getMillisec();
     if(dataSnRightBound==-1 || current-dataRightBoundTs>INTCP_SNHOLE_TIMEOUT){
         dataSnRightBound = sn+1;
@@ -665,6 +671,7 @@ void IntcpTransCB::parseData(shared_ptr<IntcpSeg> dataSeg)
                 intsecDataSeg->rangeStart = intsecStart;
                 intsecDataSeg->rangeEnd = intsecEnd;
                 intsecDataSeg->len = intsecEnd-intsecStart;
+                LOG(TRACE,"satisfy interest range %u, data range %u",intsecEnd-intsecStart,dataSeg->len);
                 memcpy(intsecDataSeg->data, dataSeg->data+intsecStart-dataSeg->rangeStart,
                         intsecEnd-intsecStart);
                 //NOTE pass information to app layer
@@ -849,6 +856,11 @@ void IntcpTransCB::moveToRcvQueue(){
         }
     }
 }
+
+//for debug
+double parse_data_time = 0;
+double detect_time = 0;
+IUINT32 last_print_time = 0;
 //---------------------------------------------------------------------
 // input data
 //---------------------------------------------------------------------
@@ -868,6 +880,7 @@ int IntcpTransCB::input(char *data, int size)
     IUINT8 cmd;
     shared_ptr<IntcpSeg> seg;
 
+    
 
     char *dataOrg = data;
     long sizeOrg = size;
@@ -943,8 +956,10 @@ int IntcpTransCB::input(char *data, int size)
             if(current - lastSendIntTs > hopSrtt*0.9){
                 outputInt(0,0);
             }
-
+            IUINT32 cf = _getUsec();
             bool foundDataHole = detectDataHole(rangeStart,rangeEnd,sn);
+            IUINT32 df = _getUsec();
+            detect_time += ((double)(df-cf))/1000000;
             hasLossEvent = hasLossEvent || foundDataHole;
 
             seg = createSeg(len);
@@ -955,9 +970,23 @@ int IntcpTransCB::input(char *data, int size)
             seg->len = len;
             seg->rangeStart = rangeStart;
             seg->rangeEnd = rangeEnd;
-            memcpy(seg->data, data, len);
-
-            parseData(seg);
+            if(rangeEnd-rangeStart!=len){
+                LOG(DEBUG,"inconsistent data range: rangeStart %u rangeEnd %u len %u",rangeStart,rangeEnd,len);
+                break;
+                //continue;
+            }
+            else{
+                memcpy(seg->data, data, len);
+                cf = _getUsec();
+                parseData(seg);
+                df = _getUsec();
+                parse_data_time += ((double)(df-cf))/1000000;
+            }
+            if(df-last_print_time>1000000){
+                LOG(TRACE,"detect hole time %.2f parse data time %.2f",detect_time,parse_data_time);
+                last_print_time = df;
+            }
+                
         } else {
             return -3;
         }
@@ -1061,8 +1090,10 @@ void IntcpTransCB::flushIntBuf(){
             } else {
                 //NOTE RTO function: segRto=f(rto, xmit)
                 segRto = rto*( pow(1.5,segPtr->xmit-1) +1);// + 1000;
+                //segRto = rto*( pow(1.5,segPtr->xmit-1) +1)+200;// + 1000;
                 if (_itimediff(current, segPtr->ts) >= segRto) {
                     needsend = 1;
+                    //needsend = 0;
                 }
             }
         }

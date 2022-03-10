@@ -72,15 +72,16 @@ def createNet(testParam):
     return mn
 def gen_test_trace(): # only for test, the first second 
     max_midnodes = 16
-    total_midnodes = 50
+    total_midnodes = 16
     isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),
             (8,9),(9,10),(10,11),(11,12),(12,13),(13,14),(14,15),(15,16),(16,-1)]
     #links_params = None
     link_param_1 = {"topo":[(i+1) for i in range(16)],
-                    #"rtt":[50,6.43,13.08,13.08,8.96,4.15,8.96,4.15,8.96,4.15,8.96,4.15,8.96,4.15,8.96,13.08,13.08,4.33,50],
-                    "rtt":[50]+[10]*18+[50],
-                    "loss":[0]+[0.1]*18+[0],
-                    "bw":[20]*18+[20,20]}
+                    "rtt":[50,6.43,13.08,13.08,8.96,4.15,8.96,4.15,8.96,4.15,
+                            8.96,4.15,8.96,4.15,8.96,13.08,13.08,4.33,50],
+                    #"rtt":[50]+[10]*18+[50],
+                    "loss":[0]+[0]*17+[0],
+                    "bw":[20]*17+[5,20]}
     links_params = [link_param_1]
     return max_midnodes,total_midnodes,isls,links_params
 

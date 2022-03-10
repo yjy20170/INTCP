@@ -3,6 +3,10 @@
 #undef LOG_LEVEL
 #define LOG_LEVEL DEBUG
 
+//for debug
+double udp_recv_time = 0;
+double update_time = 0;
+double input_time = 0;
 
 /***************** util functions *****************/
 
@@ -208,14 +212,14 @@ int IntcpSess::inputUDP(char *recvBuf, int recvLen){
     if(af- bf > 10){
         LOG(DEBUG,"input wait %d",af-bf);
     }
-
-    int ret;
-        IUINT32 cf = _getMillisec();
-    ret = transCB->input(recvBuf, recvLen);
-        IUINT32 df = _getMillisec();
-        if(df- cf > 3){
-            LOG(DEBUG,"input use %d",df-cf);
-        }
+    IUINT32 cf = _getUsec();
+    int ret = transCB->input(recvBuf, recvLen);
+    IUINT32 df = _getUsec();
+    input_time += ((double)(df-cf))/1000000;
+    if(df- cf > 500){
+        LOG(TRACE,"input use %d",df-cf);
+    }
+    
     lock.unlock();
     sleep(0);
     return ret;
@@ -270,13 +274,15 @@ void* TransUpdateLoop(void *args){
         updateTime = sessPtr->transCB->check();
         now = _getMillisec();
         if (updateTime <= now) {
-        IUINT32 cf = _getMillisec();
+            IUINT32 cf = _getUsec();
             sessPtr->transCB->update();
-        IUINT32 df = _getMillisec();
-        if(df- cf > 3){
-            LOG(DEBUG,"update use %d",df-cf);
-        }
+            IUINT32 df = _getUsec();
+            if(df- cf > 3000){
+                LOG(TRACE,"update use %d",df-cf);
+            }
+            update_time += ((double)(df-cf))/1000000;
             sessPtr->lock.unlock();
+            sleep(0);
         } else {
             sessPtr->lock.unlock();
             usleep((updateTime - now)*1000);
@@ -375,15 +381,16 @@ void *udpRecvLoop(void *_args){
     mhdr.msg_iov = &iov;
 
     shared_ptr<IntcpSess> sessPtr;
-    IUINT32 lastLoop = _getMillisec(), timeSum1=0, timeSum2=0, timeSum3=0, timeTmp;
+    IUINT32 lastLoop = -1, timeSum1=0, timeSum2=0, timeSum3=0, timeTmp;
 
     int recvedUDPlen = 0;
     while(1){
-        timeTmp = _getMillisec();
-        if(timeTmp-lastLoop > 10){
-            LOG(TRACE,"udp %d",recvedUDPlen/1024/1024);
-        }
-        lastLoop = timeTmp;
+        // timeTmp = _getMillisec();
+        // if(timeTmp-lastLoop > 1000){
+        //     LOG(DEBUG,"udp %d",recvedUDPlen/1024/1024);
+        //     lastLoop = timeTmp;
+        // }
+        
 
         // int recvLen = recvfrom(
         //     listenFd,
@@ -392,8 +399,10 @@ void *udpRecvLoop(void *_args){
         //     (struct sockaddr*)&recvAddr, // for server, get remote addr here
         //     nullptr
         // );
-
+        IUINT32 cf = _getUsec();
         recvLen = recvmsg(listenFd, &mhdr, 0);
+        IUINT32 df = _getUsec();
+        udp_recv_time += ((double)(df-cf))/1000000;
         for(struct cmsghdr *cmsg = CMSG_FIRSTHDR(&mhdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&mhdr, cmsg)){
             if(cmsg->cmsg_level != SOL_IP || cmsg->cmsg_type != IP_ORIGDSTADDR) continue;
             memcpy(&recvAddr, CMSG_DATA(cmsg), sizeof(struct sockaddr_in));
@@ -452,6 +461,12 @@ void *udpRecvLoop(void *_args){
             args->sessMapPtr->setValue(quad.chars, QUAD_STR_LEN, sessPtr);
         }
         sessPtr->inputUDP(recvBuf, recvLen);
+        lastLoop = _getUsec();
+        if(lastLoop - timeTmp > 1000000){
+            LOG(TRACE,"udp_recv_time %.2fs update_time %.2fs input_time %.2fs",udp_recv_time,update_time,input_time);
+            timeTmp = _getUsec();
+        }
+        //lastLoop = _getUsec();
     }
 
     return nullptr;

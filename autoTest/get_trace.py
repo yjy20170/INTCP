@@ -159,8 +159,8 @@ def get_trace(#base_output_dir,         #do not set bw and loss
                         isls.append((renamed_current_path[i],renamed_current_path[i+1]))
                 links_param["topo"] = renamed_current_path 
                 links_param["rtt"] = [50]+hop_rtt_ms_list+[50]
-                links_param["loss"] = [0]+[0.1]*(path_length-1)+[0]
-                links_param["bw"] = [20]*(path_length-1)+[5,20]
+                links_param["loss"] = []
+                links_param["bw"] = []
                 links_params.append(links_param)
                 # Write change nicely to the console
                 #print("Change at t=" + str(t) + " ns (= " + str(t / 1e9) + " seconds)")
@@ -200,15 +200,18 @@ def get_trace(#base_output_dir,         #do not set bw and loss
     print("Produced plot: " + pdf_filename)
     local_shell.remove(tf.name)
     '''
-def get_complete_trace(#base_output_dir,         #set bw and loss
-            city1,   #<100
-            city2,   #<100
-            #satgenpy_dir_with_ending_slash,
-            start_ts_s,
-            duration_s,    #<=600
-            satellite_network_dir = default_satellite_network_dir,
-            dynamic_state_update_interval_ms = 1000,
-            simulation_end_time_s = 600,
+def add_bw_fluct(links_params,downlink_change_ts,downlink_bw):
+    for i in range(len(downlink_change_ts)-1):
+        start_ts = downlink_change_ts[i]
+        end_ts = downlink_change_ts[i+1]
+        #print(start_ts,end_ts)
+        c = 4*downlink_bw/((end_ts-start_ts)**2)
+        for j in range(start_ts,end_ts):
+            links_params[j]["bw"][1] = round(c*(end_ts-j)*(j-start_ts),2)
+    return links_params
+
+def get_complete_trace(    #set bw and loss
+            origin_trace,   #only include rtt trace
             uplink_bw = 5,
             downlink_bw = 20,
             isl_bw = 20,
@@ -216,11 +219,13 @@ def get_complete_trace(#base_output_dir,         #set bw and loss
             uplink_loss = 0.1,
             downlink_loss = 0.1,
             isl_loss = 0.1,
-            ground_link_loss=0,
-            varbw = False):
-    max_midnode_num,total_midnode_num,isls,links_params = get_trace(city1,city2,start_ts_s,duration_s)
+            ground_link_loss= 0,
+            ground_link_rtt = 50,
+            bw_fluctuation = False):
+    #max_midnode_num,total_midnode_num,isls,links_params = get_trace(city1,city2,start_ts_s,duration_s)
+    max_midnode_num,total_midnode_num,isls,links_params = origin_trace
     downlink_change_ts = []
-    prev_downlink_sat_id = -1
+    prev_downlink_sat_id = -2
     for idx,links_param in enumerate(links_params):
         sats = len(links_param["topo"])
         downlink_sat_id = links_param["topo"][0]        #get downlink change time
@@ -229,16 +234,24 @@ def get_complete_trace(#base_output_dir,         #set bw and loss
             prev_downlink_sat_id = downlink_sat_id
         links_param["loss"] = [ground_link_loss,downlink_loss]+[isl_loss]*(sats-1)+[uplink_loss,ground_link_loss]
         links_param["bw"] = [ground_link_bw,downlink_bw]+[isl_bw]*(sats-1)+[uplink_bw,ground_link_bw]
+        links_param["rtt"][0] = ground_link_rtt
+        links_param["rtt"][-1] = ground_link_rtt
+    downlink_change_ts.append(len(links_params))
+    #print(downlink_change_ts)
+    if bw_fluctuation:
+        #print("fuck")
+        links_params = add_bw_fluct(links_params,downlink_change_ts,downlink_bw)
     return  max_midnode_num,total_midnode_num,isls,links_params
 
 # for test
+
 '''
-max_midnode_num,total_midnode_num,isls,links_params = get_trace(6,9,0,600)
+max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
 print(" > max_midnode_num:",max_midnode_num)
 print(" > total_midnode_num:",total_midnode_num)
 print(" > isls:",len(isls),isls)
 print(" > links_params:",len(links_params))
-for i in range(5):  #len(links_params)
+for i in range(len(links_params)):  #len(links_params)
     print("     > topo:",links_params[i]["topo"])
     print("     > rtt:",links_params[i]["rtt"])
     print("     > loss:",links_params[i]["loss"])

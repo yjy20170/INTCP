@@ -18,7 +18,11 @@ void *onNewSess(void* _sessPtr){
     IUINT32 start,end;
     while(1){
         while(sessPtr->recvData(recvBuf, MaxBufSize, &start, &end) == 0){
-            sessPtr->cachePtr->insert(sessPtr->nameChars,start,end,recvBuf);
+            if(end-start>MaxBufSize){
+                LOG(DEBUG,"abnormal range: rangeStart %u rangeEnd %u length %u",start,end,end-start);
+            }
+            else
+                sessPtr->cachePtr->insert(sessPtr->nameChars,start,end,recvBuf);
         }
         usleep(1000);
     }

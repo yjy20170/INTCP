@@ -49,6 +49,7 @@ const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
 const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms//DEBUG
+//const IUINT32 INTCP_UPDATE_INTERVAL = 1; //Unit: ms//DEBUG
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -63,6 +64,7 @@ const IUINT32 INTCP_RTO_MAX = 60000;
 const float INTCP_RTO_EXPO = 1.1;//TODO simplify timeout mechanism
 
 const IUINT32 INTCP_SNHOLE_TIMEOUT = 1000; // after 1000ms, don't care anymore
+//const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs 
 const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs 
 
 // Congestion control
@@ -70,14 +72,18 @@ const int CCscheme = INTCP_CC_SCHM_RTTB;
 
 const IUINT32 INTCP_SSTHRESH_INIT = 100; // 300 -> 600 -> 100
 const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS//TODO calculated by SENDRATE_MIN
-const IUINT32 INTCP_RTT0 = 10; // like hybla 10->5
+//const IUINT32 INTCP_RTT0 = 10; // like hybla 10->5
+const IUINT32 INTCP_RTT0 = 30; // like hybla 10->5
 
 // RTT-based
-const float QueueingThreshold = 10000; // unit: byte //20000
+//const float QueueingThreshold = 10000; // unit: byte //20000
+const float QueueingThreshold = 5000; // unit: byte //20000
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
 const IUINT32 INTCP_SNDQ_MAX = 10000*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
+//const IUINT32 INTCP_SNDQ_MAX = 2500*INTCP_MSS; //NOTE
+//const IUINT32 INTCP_INTB_MAX = 5000*INTCP_MSS;
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 
 const float INTCP_SENDRATE_MIN = 0.1; //Mbps

@@ -6,7 +6,7 @@ from mininet.clean import cleanup
 from . import TbThread
 from . import RealNetwork
 from . import linkDnmcThreads # for threadFunc execution
-
+from autoTest import get_trace
 
 # logPath: where to write the logs
 # isManual: open the command line intereface, or wait until the latchThreads end
@@ -20,7 +20,17 @@ def run(testParam, logPath, isManual):
 
     #dynamic
     else:
-        mn = RealNetwork.create_dynamic_net(testParam.topoParam)
+        if testParam.appParam.dynamic_complete: # for topo designed by user
+            dynamic_trace = testParam.topoParam
+        else:                                   # for real starlink topo
+            dynamic_trace = get_trace.get_complete_trace(testParam.topoParam,
+                                                    isl_loss=testParam.appParam.dynamic_isl_loss,
+                                                    uplink_loss=testParam.appParam.dynamic_isl_loss,
+                                                    downlink_loss=testParam.appParam.dynamic_isl_loss,
+                                                    ground_link_rtt = testParam.appParam.dynamic_ground_link_rtt,
+                                                    uplink_bw = testParam.appParam.dynamic_uplink_bw,
+                                                    bw_fluctuation=testParam.appParam.dynamic_bw_fluct)
+        mn = RealNetwork.create_dynamic_net(dynamic_trace)
 
     time.sleep(0.5)
 
@@ -37,7 +47,7 @@ def run(testParam, logPath, isManual):
         #thread.start(mn,links_params,isls,logPath)
     if isManual:
         time.sleep(1)
-        #mn.openXterm()
+        mn.openXterm()
         mn.enterCli()
         TbThread.latchNumDec()
     for thread in threads:
