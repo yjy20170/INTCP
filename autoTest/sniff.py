@@ -38,7 +38,7 @@ def Callback_udp(packet):
         udpLength = len(bytePayload)
         global sumUdpLen
         sumUdpLen += udpLength
-        print(sumUdpLen/1024/1024)
+        #print(sumUdpLen/1024/1024)
         pos = 0
         while True:
             if pos+23>udpLength:

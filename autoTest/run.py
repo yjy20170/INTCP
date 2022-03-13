@@ -31,7 +31,7 @@ if __name__=='__main__':
         #os.system("../pepsal_min/bash/makepep")
 
 
-    tpSetNames = ["dynamic_sim_test_1","dynamic_sim_test_2"]#,"dynamic_sim_test_2","dynamic_exp_4"
+    tpSetNames = ["static_test"]#,"dynamic_sim_test_2","dynamic_exp_4"
     try:
         for sno,tpSetName in enumerate(tpSetNames):
             if len(tpSetNames)!=1:

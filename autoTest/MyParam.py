@@ -38,9 +38,9 @@ Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],link
 Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
 
 #dynamic_test_topo = gen_test_trace()
-#dynamic_extreme_topo = gen_extreme_trace()   #for test
-dynamic_real_topo = get_trace(6,9,0,600)
-#dynamic_topo_exp2 = gen_link_change_trace()
+dynamic_extreme_topo = gen_extreme_trace()   #for test
+#dynamic_real_topo = get_trace(6,9,0,600)
+dynamic_topo_exp2 = gen_link_change_trace()
 #beijing_paris = get_trace(6,24,0,600)
 # 
 DefaultLP = LinkParam(
@@ -61,25 +61,23 @@ def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "static_test":    #retran test
         tpSet = TestParamSet(tpsetName,
-            gen_linear_topo(17),
-            LinksParam(DefaultLP.set(rtt=20,bw=5,loss=1), 
-            {#'h1_gs1':{'rtt':100,'loss':1},
-            #'gs2_h2':{'rtt':50,'loss':1},
-            }),
-            DefaultAP.set(sendTime=600),
-            keyX = 'defaultLP.rtt',
-            keysCurveDiff=['protocol','midCC','defaultLP.bw'])
+                gen_linear_topo(2),
+                LinksParam(DefaultLP.set(bw=20,loss=0,rtt=20), 
+                    {'gs1_m1':{'rtt':10,'varIntv':8},
+                    'm2_gs2':{'rtt':10}}),
+                DefaultAP.set(sendTime=120),
+                keyX = 'gs1_m1.varBw',
+                keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
-            {
-                'defaultLP.rtt':[10],#5,10,20,50
-                'defaultLP.bw':[5]#5,10,20,40
-            },
-            {
-            'in_pep':{'midCC':'pep','protocol':'INTCP'},
-            #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
-            #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
-            #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
-            }
+                {'gs1_m1.varBw':[0]#0,4,8,12,16
+                },
+                {
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
+                #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                
+                }
         )
 
     if tpsetName == "dynamic_test":
@@ -192,15 +190,15 @@ def getTestParamSet(tpsetName):
             keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
         tpSet.add(
             {   
-                'dynamic_isl_loss':[0.01,0.02,0.05,0.1],#
-                'dynamic_intv':[5,10,15,20] #20
+                'dynamic_isl_loss':[0.05],#0.01,0.02,0.05,0.1
+                'dynamic_intv':[1,2,5,10,15,20] #1,2,5,10,15,20
             },
-            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
-             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
              #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
-             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
-             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
              #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
              #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
@@ -214,9 +212,9 @@ def getTestParamSet(tpsetName):
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
             {
-                'dynamic_intv':[240] #1,2,5,10
+                'dynamic_intv':[1,2,5,10] #1,2,5,10
             },
-            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
              #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
@@ -224,7 +222,7 @@ def getTestParamSet(tpsetName):
              #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
              #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
              #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
-             #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
     if tpsetName == "pure":
@@ -359,7 +357,7 @@ def getTestParamSet(tpsetName):
             keysCurveDiff=['protocol','midCC','e2eCC','defaultLP.loss'])
         tpSet.add(
             {
-                'defaultLP.loss':[0.2,0.5,1]#0.1
+                'defaultLP.loss':[0.1,0.5,1]#0.1,0.2,0.5,1
             },
             {
             'in_pep':{'midCC':'pep','protocol':'INTCP'},
@@ -437,7 +435,7 @@ def getTestParamSet(tpsetName):
                 keyX = 'gs1_m1.varBw',
                 keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
-                {'gs1_m1.varBw':[0,4,8,12,16]
+                {'gs1_m1.varBw':[0,4,8,12,16]#0,4,8,12,16
                 },
                 {
                 'in_pep':{'midCC':'pep','protocol':'INTCP'},
@@ -457,13 +455,41 @@ def getTestParamSet(tpsetName):
                 keyX = 'gs1_m1.itmDown',
                 keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
-                {'gs1_m1.itmDown':[0,1,2,3,4]   #1,2,3,0
+                {'gs1_m1.itmDown':[0,1,2,3,4]   #0,1,2,3,4
                 },
                 {
                 'in_pep':{'midCC':'pep','protocol':'INTCP'},
                 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
                 'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
                 #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                
+                }
+        )
+    if tpsetName == "loss_test_1":
+        tpSet = TestParamSet(tpsetName,
+                gen_linear_topo(5),
+                LinksParam(DefaultLP.set(bw=20,loss=0,rtt=20), 
+                    {'gs1_m1':{'rtt':10},
+                    'm2_gs2':{'rtt':10},
+                    'h1_gs1':{'loss':0},
+                    'gs2_h2':{'loss':0}}),
+                DefaultAP.set(sendTime=120),
+                keyX = 'defaultLP.loss',
+                keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+                {'defaultLP.loss':[0,0.1,0.5,1]   #0,1,2,3,4
+                },
+                {
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+                'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+                #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+                #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+                'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
+                'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+                'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+                'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
                 
                 }
         )

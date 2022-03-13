@@ -42,6 +42,7 @@ using namespace std;
 #define INTCP_CC_SLOW_START 0
 #define INTCP_CC_CONG_AVOID 1
 
+#define DEFAULT_CONFIG
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 const IUINT32 INTCP_MTU = 1472;
@@ -49,7 +50,7 @@ const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
 const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
 
 const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms//DEBUG
-//const IUINT32 INTCP_UPDATE_INTERVAL = 1; //Unit: ms//DEBUG
+//const IUINT32 INTCP_UPDATE_INTERVAL = 1; //Unit: ms//DEBUG for retransmission test
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -80,10 +81,24 @@ const IUINT32 INTCP_RTT0 = 30; // like hybla 10->5
 const float QueueingThreshold = 5000; // unit: byte //20000
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
+//default config
+#ifdef DEFAULT_CONFIG
 const IUINT32 INTCP_SNDQ_MAX = 10000*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
-//const IUINT32 INTCP_SNDQ_MAX = 2500*INTCP_MSS; //NOTE
-//const IUINT32 INTCP_INTB_MAX = 5000*INTCP_MSS;
+#endif
+
+//for itm and varbw test
+#ifdef LARGE_SENDQ
+const IUINT32 INTCP_SNDQ_MAX = 20000*INTCP_MSS; //NOTE
+const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
+#endif 
+
+//for retransmission test
+#ifdef SHORT_SENDQ
+const IUINT32 INTCP_SNDQ_MAX = 2500*INTCP_MSS; //NOTE
+const IUINT32 INTCP_INTB_MAX = 5000*INTCP_MSS;
+#endif
+
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer
 
 const float INTCP_SENDRATE_MIN = 0.1; //Mbps

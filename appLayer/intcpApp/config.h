@@ -3,7 +3,7 @@
 
 #define REQ_LEN INTCP_MSS*10 //bytes per segment
 
-//#define REQ_LEN 10000
+//#define REQ_LEN 10000 //for flow test
 #define REQ_INTV 1  //ms  interval between two request
 
 // for rtt test?

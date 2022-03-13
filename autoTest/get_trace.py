@@ -28,7 +28,8 @@ from hypatia_tools.read_tles import *
 import exputil
 import tempfile
 
-default_satellite_network_dir = "./hypatia_trace/starlink_550_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
+isl_trace_dir = "./hypatia_trace/starlink_550_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
+relay_only_trace_dir = "./hypatia_trace/starlink_550_isls_none_ground_stations_top_100_algorithm_free_one_only_gs_relays"
 #"../../../paper/satellite_networks_state/gen_data/starlink_550_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
 
 #city_1 and city_2 are id in gs_100 list
@@ -41,7 +42,7 @@ def get_trace(#base_output_dir,         #do not set bw and loss
                          #satgenpy_dir_with_ending_slash,
                          start_ts_s,
                          duration_s,    #<=600
-                         satellite_network_dir = default_satellite_network_dir,
+                         satellite_network_dir = isl_trace_dir,
                          dynamic_state_update_interval_ms = 1000,
                          simulation_end_time_s = 600):         #to find fstate                    
 
@@ -105,6 +106,7 @@ def get_trace(#base_output_dir,         #do not set bw and loss
 
             # Calculate path length
             path_there = get_path(src, dst, fstate)
+            #print(path_there)
             path_back = get_path(dst, src, fstate)
             if path_there is not None and path_back is not None:
                 length_src_to_dst_m = compute_path_length_without_graph(path_there, epoch, t, satellites,
@@ -124,6 +126,7 @@ def get_trace(#base_output_dir,         #do not set bw and loss
             
             # Only if there is a new path, print new path
             new_path = get_path(src, dst, fstate)
+            #print(new_path)
             if True:	#current_path != new_path
 
                 # This is the new path
@@ -163,7 +166,7 @@ def get_trace(#base_output_dir,         #do not set bw and loss
                 links_param["bw"] = []
                 links_params.append(links_param)
                 # Write change nicely to the console
-                #print("Change at t=" + str(t) + " ns (= " + str(t / 1e9) + " seconds)")
+                #prinstep=t("Change at t=" + str(t) + " ns (= " + str(t / 1e9) + " seconds)")
                 #print("  > Path..... " + (" -- ".join(list(map(lambda x: str(x), current_path)))
                                           #if current_path is not None else "Unreachable"))
                 #print("  > Hop RTT... "+ (" -- ".join(list(map(lambda x: "%.2fms"%(x),hop_rtt_ms_list)))))
@@ -243,10 +246,72 @@ def get_complete_trace(    #set bw and loss
         links_params = add_bw_fluct(links_params,downlink_change_ts,downlink_bw)
     return  max_midnode_num,total_midnode_num,isls,links_params
 
+def get_bw(bw_max,start_ts,end_ts,current_ts):
+    c = 4*bw_max/((end_ts-start_ts)**2)
+    return round(c*(end_ts-current_ts)*(current_ts-start_ts),2)
+
+def add_bw_fluct_relay_only(links_params,downlink_bw):
+    downlink_infos = [] 
+    for links_param in links_params:
+        current_downlink_info = {}  # {(gs_id,sat_id):(start_ts,end_ts), ... ,}
+        current_downlink_info[(0,links_param["topo"][0])] = [-1,-1]
+        for i in range(len(links_param["topo"])):
+            if i%2==1:
+                current_downlink_info[(links_param["topo"][i],links_param["topo"][i+1])] = [-1,-1]
+        downlink_infos.append(current_downlink_info)
+    # fill start_ts
+    for i,downlink_info in enumerate(downlink_infos):
+        for down_link_pair in downlink_info.keys():
+            if i==0 or down_link_pair not in downlink_infos[i-1].keys():
+                downlink_info[down_link_pair][0] = i
+            else:
+                downlink_info[down_link_pair][0] = downlink_infos[i-1][down_link_pair][0]
+    # fill end_ts
+    for i in range(len(downlink_infos)-1,-1,-1):
+        for down_link_pair in downlink_infos[i].keys():
+            if i==(len(downlink_infos)-1) or down_link_pair not in downlink_infos[i+1].keys():
+                downlink_infos[i][down_link_pair][1] = i+1
+            else:
+                downlink_infos[i][down_link_pair][1] = downlink_infos[i+1][down_link_pair][1]
+    for i,links_param in enumerate(links_params):
+        start_ts,end_ts = downlink_infos[i][(0,links_param["topo"][0])]
+        links_param["bw"][1] = get_bw(downlink_bw,start_ts,end_ts,i)
+        for j in range(len(links_param["topo"])):
+            if j%2==1:
+                start_ts,end_ts = downlink_infos[i][(links_param["topo"][j],links_param["topo"][j+1])]
+                links_param["bw"][j+2] = get_bw(downlink_bw,start_ts,end_ts,i)
+    return links_params
+
+def get_complete_relay_only_trace(    #set bw and loss
+            origin_trace,   #only include rtt trace
+            uplink_bw = 5,
+            downlink_bw = 20,
+            isl_bw = 20,
+            ground_link_bw = 20,
+            uplink_loss = 0.1,
+            downlink_loss = 0.1,
+            isl_loss = 0.1,
+            ground_link_loss= 0,
+            ground_link_rtt = 50,
+            bw_fluctuation = False):
+    max_midnode_num,total_midnode_num,isls,links_params = origin_trace
+    for links_param in links_params:
+        midnodes = len(links_param["topo"])
+        sats = int((midnodes+1)/2)
+        relays = int((midnodes-1)/2)
+        links_param["loss"] = [ground_link_loss]+[downlink_loss,uplink_loss]*sats+[ground_link_loss]
+        links_param["bw"] = [ground_link_bw]+[downlink_bw,uplink_bw]*sats+[ground_link_bw]
+        links_param["rtt"][0] = ground_link_rtt
+        links_param["rtt"][-1] = ground_link_rtt
+    if bw_fluctuation:
+        links_params = add_bw_fluct_relay_only(links_params,downlink_bw)
+    return  max_midnode_num,total_midnode_num,isls,links_params
 # for test
 
-'''
-max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
+
+#max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
+origin_trace = get_trace(6,25,0,600,satellite_network_dir=relay_only_trace_dir)
+max_midnode_num,total_midnode_num,isls,links_params = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True)
 print(" > max_midnode_num:",max_midnode_num)
 print(" > total_midnode_num:",total_midnode_num)
 print(" > isls:",len(isls),isls)
@@ -257,5 +322,3 @@ for i in range(len(links_params)):  #len(links_params)
     print("     > loss:",links_params[i]["loss"])
     print("     > bw:",links_params[i]["bw"])
     print("")
-'''
-#get_complete_trace(6,9,0,600)

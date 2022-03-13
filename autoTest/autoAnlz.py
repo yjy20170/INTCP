@@ -103,9 +103,10 @@ def generateLog(logPath,tpSet):
             lines = f.readlines()
             for line in lines:
                 try:
-                    seq,time = parseLine(line,tp.appParam.protocol)
-                    if not seq in sendTimeDict.keys():
-                        sendTimeDict[seq] = time
+                    if "sn" in line:
+                        seq,time = parseLine(line,tp.appParam.protocol)
+                        if not seq in sendTimeDict.keys():
+                            sendTimeDict[seq] = time
                 except:
                     continue
                     
@@ -114,9 +115,10 @@ def generateLog(logPath,tpSet):
             lines = f.readlines()
             for line in lines:
                 try:
-                    seq,time = parseLine(line,tp.appParam.protocol)
-                    if not seq in recvTimeDict.keys():
-                        recvTimeDict[seq] = time
+                    if "sn" in line:
+                        seq,time = parseLine(line,tp.appParam.protocol)
+                        if not seq in recvTimeDict.keys():
+                            recvTimeDict[seq] = time
                 except:
                     continue
                     
@@ -313,7 +315,7 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
 def plotOneFig(resultPath, result, keyX, groups, title, legends=[],isRttTest=False,isFlowTest=False):
     plt.figure(figsize=(8,5),dpi = 320)
     if not isRttTest and not isFlowTest:
-        plt.ylim((0,5))
+        plt.ylim((0,20))
     elif isFlowTest:
         plt.ylim((100,120))
     else:
@@ -374,6 +376,8 @@ def simplify_curve_name(string):
             string = string.replace("e2eCC=%s"%tcpCC,"")
             string = string.replace("midCC=nopep","")
             string = tcpCC + string
+    if "dynamic_isl_loss=0.05" in string:
+        string = string.replace("dynamic_isl_loss=0.05","")
     return string
 
 def plotByGroup(tpSet, mapNeToResult, resultPath):
@@ -456,7 +460,7 @@ def getCdfParam(tp):
     else:
         linestyle = '-'
     
-    loss_dict = {0.2:"blue",0.5:"green",1:"orangered"}
+    loss_dict = {0.1:"purple",0.2:"blue",0.5:"green",1:"orangered"}
     nodes_dict = {1:"blue",2:"orangered",3:"green"}
     midcc_dict = {'pep':"green",'nopep':'orangered'}
     
