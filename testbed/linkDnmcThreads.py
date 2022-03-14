@@ -113,6 +113,9 @@ def DynamicLinkUpdate(mn,testParam,logPath):
                 nameA = nodes[i]
                 nameB = nodes[i+1]
                 name_switch = nameA + Param.LinkNameSep + nameB
+                if i>1 and i<len(nodes)-3:
+                    if (topo[i-2],topo[i-1]) not in isls:
+                        name_switch = nameB + Param.LinkNameSep + nameA
                 nodeA = mn.getNodeByName(nameA)
                 nodeB = mn.getNodeByName(nameB)
                 switch = mn.getNodeByName(name_switch)

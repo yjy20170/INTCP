@@ -158,7 +158,7 @@ def get_trace(#base_output_dir,         #do not set bw and loss
                 if (renamed_current_path[-1],-1) not in isls:
                     isls.append((renamed_current_path[-1],-1))
                 for i in range(path_length-3):
-                    if (renamed_current_path[i],renamed_current_path[i+1]) not in isls:
+                    if (renamed_current_path[i],renamed_current_path[i+1]) not in isls and (renamed_current_path[i+1],renamed_current_path[i]) not in isls :
                         isls.append((renamed_current_path[i],renamed_current_path[i+1]))
                 links_param["topo"] = renamed_current_path 
                 links_param["rtt"] = [50]+hop_rtt_ms_list+[50]
@@ -292,7 +292,7 @@ def get_complete_relay_only_trace(    #set bw and loss
             downlink_loss = 0.1,
             isl_loss = 0.1,
             ground_link_loss= 0,
-            ground_link_rtt = 50,
+            ground_link_rtt = 20,
             bw_fluctuation = False):
     max_midnode_num,total_midnode_num,isls,links_params = origin_trace
     for links_param in links_params:
@@ -305,10 +305,11 @@ def get_complete_relay_only_trace(    #set bw and loss
         links_param["rtt"][-1] = ground_link_rtt
     if bw_fluctuation:
         links_params = add_bw_fluct_relay_only(links_params,downlink_bw)
+    #links_params = links_params[141:]
     return  max_midnode_num,total_midnode_num,isls,links_params
 # for test
 
-
+'''
 #max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
 origin_trace = get_trace(6,25,0,600,satellite_network_dir=relay_only_trace_dir)
 max_midnode_num,total_midnode_num,isls,links_params = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True)
@@ -317,8 +318,10 @@ print(" > total_midnode_num:",total_midnode_num)
 print(" > isls:",len(isls),isls)
 print(" > links_params:",len(links_params))
 for i in range(len(links_params)):  #len(links_params)
+    print("     > time:",i)
     print("     > topo:",links_params[i]["topo"])
     print("     > rtt:",links_params[i]["rtt"])
     print("     > loss:",links_params[i]["loss"])
     print("     > bw:",links_params[i]["bw"])
     print("")
+'''

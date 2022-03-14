@@ -106,7 +106,7 @@ def gen_link_change_trace():
     links_params = [link_param_1,link_param_2]
     return max_midnodes,total_midnodes,isls,links_params
 
-def setRoute(mn,isls,topo):
+def setRoute_old(mn,isls,topo):
     segs = []
     segs.append(1)  #h1-gs1
     segs.append(isls.index((0,topo[0]))+2)
@@ -131,8 +131,34 @@ def setRoute(mn,isls,topo):
         #mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
     #ping h1 h2
 
+def setRoute(mn,isls,topo):
+    if topo is None:
+        return
+    segs = []
+    segs.append((1,1))  # the first 1 means seg ,the sencond 1 means seg.1 is left
+    segs.append((isls.index((0,topo[0]))+2,1))
+    for i in range(len(topo)-1):
+        if (topo[i],topo[i+1]) in isls:
+            segs.append((isls.index((topo[i],topo[i+1]))+2,1))
+        else:
+            segs.append((isls.index((topo[i+1],topo[i]))+2,2))
+    segs.append((isls.index((topo[-1],-1))+2,1))
+    segs.append((100,1))
+    nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))]+['gs2','h2']
+    #print(nodes)
+
+    #delete default gw
+    for i in range(len(nodes)-1):
+        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.%d'%(segs[i][0],3-segs[i][1]))
+    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.%d'%(segs[-1][0],segs[-1][1]))
+
+    #delete other gw
+    for i in range(2,len(nodes)-1):
+        for j in range(i-1):
+            mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.%d'%(segs[j][0],segs[i-1][0],segs[i-1][1]))
+
 #clear route for previous topo
-def clearRoute(mn,isls,topo):
+def clearRoute_old(mn,isls,topo):
     if topo is None:
         return
     segs = []
@@ -156,6 +182,32 @@ def clearRoute(mn,isls,topo):
             mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(segs[j],segs[i-1]))
         #mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
     #ping h1 h2
+
+def clearRoute(mn,isls,topo):
+    if topo is None:
+        return
+    segs = []
+    segs.append((1,1))  # the first 1 means seg ,the sencond 1 means seg.1 is left
+    segs.append((isls.index((0,topo[0]))+2,1))
+    for i in range(len(topo)-1):
+        if (topo[i],topo[i+1]) in isls:
+            segs.append((isls.index((topo[i],topo[i+1]))+2,1))
+        else:
+            segs.append((isls.index((topo[i+1],topo[i]))+2,2))
+    segs.append((isls.index((topo[-1],-1))+2,1))
+    segs.append((100,1))
+    nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))]+['gs2','h2']
+    #print(nodes)
+
+    #delete default gw
+    for i in range(len(nodes)-1):
+        mn.getNodeByName(nodes[i]).cmd('route del default gw 10.0.%d.%d'%(segs[i][0],3-segs[i][1]))
+    mn.getNodeByName(nodes[-1]).cmd('route del default gw 10.0.%d.%d'%(segs[-1][0],segs[-1][1]))
+
+    #delete other gw
+    for i in range(2,len(nodes)-1):
+        for j in range(i-1):
+            mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.%d'%(segs[j][0],segs[i-1][0],segs[i-1][1]))
 
 # create net for dynamic topo
 # h1-gs1-isls-gs2-h2, 

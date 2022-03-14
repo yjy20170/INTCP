@@ -171,7 +171,7 @@ def loadLog(logPath, tpSet, isDetail=False, intcpRtt=False, retranPacketOnly=Fal
             lines = f.readlines()
             if not tpSet.tpTemplate.appParam.isRttTest and not tpSet.tpTemplate.appParam.isFlowTest:
                 for line in lines:
-                    if 'receiver' in line:
+                    if 'bits' in line:
                         numString = line.split('bits')[0][-7:-2]
                         num = float(numString)/(1 if line.split('bits')[0][-1]=='M' else 1000)
                         thrps.append(num)
@@ -470,7 +470,7 @@ def getCdfParam(tp):
     return color,linestyle 
     
 def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=False):
-    plt.figure(figsize=(8,5),dpi = 320)
+    '''
     x_min = -1
     x_max = -1
     for tp in tpSet.testParams:
@@ -486,43 +486,50 @@ def drawCDF(tpSet, mapNeToResult, resultPath,intcpRtt=False,retranPacketOnly=Fal
                 x_max = cur_max
             else:
                 x_max = max(cur_max,x_max)
-    x_min = 0
-    x_max = 600
-    #DEBUG
-    #x_max = min(x_max,2000)
-    #x_max = 1000
+    '''
+    plt.figure(figsize=(8,5),dpi = 320)
+    if tpSet.tpTemplate.appParam.isRttTest:
+        x_min = 0
+        x_max = 600
+        xlabel = 'one way delay(ms)'
+        if not retranPacketOnly:
+            title = "cdf_owd_all"
+            y_min = 0.8
+            y_max = 1.01
+        else:
+            title = "cdf_owd_retran"
+            y_min = 0
+            y_max = 1.01
+    else:
+        xlabel = 'throughput(Mbps)'
+        title = "cdf_throughput"
+        x_min = 0
+        x_max = 10
+        y_min = 0
+        y_max = 1.01
+
     x = np.linspace(x_min,x_max,num=500)
     plt.xlim((x_min,x_max))
-
-    if not retranPacketOnly:
-        plt.ylim((0.8,1.01)) 
-    else:
-        plt.ylim((0,1.01))
+    plt.ylim((y_min,y_max))
     
     keys = tpSet.keysCurveDiff
     legends = []
     for tp in tpSet.testParams:
         print(tp.name,min(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
-            color,linestyle = getCdfParam(tp)
+            #color,linestyle = getCdfParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            #plt.step(x,y)
-            plt.step(x,y,linestyle=linestyle,color=color)
+            plt.step(x,y)
+            #plt.step(x,y,linestyle=linestyle,color=color)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             string = ' '.join([tp.segToStr(key) for key in keys])
             string = simplify_curve_name(string)
             legends.append(string)
-    title = 'cdf'
-    if intcpRtt:
-        title += "_intcpRtt"
-    elif retranPacketOnly:
-        title += "_retran"
-    else:
-        title += "_all"
+    
     plt.legend(legends)
     plt.title(title)
-    plt.xlabel('one way delay(ms)',size=12)
+    plt.xlabel(xlabel,size=12)
     plt.savefig('%s/%s.png' % (resultPath, title))
     #plt.show()
 
@@ -556,15 +563,19 @@ def anlz(tpSet, logPath, resultPath):
     #plotByGroup(tpSet, mapTpToResult, resultPath)
     if not tpSet.tpTemplate.appParam.isRttTest:
         print('-----')
-        mapTpToResult = loadLog(logPath, tpSet, isDetail=False)
-        if tpSet.keyX == 'nokeyx':
-            print('tpSet no keyX')
-        else:
-            plotByGroup(tpSet, mapTpToResult, resultPath)
-        summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
-        print(summaryString)
-        writeText('%s/summary.txt'%(resultPath), summaryString)
-        writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
+        if tpSet.tpTemplate.appParam.analyse_callback=="lineChart":
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=False)
+            if tpSet.keyX == 'nokeyx':
+                print('tpSet no keyX')
+            else:
+                plotByGroup(tpSet, mapTpToResult, resultPath)
+            summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
+            print(summaryString)
+            writeText('%s/summary.txt'%(resultPath), summaryString)
+            writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
+        elif tpSet.tpTemplate.appParam.analyse_callback=="cdf":
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=True)
+            drawCDF(tpSet,mapTpToResult,resultPath)
 
     elif tpSet.tpTemplate.appParam.isRttTest:
         #print('entering rtt analyse')

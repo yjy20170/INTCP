@@ -1,6 +1,6 @@
 from testbed.Param import *
 from testbed.RealNetwork import * #splitLoss
-from get_trace import get_trace
+from get_trace import *
 
 SegUnit['max_queue_size']='packets'
 SegUnit['txqueuelen']='packets'
@@ -17,7 +17,8 @@ class MyAppParam(AppParam):
             'sendTime', 'sendRound',
             'dynamic','dynamic_intv',
             'isFlowTest','data_size',
-            'dynamic_complete','dynamic_isl_loss','dynamic_ground_link_rtt','dynamic_uplink_bw','dynamic_bw_fluct'  #not good
+            'dynamic_complete','dynamic_isl_loss','dynamic_ground_link_rtt','dynamic_uplink_bw','dynamic_bw_fluct',  #not good
+            'analyse_callback'
     ]
 
 # n is satllite number
@@ -41,7 +42,7 @@ Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2
 dynamic_extreme_topo = gen_extreme_trace()   #for test
 #dynamic_real_topo = get_trace(6,9,0,600)
 dynamic_topo_exp2 = gen_link_change_trace()
-#beijing_paris = get_trace(6,24,0,600)
+beijing_paris = get_trace(6,24,0,600)
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
@@ -54,7 +55,8 @@ DefaultAP = MyAppParam(
         e2eCC='cubic', midCC='nopep',protocol='INTCP'
         ,dynamic=0,dynamic_intv=1,
         isFlowTest=0,data_size=0,
-        dynamic_complete=True,dynamic_isl_loss=0.1,dynamic_ground_link_rtt=50,dynamic_uplink_bw=5,dynamic_bw_fluct=False)
+        dynamic_complete=True,dynamic_isl_loss=0.1,dynamic_ground_link_rtt=50,dynamic_uplink_bw=5,dynamic_bw_fluct=False,
+        analyse_callback="lineChart")
 
 
 def getTestParamSet(tpsetName):
@@ -160,6 +162,23 @@ def getTestParamSet(tpsetName):
              #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            })
+    if tpsetName == "relay_only_test": # isl loss=0.1, with downlink bandwidth fluctuation
+        origin_trace = get_trace(6,25,0,600,satellite_network_dir=relay_only_trace_dir)
+        #dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True) 
+        #print(dynamic_topo)
+        tpSet = TestParamSet(tpsetName,
+            origin_trace,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                'dynamic_isl_loss':[0.01,0.5,1]   #0.01,0.1,0.2,0.4,0.6,0.8,1
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
     if tpsetName == "dynamic_exp_2": #relative normal environment, need reduce loss?
         tpSet = TestParamSet(tpsetName,
