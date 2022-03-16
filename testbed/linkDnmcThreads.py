@@ -119,13 +119,28 @@ def DynamicLinkUpdate(mn,testParam,logPath):
                 nodeA = mn.getNodeByName(nameA)
                 nodeB = mn.getNodeByName(nameB)
                 switch = mn.getNodeByName(name_switch)
+                loss = splitLoss(losses[i],2)
+                
                 for intf in (nodeA.connectionsTo(switch)[0]+
-                        switch.connectionsTo(nodeA)[0]+
-                        switch.connectionsTo(nodeB)[0]+
-                        nodeB.connectionsTo(switch)[0]):
-                    #b = 1 #do nothing
-                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=splitLoss(losses[i],2))
-            
+                        (switch.connectionsTo(nodeB)[0][0],)):
+                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=0)
+                for intf in (nodeB.connectionsTo(switch)[0][0],):
+                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=losses[i])
+                
+                '''
+                for intf in (nodeA.connectionsTo(switch)[0]+
+                             switch.connectionsTo(nodeA)[0]+
+                             nodeB.connectionsTo(switch)[0]+
+                             switch.connectionsTo(nodeB)[0]):
+                        changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=loss)
+                '''
+               
+                '''
+                for intf in (nodeA.connectionsTo(switch)[0][0],nodeB.connectionsTo(switch)[0][1],nodeA.connectionsTo(switch)[0][1]):
+                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=0)
+                for intf in (nodeB.connectionsTo(switch)[0][0],):
+                    changeLinkConfig(intf,bw=bws[i],delay=rtts[i]/4,loss=losses[i])
+                '''
             #set route
             #print(topo)
             if topo!= prev_topo:

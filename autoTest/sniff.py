@@ -9,10 +9,14 @@ sys.path.append(os.path.dirname(os.sys.path[0]))
 from appLayer.tcpApp import Utils
 
 timeFilter = 0
+packet_limit = 0
+packet_cnt = 0
+
 def getArgsFromCli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--t',action='store_const', const=True, default=False, help='sniffer for tcp packets')
     parser.add_argument('-f',type=int, default=0)
+    parser.add_argument('-l',type=int, default=0,help="number limit for packet")
 
     args = parser.parse_args()
     return args
@@ -30,6 +34,9 @@ def unpack(bytePayload,pos):
 
 sumUdpLen = 0
 def Callback_udp(packet):
+    global packet_cnt
+    global packet_limit
+    #print(packet_cnt,packet_limit)
     try:
         #udp packet
         if not packet[IP].proto==17:
@@ -48,8 +55,9 @@ def Callback_udp(packet):
 
             cur = int(time.time()*1000)%2**32
             if cmd==81: #data only
-                print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
-            
+                if packet_limit<=0 or packet_cnt<packet_limit:
+                    print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime())
+                    packet_cnt += 1
             #if cmd==81:
                 # print('cur',int(time.time()*1000)%2**32,'ts',ts)
                 #if cur - ts > timeFilter:
@@ -63,12 +71,15 @@ def Callback_udp(packet):
 
 def Callback_tcp(packet):
     #TCP packet
+    global packet_cnt
+    global packet_limit
     try:
         if not packet[IP].proto==6:
             return
         length = len(packet[TCP].payload.original)
-        #if packet[TCP].dport==3000:
-        print('seq',packet[TCP].seq,'length',length,'time',Utils.getStrTime())
+        if packet_limit<=0 or packet_cnt<packet_limit:
+            print('seq',packet[TCP].seq,'length',length,'time',Utils.getStrTime())
+            packet_cnt += 1
         #print(packet[IP].src,":",packet[TCP].sport,'-->',packet[IP].dst,":",packet[TCP].dport)
     except:
         return
@@ -77,6 +88,8 @@ if __name__=="__main__":
     print('begin to catch packets..',flush=True)
     args = getArgsFromCli()
     timeFilter = args.f
+    packet_limit = args.l
+    packet_cnt =0
     if args.t:
         #sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
         sniff(filter='dst host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server

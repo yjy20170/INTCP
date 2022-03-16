@@ -34,7 +34,7 @@ def createNet(testParam):
 
         lp = testParam.linksParam.getLP(linkName)
         delay = lp.rtt/4
-        loss = splitLoss(lp.loss,2)
+        # loss = splitLoss(lp.loss,2)
         bw = lp.bw
         if i == len(nodes)-1:
             seg = 100
@@ -42,13 +42,25 @@ def createNet(testParam):
             seg = i
         topo.addLink(nodes[i-1],linkName, intfName1 = linkName, cls = TCLink, 
                 params1 = {'ip':'10.0.%d.1/24'%seg},
-                bw = bw, delay = '%dms'%delay, loss = loss)
+                bw = bw, delay = '%dms'%delay,loss=0)
         topo.addLink(nodes[i],linkName, intfName1 = linkNameRvs, cls = TCLink, 
                 params1 = {'ip':'10.0.%d.2/24'%seg},
-                bw = bw, delay = '%dms'%delay, loss = loss)
+                bw = bw, delay = '%dms'%delay,loss=0)
+
     mn = Mininet(topo)
     mn.start()
-    
+
+    # set one-way loss
+    for i in range(1,len(nodes)):
+        linkName = nodes[i-1]+Param.LinkNameSep+nodes[i]
+        lp = testParam.linksParam.getLP(linkName)
+        nodeB = mn.getNodeByName(nodes[i])
+        switch = mn.getNodeByName(linkName)
+        intf = nodeB.connectionsTo(switch)[0][0]
+        dlcmds, __ = intf.delayCmds(is_change=True,loss=lp.loss)
+        for cmd in dlcmds:
+            intf.tc(cmd)
+
     # add route rules
     for i in range(len(nodes)-1):
         if i == len(nodes)-2:
@@ -229,7 +241,7 @@ def create_dynamic_net(dynamic_topo):
     mn = Mininet(topo)
     mn.start()
     
-    mn.getNodeByName(nodes[-1]).cmd('ethtool -K %s_%s tso off'%('h2','gs2'))
+    mn.getNodeByName('h2').cmd('ethtool -K %s_%s tso off'%('h2','gs2'))
     mn.ping([mn['h1'],mn['h2']],outputer=info)
 
     #setRoute(mn,isls,[1,2])

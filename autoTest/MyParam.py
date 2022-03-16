@@ -6,6 +6,7 @@ SegUnit['max_queue_size']='packets'
 SegUnit['txqueuelen']='packets'
 SegUnit['sendTime']='s'
 SegUnit['dynamic_intv']='s'
+SegUnit['sendq_length']='MSS'
 
 class MyAppParam(AppParam):
     BasicKeys = [
@@ -13,12 +14,14 @@ class MyAppParam(AppParam):
             # txqueuelen https://github.com/vikyd/note/blob/master/ifconfig.md#txqueuelen
             # 'max_queue_size', 'txqueuelen',
             'protocol','e2eCC', 'midCC',
-            'isRttTest',
             'sendTime', 'sendRound',
             'dynamic','dynamic_intv',
-            'isFlowTest','data_size',
+            'data_size',    #for traffic test
             'dynamic_complete','dynamic_isl_loss','dynamic_ground_link_rtt','dynamic_uplink_bw','dynamic_bw_fluct',  #not good
-            'analyse_callback'
+            'test_type',    #owdTest,throughputTest,trafficTest,throughputWithTraffic
+            'analyse_callback',  #lineChart,cdf
+            'sendq_length'
+            #'isRttTest','isFlowTest'
     ]
 
 # n is satllite number
@@ -40,9 +43,9 @@ Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2
 
 #dynamic_test_topo = gen_test_trace()
 dynamic_extreme_topo = gen_extreme_trace()   #for test
-#dynamic_real_topo = get_trace(6,9,0,600)
+dynamic_real_topo = get_trace(6,9,0,600)
 dynamic_topo_exp2 = gen_link_change_trace()
-beijing_paris = get_trace(6,24,0,600)
+#beijing_paris = get_trace(6,24,0,600)
 # 
 DefaultLP = LinkParam(
         loss=0, rtt=100, bw=20,
@@ -51,12 +54,15 @@ DefaultLP = LinkParam(
 # 
 DefaultAP = MyAppParam(
         # max_queue_size=1000,txqueuelen=1000,
-        sendTime=180,sendRound=1,isRttTest=0,
-        e2eCC='cubic', midCC='nopep',protocol='INTCP'
-        ,dynamic=0,dynamic_intv=1,
-        isFlowTest=0,data_size=0,
+        sendTime=180,sendRound=1,
+        e2eCC='cubic', midCC='nopep',protocol='INTCP',
+        dynamic=0,dynamic_intv=1,
+        data_size=0,
         dynamic_complete=True,dynamic_isl_loss=0.1,dynamic_ground_link_rtt=50,dynamic_uplink_bw=5,dynamic_bw_fluct=False,
-        analyse_callback="lineChart")
+        analyse_callback="lineChart",test_type="throughputTest",
+        sendq_length = 10000
+        #isRttTest=0,isFlowTest=0
+        )
 
 
 def getTestParamSet(tpsetName):
@@ -142,15 +148,36 @@ def getTestParamSet(tpsetName):
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
-    if tpsetName == "dynamic_sim_test_2": # isl loss=0.1, with downlink bandwidth fluctuation
+    if tpsetName == "dynamic_sim_test_3": # isl loss=0.1, no downlink bandwidth fluctuation
         tpSet = TestParamSet(tpsetName,
             dynamic_real_topo,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd"),
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
             {
-                'dynamic_isl_loss':[0.01,0.1,0.2,0.4,0.6,0.8,1]   #0.01,0.1,0.2,0.4,0.6,0.8,1
+                'dynamic_isl_loss':[1]#0.01,0.1,0.2,0.4,0.6,0.8,1
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
+             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
+             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
+             #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
+             #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            })
+    if tpsetName == "dynamic_sim_test_2": # isl loss=0.1, with downlink bandwidth fluctuation
+        tpSet = TestParamSet(tpsetName,
+            dynamic_real_topo,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,analyse_callback="cdf"),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                'dynamic_isl_loss':[1]   #0.01,0.1,0.2,0.4,0.6,0.8,1
             },
             {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
@@ -169,12 +196,12 @@ def getTestParamSet(tpsetName):
         #print(dynamic_topo)
         tpSet = TestParamSet(tpsetName,
             origin_trace,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,analyse_callback="cdf"),
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
             {
-                'dynamic_isl_loss':[0.01,0.5,1]   #0.01,0.1,0.2,0.4,0.6,0.8,1
+                'dynamic_isl_loss':[1]   #0.01,0.1,0.5,1
             },
             {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
@@ -371,7 +398,7 @@ def getTestParamSet(tpsetName):
             {#'h1_gs1':{'rtt':100,'loss':1},
             #'gs2_h2':{'rtt':100,'loss':1},
             }),
-            DefaultAP.set(sendTime=300,isRttTest=1),
+            DefaultAP.set(sendTime=300,test_type="owdTest"),
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol','midCC','e2eCC','defaultLP.loss'])
         tpSet.add(
@@ -391,7 +418,7 @@ def getTestParamSet(tpsetName):
             {'h1_gs1':{'loss':0},
             'gs2_h2':{'loss':0},
             }),
-            DefaultAP.set(sendTime=300,isRttTest=1),
+            DefaultAP.set(sendTime=300,test_type="owdTest"),
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol','midCC','defaultLP.loss'])
         tpSet.add(
@@ -411,7 +438,7 @@ def getTestParamSet(tpsetName):
             {#'h1_gs1':{'rtt':100,'loss':1},
             #'gs2_h2':{'rtt':100,'loss':1},
             }),
-            DefaultAP.set(sendTime=300,isRttTest=1),
+            DefaultAP.set(sendTime=300,test_type="owdTest"),
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol','midCC','defaultLP.loss'])
         tpSet.add(
@@ -431,7 +458,7 @@ def getTestParamSet(tpsetName):
             {#'h1_gs1':{'rtt':100,'loss':1},
             #'gs2_h2':{'rtt':100,'loss':1},
             }),
-            DefaultAP.set(sendTime=300,isRttTest=1),
+            DefaultAP.set(sendTime=300,test_type="owdTest"),
             keyX = 'h1_pep1.itmDown',
             keysCurveDiff=['protocol','midCC','defaultLP.loss'])
         tpSet.add(
@@ -460,6 +487,27 @@ def getTestParamSet(tpsetName):
                 'in_pep':{'midCC':'pep','protocol':'INTCP'},
                 'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
                 'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
+                #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                
+                }
+        )
+    if tpsetName == "owd_thrp_balance_varbw_test":
+        tpSet = TestParamSet(tpsetName,
+                gen_linear_topo(2),
+                LinksParam(DefaultLP.set(bw=20,loss=0,rtt=20), 
+                    {'gs1_m1':{'rtt':10,'varIntv':8,'varBw':12},
+                    'm2_gs2':{'rtt':10}}),
+                DefaultAP.set(sendTime=120,test_type="owdThroughputBalance"),
+                keyX = 'gs1_m1.varBw',
+                keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+                {'sendq_length':[0,20,200,500,1000,2000,4000,6000,8000]#0,20,30,50,100,200,500,1000,2000,4000,6000,8000,10000
+                },
+                {
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'}
+                #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
                 #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
                 
                 }
@@ -496,7 +544,7 @@ def getTestParamSet(tpsetName):
                 keyX = 'defaultLP.loss',
                 keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
-                {'defaultLP.loss':[0,0.1,0.5,1]   #0,1,2,3,4
+                {'defaultLP.loss':[0,0.01,0.1,0.2,0.4,0.6,0.8,1]   #0,0.1,0.5,1
                 },
                 {
                 'in_pep':{'midCC':'pep','protocol':'INTCP'},
@@ -519,7 +567,7 @@ def getTestParamSet(tpsetName):
             {'gs2_dummy':{'rtt':10},
             'dummy_h2':{'loss':0,'rtt':10}
             }),
-            DefaultAP.set(sendTime=60,isFlowTest=1,data_size=20),
+            DefaultAP.set(sendTime=60,test_type="trafficTest",data_size=20),
             keyX = 'defaultLP.loss',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
@@ -539,7 +587,7 @@ def getTestParamSet(tpsetName):
             {'gs2_dummy':{'rtt':10},
             'dummy_h2':{'loss':0,'rtt':10}
             }),
-            DefaultAP.set(sendTime=120,isFlowTest=1,data_size=100),
+            DefaultAP.set(sendTime=120,test_type="trafficTest",data_size=100),
             keyX = 'defaultLP.loss',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
@@ -549,6 +597,27 @@ def getTestParamSet(tpsetName):
             {
             'in_pep':{'midCC':'pep','protocol':'INTCP'},
             'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+            #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
+            }
+        )
+    if tpsetName == "throughput_with_traffic":    #for 100MB
+        tpSet = TestParamSet(tpsetName,
+            gen_linear_topo(2,has_dummy_node=True),
+            LinksParam(DefaultLP.set(rtt=20,bw=20), 
+            {'gs2_dummy':{'rtt':10},
+            'dummy_h2':{'loss':0,'rtt':10}
+            }),
+            DefaultAP.set(sendTime=60,test_type="throughputWithTraffic"),
+            keyX = 'defaultLP.loss',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                'defaultLP.loss':[0,0.5,1,1.5,2]#0,0.5,1,1.5,2,2.5,3
+            },
+            {
+            'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+            #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
             }
         )

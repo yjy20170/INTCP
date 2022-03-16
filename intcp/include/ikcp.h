@@ -42,7 +42,7 @@ using namespace std;
 #define INTCP_CC_SLOW_START 0
 #define INTCP_CC_CONG_AVOID 1
 
-#define DEFAULT_CONFIG
+#define SHORT_SENDQ
 
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 const IUINT32 INTCP_MTU = 1472;
@@ -89,14 +89,14 @@ const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 
 //for itm and varbw test
 #ifdef LARGE_SENDQ
-const IUINT32 INTCP_SNDQ_MAX = 20000*INTCP_MSS; //NOTE
-const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
+const IUINT32 INTCP_SNDQ_MAX = 20*INTCP_MSS; //NOTE
+const IUINT32 INTCP_INTB_MAX = 200*INTCP_MSS;
 #endif 
 
 //for retransmission test
 #ifdef SHORT_SENDQ
-const IUINT32 INTCP_SNDQ_MAX = 2500*INTCP_MSS; //NOTE
-const IUINT32 INTCP_INTB_MAX = 5000*INTCP_MSS;
+const IUINT32 INTCP_SNDQ_MAX = 500*INTCP_MSS; //NOTE
+const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 #endif
 
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer

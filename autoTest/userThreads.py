@@ -87,7 +87,7 @@ def start_midnode_processes(mn,testParam,useTCP,pep_nodelay=0):
 
 @threadFunc(True)
 def ThroughputTest(mn,testParam,logPath):
-    if testParam.appParam.get('isRttTest') or testParam.appParam.get('isFlowTest'):
+    if testParam.appParam.test_type not in ["throughputTest","throughputWithTraffic"]:
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
@@ -96,6 +96,9 @@ def ThroughputTest(mn,testParam,logPath):
     for i in range(testParam.appParam.sendRound): #TODO log is overwritten now
         #NOTE open pep; cleaript
         start_midnode_processes(mn,testParam,useTCP)
+        if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
+            atomic(mn.getNodeByName('h2').cmd)('echo -e "\nbytes before test:\c" > %s'%(logFilePath))
+            atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
         if useTCP:      #only support e2e TCP1
             #print("2")
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
@@ -106,6 +109,9 @@ def ThroughputTest(mn,testParam,logPath):
             time.sleep(1)
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
         time.sleep(testParam.appParam.sendTime + 5)
+        if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
+            atomic(mn.getNodeByName('h2').cmd)('echo -e "\nbytes after test: \c" >> %s'%(logFilePath))
+            atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
         if testParam.appParam.sendRound>1:
             if useTCP:
                 kill_pep_processes(mn,testParam)
@@ -117,8 +123,8 @@ def ThroughputTest(mn,testParam,logPath):
         
 #thread for test rtt
 @threadFunc(True)
-def RttTest(mn, testParam, logPath):
-    if not testParam.appParam.get('isRttTest'):
+def OwdTest(mn, testParam, logPath):
+    if not testParam.appParam.test_type=="owdTest":
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
@@ -156,8 +162,8 @@ def RttTest(mn, testParam, logPath):
     return
 
 @threadFunc(True)
-def FlowTest(mn, testParam, logPath):
-    if not testParam.appParam.get('isFlowTest'):
+def TrafficTest(mn, testParam, logPath):
+    if not testParam.appParam.test_type=="trafficTest":
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
     delFile(logFilePath)
@@ -179,6 +185,79 @@ def FlowTest(mn, testParam, logPath):
         atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
     return
 
+@threadFunc(True)
+def owdThrpBalanceTest(mn, testParam, logPath):
+    if not testParam.appParam.test_type in ["owdThroughputBalance","throughputWithOwd"]:
+        return
+    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+    thrpLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"thrp")
+    senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
+    receiverLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"recv")
+
+    delFile(logFilePath)
+    delFile(thrpLogFilePath)
+    delFile(senderLogFilePath)
+    delFile(receiverLogFilePath)
+
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+    start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
+    
+    if useTCP:
+        #atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
+        #atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t  > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t  > %s &'%(receiverLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%(thrpLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+    else:
+        #atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(senderLogFilePath))
+        #atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(receiverLogFilePath))
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  > %s &'%(receiverLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+        time.sleep(1)
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%(thrpLogFilePath))
+    time.sleep(testParam.appParam.sendTime+5)
+    return
+
+'''
+@threadFunc(True)
+def throughputWithOwdTest(mn, testParam, logPath):
+    if not testParam.appParam.test_type=="owdThroughputBalance":
+        return
+    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
+    thrpLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"thrp")
+    senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
+    receiverLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"recv")
+
+    delFile(logFilePath)
+    delFile(thrpLogFilePath)
+    delFile(senderLogFilePath)
+    delFile(receiverLogFilePath)
+
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+    start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
+    
+    if useTCP:
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%(thrpLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+    else:
+        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(senderLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(receiverLogFilePath))
+        time.sleep(1)
+        atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+        time.sleep(1)
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%(thrpLogFilePath))
+    time.sleep(testParam.appParam.sendTime+5)
+    return
+'''
 # for intcp only
 # @threadFunc(True)
 '''
