@@ -14,6 +14,7 @@ import seaborn as sns
 import numpy as np 
 from scipy.stats import scoreatpercentile
 import statsmodels.api as sm
+from get_trace import get_city_distance
 
 sys.path.append(os.path.dirname(os.sys.path[0]))
 from FileUtils import createFolder, fixOwnership, writeText
@@ -221,7 +222,7 @@ def loadThrp(filePath):
             if 'bytes after test' in line:
                 pos = line.find(":")
                 traffic_after_send = float(line[pos+2:])
-    thrps = thrpAggr(thrps,5)
+    #thrps = thrpAggr(thrps,5)
     return thrps,traffic_before_send,traffic_after_send
 
 def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,metric="thrp"):
@@ -289,7 +290,7 @@ def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,metric="thrp")
             result[tp] = thrps
             print(thrps)
         else:
-            if len(thrps)>tp.appParam.sendTime:
+            if metric=="thrp" and len(thrps)>tp.appParam.sendTime:
                 thrps = thrps[:tp.appParam.sendTime]
             result[tp] = mean(thrps,method='all')
             print('len=',len(thrps),'average =%.2f'%result[tp])
@@ -387,7 +388,7 @@ def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
         plt.fill_between(x,y_mean,y_lower,color=color,alpha=alpha)
         plt.fill_between(x,y_mean,y_upper,color=color,alpha=alpha)
 
-def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="throughputTest"):
+def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="throughputTest",metric="thrp"):
     plt.figure(figsize=(8,5),dpi = 320)
     if test_type in ["throughputTest","throughputWithTraffic"]:
         plt.ylim((0,20))
@@ -395,8 +396,14 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="th
         plt.ylim((100,120))
     elif test_type=="owdTest":
         plt.ylim((0,1000))
+    elif test_type=="throughputWithOwd":
+        if metric=="thrp":
+            plt.ylim((0,5))
+        else:
+            plt.ylim((0,5000))
     else:
         pass
+
     legend_font = {'size':12}#"family" : "Times New Roman",
     if len(groups)==1:
         group = groups[0]
@@ -416,12 +423,23 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="th
                             [result[testParam][0] for testParam in group], label=legends[2*i],marker=marker,linestyle='-',color=color,markersize=4,linewidth=1.5)
                 plt.plot([testParam.get(keyX) for testParam in group],
                             [result[testParam][1] for testParam in group], label=legends[2*i+1],marker=marker,linestyle='--',color=color,markersize=4,linewidth=1.5)
+            elif test_type=="throughputWithOwd":    #distance->thrp/owd
+                vals = []
+                for tp in group:
+                    distance = get_city_distance(tp.appParam.src,tp.appParam.dst)
+                    vals.append((distance,result[tp]))
+                vals = sorted(vals,key=lambda x:x[0])
+                plt.plot([val[0] for val in vals],[val[1] for val in vals],label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
             else:
                 drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
                 #plt.legend()
         plt.legend(frameon=True,prop=legend_font)
-    plt.xlabel(groups[0][0].keyToStr(keyX),size=12) #family="Times New Roman",
-    if test_type=="owdTest":
+
+    if test_type=="throughputWithOwd":
+        plt.xlabel("geodesic distance(km)",size=12)
+    else:
+        plt.xlabel(groups[0][0].keyToStr(keyX),size=12) #family="Times New Roman",
+    if test_type=="owdTest" or (test_type=="throughputWithOwd" and metric=="owd"):
         plt.ylabel('one way delay(ms)',size=12)#family="Times New Roman",
         #plt.ylabel('error rate')
     elif test_type=="trafficTest":
@@ -462,7 +480,7 @@ def simplify_curve_name(string):
         string = string.replace("dynamic_isl_loss=0.05","")
     return string
 
-def plotByGroup(tpSet, mapNeToResult, resultPath):
+def plotByGroup(tpSet, mapNeToResult, resultPath,metric="thrp"):
     pointGroups = []
     for tp in tpSet.testParams:
         found = False
@@ -536,11 +554,16 @@ def plotByGroup(tpSet, mapNeToResult, resultPath):
         elif test_type in ["throughputTest","throughputWithTraffic"]:
             title = '%s - throughput' % (keyX)
             print(title)
+        elif test_type=="throughputWithOwd":
+            if metric=="thrp":
+                title = '%s - throughput' % ("distance")
+            else:
+                title = '%s - OneWayDelay' % ("distance")
         else:
             pass
         if tpSet.keysPlotDiff != []:
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
-        plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,test_type=test_type)
+        plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,test_type=test_type,metric=metric)
 
 #TODO appParam.total_loss is removed now
 def getCdfParam(tp):
@@ -714,19 +737,19 @@ def anlz(tpSet, logPath, resultPath):
         drawScatterGraph(tpSet, mapTpToResult, resultPath)
         #pass
     elif tpSet.tpTemplate.appParam.test_type=="throughputWithOwd":
-        generateLog(logPath,tpSet)
+        #generateLog(logPath,tpSet)
         if tpSet.tpTemplate.appParam.analyse_callback=="cdf":
-            mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric="thrp")
-            drawCDF(tpSet,mapTpToResult,resultPath,metric="thrp")
-            mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric="owd")
-            drawCDF(tpSet,mapTpToResult,resultPath,metric="owd",retranPacketOnly=False)
+            for metric in ["thrp","owd"]:
+                mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric=metric)
+                drawCDF(tpSet,mapTpToResult,resultPath,metric=metric,retranPacketOnly=False)
         else:
-            mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric="thrp")
-            summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
-            print(summaryString)
-            mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric="owd")
-            summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
-            print(summaryString)
+            for metric in ["owd"]:
+                mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric=metric)
+                plotByGroup(tpSet, mapTpToResult,resultPath,metric=metric)
+                summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
+                print(summaryString)
+                writeText('%s/summary_%s.txt'%(resultPath,metric), summaryString)
+                writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
     fixOwnership(resultPath,'r')
 
 """

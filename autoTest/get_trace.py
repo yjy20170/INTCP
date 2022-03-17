@@ -21,6 +21,7 @@
 # SOFTWARE.
 import sys
 #sys.path.append('../hypatia_tools/')
+from hypatia_tools.distance_tools import *
 from hypatia_tools.graph_tools import *
 from hypatia_tools.read_isls import *
 from hypatia_tools.read_ground_stations import *
@@ -35,6 +36,14 @@ relay_only_trace_dir = "./hypatia_trace/starlink_550_isls_none_ground_stations_t
 #city_1 and city_2 are id in gs_100 list
 #return (max_midnode_num,total_midnode_num,links_params)
 #links_params in a list of dictionary, each element has key "topo" "rtt" "loss" and "bw"
+
+def get_city_distance(src,dst,route_algorithm="with_isl"):
+    satellite_network_dir = isl_trace_dir if route_algorithm=="with_isl" else relay_only_trace_dir
+    ground_stations = read_ground_stations_extended(satellite_network_dir + "/ground_stations.txt")
+    city1 = ground_stations[src]
+    city2 = ground_stations[dst]
+    distance_m = geodesic_distance_m_between_ground_stations(city1,city2)
+    return distance_m/1000
 
 def get_trace(#base_output_dir,         #do not set bw and loss
                          city1,   #<100
@@ -327,3 +336,4 @@ for i in range(len(links_params)):  #len(links_params)
     print("     > bw:",links_params[i]["bw"])
     print("")
 '''
+

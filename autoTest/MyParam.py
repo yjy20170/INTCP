@@ -192,25 +192,26 @@ def getTestParamSet(tpsetName):
     if tpsetName == "distance_test_with_isl":   #sendq =1000
         tpSet = TestParamSet(tpsetName,
             None,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=120,test_type="throughputWithOwd"),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=180,test_type="throughputWithOwd"),
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
         tpSet.add(
             {
                 'dynamic_isl_loss':[1]#0.2,0.5,1
             },
-            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
-             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+             'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             },
             {
                 'beijing_hangkong':{'src':6,'dst':45},
+                'beijing_ankara':{'src':6,'dst':79},
                 'beijing_paris':{'src':6,'dst':24},
                 'beijing_london':{'src':6,'dst':27},
                 'beijing_newyork':{'src':6,'dst':9},
             })
-
+        
     if tpsetName == "relay_only_test": # isl loss=0.1, with downlink bandwidth fluctuation
         origin_trace = get_trace(6,25,0,600,route_algorithm="relay_only")
         #dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True) 
