@@ -118,30 +118,6 @@ def gen_link_change_trace():
     links_params = [link_param_1,link_param_2]
     return max_midnodes,total_midnodes,isls,links_params
 
-def setRoute_old(mn,isls,topo):
-    segs = []
-    segs.append(1)  #h1-gs1
-    segs.append(isls.index((0,topo[0]))+2)
-    for i in range(len(topo)-1):
-        segs.append(isls.index((topo[i],topo[i+1]))+2)
-    segs.append(isls.index((topo[-1],-1))+2)
-    segs.append(100) #gs1-h2
-
-    nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))]+['gs2','h2']
-
-    #set default gw
-    for i in range(len(nodes)-1):
-        #mn.getNodeByName(nodes[i]).cmd('route del default')
-        mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%(segs[i]))
-    #mn.getNodeByName(nodes[-1]).cmd('route del default')
-    mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%(segs[-1]))
-
-    #set other gw
-    for i in range(2,len(nodes)-1):
-        for j in range(i-1):
-            mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(segs[j],segs[i-1]))
-        #mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
-    #ping h1 h2
 
 def setRoute(mn,isls,topo):
     if topo is None:
@@ -169,31 +145,7 @@ def setRoute(mn,isls,topo):
         for j in range(i-1):
             mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.%d'%(segs[j][0],segs[i-1][0],segs[i-1][1]))
 
-#clear route for previous topo
-def clearRoute_old(mn,isls,topo):
-    if topo is None:
-        return
-    segs = []
-    segs.append(1)
-    segs.append(isls.index((0,topo[0]))+2)
-    for i in range(len(topo)-1):
-        segs.append(isls.index((topo[i],topo[i+1]))+2)
-    segs.append(isls.index((topo[-1],-1))+2)
-    segs.append(100)
-    nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))]+['gs2','h2']
-    #print(nodes)
 
-    #delete default gw
-    for i in range(len(nodes)-1):
-        mn.getNodeByName(nodes[i]).cmd('route del default gw 10.0.%d.2'%(segs[i]))
-    mn.getNodeByName(nodes[-1]).cmd('route del default gw 10.0.%d.1'%(segs[-1]))
-
-    #delete other gw
-    for i in range(2,len(nodes)-1):
-        for j in range(i-1):
-            mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(segs[j],segs[i-1]))
-        #mn.getNodeByName(nodes[i]).cmd('route del -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(1,segs[i-1]))
-    #ping h1 h2
 
 def clearRoute(mn,isls,topo):
     if topo is None:
@@ -224,8 +176,6 @@ def clearRoute(mn,isls,topo):
 # create net for dynamic topo
 # h1-gs1-isls-gs2-h2, 
 def create_dynamic_net(dynamic_topo):
-    if dynamic_topo is None:
-        dynamic_topo = gen_simple_trace()
     max_midnodes,total_midnodes,isls,links_params = dynamic_topo
     topo = Topo()
 
@@ -237,35 +187,22 @@ def create_dynamic_net(dynamic_topo):
     #create links and set ip
     create_all_links(topo,isls)
     
-    #set initial route
     mn = Mininet(topo)
     mn.start()
     
+    #set initial route
+    initial_topo = links_params[0]["topo"]
+    setRoute(mn,isls,initial_topo)
+
+    #ping to prevent inorder packet
     mn.getNodeByName('h2').cmd('ethtool -K %s_%s tso off'%('h2','gs2'))
     mn.ping([mn['h1'],mn['h2']],outputer=info)
 
-    #setRoute(mn,isls,[1,2])
-    #setRoute(mn,isls,[3,4])
+   
     #mn.enterCli()
     return mn
 
-def create_test_net():
-    topo = Topo()
-    topo.addHost('h1',cls=TbNode)
-    for i in range(2,10):
-        node_name = 'h%d'%(i)
-        topo.addHost(node_name,cls=TbNode)
-        linkName = 'h1' +'_'+ node_name
-        linkNameRvs = node_name+'_'+'h1'
-        topo.addSwitch(linkName)
-        topo.addLink('h1',linkName, intfName1 = linkName, cls = TCLink, 
-                params1 = {'ip':'10.0.%d.1/24'%i})
-        topo.addLink(node_name,linkName, intfName1 = linkNameRvs, cls = TCLink, 
-                params1 = {'ip':'10.0.%d.2/24'%i})
-    mn = Mininet(topo)
-    mn.start()
-    mn.enterCli()
-    return
+
 
 # 10.0.1.1 reserve for h1, 10.0.100.2 reserve for h2
 # in isls, 0 represent gs1 and -1 represent for gs2 
@@ -293,103 +230,7 @@ def create_all_links(topo,isls,bw=10,delay=10,loss=0):
     topo.addLink('gs2','gs2_h2', intfName1 = 'gs2_h2', cls = TCLink, 
                 params1 = {'ip':'10.0.100.1/24'},bw=bw,delay=delay,loss=loss)
     topo.addLink('h2','gs2_h2', intfName1 = 'h2_gs2', cls = TCLink, 
-                params1 = {'ip':'10.0.100.2/24'},bw=bw,delay=delay,loss=loss)      
+                params1 = {'ip':'10.0.100.2/24'},bw=bw,delay=delay,loss=loss)  
+
     #initialize all links
 
-def createNet_deprecated(testParam):
-    topo=Topo()
-    if testParam.topoParam.name=="net_hmmh":
-
-        h1 = topo.addHost('h1', cls=TbNode)
-        s1 = topo.addSwitch('h1-pep1')
-        pep1 = topo.addHost('pep1', cls=TbNode)
-        s2 = topo.addSwitch('pep1-pep2')
-        pep2 = topo.addHost('pep2', cls=TbNode)
-        s3 = topo.addSwitch('pep2-h2')
-        h2 = topo.addHost('h2', cls=TbNode)
-        
-        delay = 0
-        loss = 0
-        bw = 100
-        topo.addLink(h1,s1, intfName1 = 'h1-pep1', cls = TCLink, 
-                params1 = {'ip':'10.0.1.1/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-        topo.addLink(pep1,s1, intfName1 = 'pep1-h1', cls = TCLink, 
-                params1 = {'ip':'10.0.1.2/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-
-        topo.addLink(pep1,s2, intfName1 = 'pep1-pep2', cls = TCLink, 
-                params1 = {'ip':'10.0.2.1/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-        topo.addLink(pep2,s2, intfName1 = 'pep2-pep1', cls = TCLink, 
-                params1 = {'ip':'10.0.2.2/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-
-        topo.addLink(pep2,s3, intfName1 = 'pep2-h1', cls = TCLink, 
-                params1 = {'ip':'10.0.100.1/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-        topo.addLink(h2,s3, intfName1 = 'h2-pep2', cls = TCLink, 
-                params1 = {'ip':'10.0.100.2/24'},
-                bw = bw, delay = '%dms'%delay, loss = loss)
-        mn = Mininet(topo)
-        mn.start()
-    
-        # add route rules
-        mn.getNodeByName(h1).cmd('route add default gw 10.0.1.2')
-        mn.getNodeByName(pep1).cmd('route add default gw 10.0.2.2')
-        mn.getNodeByName(pep2).cmd('route add default gw 10.0.100.2')
-        mn.getNodeByName(pep2).cmd('route add -net 10.0.1.0 netmask 255.255.255.0 gw 10.0.2.1')
-        # mn.getNodeByName(pep2).cmd('route add -net 10.0.2.0 netmask 255.255.255.0 gw 10.0.2.1')
-        mn.getNodeByName(h2).cmd('route add default gw 10.0.100.1')
-        
-        # sat.cmd('route add -net 10.0.1.0 netmask 255.255.255.0 gw 10.0.3.1')
-        # sat.cmd('route add default gw 10.0.4.1')
-        
-        # pep2.cmd('route add default gw 10.0.4.90')
-        
-        # h2.cmd('route add default gw 10.0.2.90')
-    elif testParam.topoParam.name=="net_hmh":
-        router = 'pep'
-        topo.addNode(router, cls=TbNode)
-        hostsNum = 2
-        for hindex in range(1,hostsNum+1):
-            if hindex == 1:
-                delay = testParam.linkParams['h1-pep'].rtt/4
-                loss = testParam.linkParams['h1-pep'].loss
-                bw =testParam.linkParams['h1-pep'].bw
-            elif hindex == 2:
-                delay = testParam.linkParams['pep-h2'].rtt/4
-                loss = testParam.linkParams['pep-h2'].loss
-                bw =testParam.linkParams['pep-h2'].bw
-            else:
-                delay = 0
-                loss = 0
-                bw = 0
-
-            if hindex == 1:
-                switch = 'h1-pep'
-            else:
-                switch = 'pep-h2'
-            topo.addSwitch(switch)
-            topo.addLink(switch,router,
-                        intfName2 = '%s-eth%d' % (router,hindex),
-                        params2 = {'ip':'10.0.%d.100/24' % hindex},
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
-            host = 'h%d' % hindex
-            topo.addNode(host, cls=TbNode,
-                        ip='10.0.%d.1/24' % hindex,
-                        defaultRoute = 'via 10.0.%d.100' % hindex)
-
-            topo.addLink(switch, host,
-                        cls = TCLink, bw = bw, delay = '%dms'%delay, loss = splitLoss(loss,2))
-
-        mn = Mininet(topo)
-        mn.start()
-
-    return mn
-
-'''
-if __name__ =="__main__":
-    trace = gen_simple_trace()
-    create_dynamic_net(trace)
-'''

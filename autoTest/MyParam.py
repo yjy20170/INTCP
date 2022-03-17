@@ -17,10 +17,12 @@ class MyAppParam(AppParam):
             'sendTime', 'sendRound',
             'dynamic','dynamic_intv',
             'data_size',    #for traffic test
-            'dynamic_complete','dynamic_isl_loss','dynamic_ground_link_rtt','dynamic_uplink_bw','dynamic_bw_fluct',  #not good
+            'dynamic_complete','dynamic_isl_loss','dynamic_ground_link_loss','dynamic_ground_link_rtt','dynamic_uplink_bw','dynamic_downlink_bw','dynamic_ground_link_bw','dynamic_isl_bw','dynamic_bw_fluct',  #not good
             'test_type',    #owdTest,throughputTest,trafficTest,throughputWithTraffic
             'analyse_callback',  #lineChart,cdf
-            'sendq_length'
+            'sendq_length',
+            'src','dst',
+            'route_algorithm'   #relay_only , with_isl
             #'isRttTest','isFlowTest'
     ]
 
@@ -43,7 +45,7 @@ Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2
 
 #dynamic_test_topo = gen_test_trace()
 dynamic_extreme_topo = gen_extreme_trace()   #for test
-dynamic_real_topo = get_trace(6,9,0,600)
+#dynamic_real_topo = get_trace(6,9,0,600)
 dynamic_topo_exp2 = gen_link_change_trace()
 #beijing_paris = get_trace(6,24,0,600)
 # 
@@ -58,9 +60,11 @@ DefaultAP = MyAppParam(
         e2eCC='cubic', midCC='nopep',protocol='INTCP',
         dynamic=0,dynamic_intv=1,
         data_size=0,
-        dynamic_complete=True,dynamic_isl_loss=0.1,dynamic_ground_link_rtt=50,dynamic_uplink_bw=5,dynamic_bw_fluct=False,
+        dynamic_complete=True,dynamic_isl_loss=0.1,dynamic_ground_link_loss=0,dynamic_ground_link_rtt=50,dynamic_uplink_bw=5,dynamic_downlink_bw=20,dynamic_ground_link_bw=20,dynamic_isl_bw=20,dynamic_bw_fluct=False,
         analyse_callback="lineChart",test_type="throughputTest",
-        sendq_length = 10000
+        sendq_length = 10000,
+        src=-1,dst=-1,
+        route_algorithm = "with_isl"
         #isRttTest=0,isFlowTest=0
         )
 
@@ -148,27 +152,6 @@ def getTestParamSet(tpsetName):
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
-    if tpsetName == "dynamic_sim_test_3": # isl loss=0.1, no downlink bandwidth fluctuation
-        tpSet = TestParamSet(tpsetName,
-            dynamic_real_topo,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd"),
-            keyX = 'dynamic_isl_loss',
-            keysCurveDiff=['protocol','midCC','e2eCC'])
-        tpSet.add(
-            {
-                'dynamic_isl_loss':[1]#0.01,0.1,0.2,0.4,0.6,0.8,1
-            },
-            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
-             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
-             #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
-             #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'},
-             #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'},
-             #'westwood_pep':{'midCC':'westwood','e2eCC':'westwood','protocol':'TCP'},
-             #'hybla':{'midCC':'nopep','e2eCC':'hybla','protocol':'TCP'},
-             #'hybla_pep':{'midCC':'hybla','e2eCC':'hybla','protocol':'TCP'},
-             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
-             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
-            })
     if tpsetName == "dynamic_sim_test_2": # isl loss=0.1, with downlink bandwidth fluctuation
         tpSet = TestParamSet(tpsetName,
             dynamic_real_topo,None,
@@ -190,8 +173,46 @@ def getTestParamSet(tpsetName):
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
+    if tpsetName == "dynamic_sim_test_3":   #sendq =1000
+        tpSet = TestParamSet(tpsetName,
+            dynamic_real_topo,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
+        tpSet.add(
+            {
+                'dynamic_isl_loss':[1]#0.2,0.5,1
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            })
+    
+    if tpsetName == "distance_test_with_isl":   #sendq =1000
+        tpSet = TestParamSet(tpsetName,
+            None,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=120,test_type="throughputWithOwd"),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
+        tpSet.add(
+            {
+                'dynamic_isl_loss':[1]#0.2,0.5,1
+            },
+            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            },
+            {
+                'beijing_hangkong':{'src':6,'dst':45},
+                'beijing_paris':{'src':6,'dst':24},
+                'beijing_london':{'src':6,'dst':27},
+                'beijing_newyork':{'src':6,'dst':9},
+            })
+
     if tpsetName == "relay_only_test": # isl loss=0.1, with downlink bandwidth fluctuation
-        origin_trace = get_trace(6,25,0,600,satellite_network_dir=relay_only_trace_dir)
+        origin_trace = get_trace(6,25,0,600,route_algorithm="relay_only")
         #dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True) 
         #print(dynamic_topo)
         tpSet = TestParamSet(tpsetName,
@@ -207,6 +228,25 @@ def getTestParamSet(tpsetName):
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
+
+    if tpsetName == "relay_only_cdf_1":   #sendq =1000
+        origin_trace = get_trace(6,25,0,600,route_algorithm="relay_only")
+        dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True,uplink_loss=1,downlink_loss=1) 
+        tpSet = TestParamSet(tpsetName,
+            dynamic_topo,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                #'dynamic_isl_loss':[0.2,0.5,1]#0.2,0.5,1
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            })
+    
     if tpsetName == "dynamic_exp_2": #relative normal environment, need reduce loss?
         tpSet = TestParamSet(tpsetName,
             dynamic_topo_exp2,None,
@@ -510,6 +550,24 @@ def getTestParamSet(tpsetName):
                 #'cubic_pep':{'midCC':'cubic','e2eCC':'cubic','protocol':'TCP'}
                 #'hybla':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
                 
+                }
+        )
+    if tpsetName == "owd_thrp_balance_itm_test":
+        tpSet = TestParamSet(tpsetName,
+                gen_linear_topo(2),
+                LinksParam(DefaultLP.set(bw=20,loss=0,rtt=20), 
+                    {'gs1_m1':{'rtt':10,'bw':40,'itmTotal':20,'itmDown':2},
+                    'm2_gs2':{'rtt':10}}),
+                DefaultAP.set(sendTime=120,test_type="owdThroughputBalance"),
+                keyX = 'gs1_m1.varBw',
+                keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+                {'sendq_length':[0,20,500,1000,2000,4000]#0,20,50,200,500,750,1000,2000,4000,10000
+                },
+                {
+                'in_pep':{'midCC':'pep','protocol':'INTCP'},
+                #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'}
                 }
         )
     if tpsetName == "final_itm_test_1":

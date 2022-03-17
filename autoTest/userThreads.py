@@ -203,23 +203,28 @@ def owdThrpBalanceTest(mn, testParam, logPath):
     start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
     
     if useTCP:
-        #atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
-        #atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t  > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t  > %s &'%(receiverLogFilePath))
+        if testParam.appParam.test_type=="owdThroughputBalance":
+            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
+            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
+        else:
+            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t  > %s &'%(senderLogFilePath))
+            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t  > %s &'%(receiverLogFilePath))
         time.sleep(1)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%(thrpLogFilePath))
         time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
     else:
-        #atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(senderLogFilePath))
-        #atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(receiverLogFilePath))
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  > %s &'%(receiverLogFilePath))
+        if testParam.appParam.test_type=="owdThroughputBalance":
+            a = 1
+            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 100000 > %s &'%(senderLogFilePath))
+            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 100000 > %s &'%(receiverLogFilePath))
+        else:
+            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  > %s &'%(senderLogFilePath))
+            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  > %s &'%(receiverLogFilePath))
         time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         time.sleep(1)
-        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%(thrpLogFilePath))
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(thrpLogFilePath))
     time.sleep(testParam.appParam.sendTime+5)
     return
 

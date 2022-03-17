@@ -84,8 +84,11 @@ def parseLine(line,protocol):
         return seq,time
     elif protocol=="INTCP":
         p1 = line.find("rangeStart")
-        p2 = line.find("rangeEnd")
         p3 = line.find("time")
+        if "rangeEnd" in line:
+            p2 = line.find("rangeEnd")
+        else:
+            p2 = p3
         rs = int(line[p1+11:p2-1])
         time = float(line[p3+5:])
         return rs,time
@@ -108,7 +111,9 @@ def generateLog(logPath,tpSet):
         #load sender
         with open(senderLogFilePath,"r") as f:
             lines = f.readlines()
-            for line in lines:
+            for idx,line in enumerate(lines):
+                #if tp.appParam.dynamic and idx<1000:    #no order
+                #    continue
                 try:
                     if "time" in line:
                         seq,time = parseLine(line,tp.appParam.protocol)
@@ -181,6 +186,22 @@ def loadOwd(filePath):
                     continue
     return owds
 
+def thrpAggr(thrps,interval):
+    res = []
+    start = 0
+    end = 0
+    while start<len(thrps):
+        end = start+interval
+        if end>len(thrps):
+            end = len(thrps)
+        sum = 0
+        for i in range(start,end):
+            sum += thrps[i]
+        sum /= (end-start)
+        res.append(sum)
+        start = end
+    return res
+
 #return a list
 def loadThrp(filePath):
     thrps = []
@@ -200,9 +221,10 @@ def loadThrp(filePath):
             if 'bytes after test' in line:
                 pos = line.find(":")
                 traffic_after_send = float(line[pos+2:])
+    thrps = thrpAggr(thrps,5)
     return thrps,traffic_before_send,traffic_after_send
 
-def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,thrpAnalyse=False):
+def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,metric="thrp"):
     result = {}
     for tp in tpSet.testParams:
         print('-----\n'+tp.name)
@@ -248,19 +270,21 @@ def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,thrpAnalyse=Fa
             owds = screen_owd(owds,False,owd_total,retran_threshold)
 
             thrpLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"thrp")
-            thrps = loadThrp(thrpLogFilePath)
+            thrps,__,__ = loadThrp(thrpLogFilePath)
             thrps = [mean(owds,method='all'),mean(thrps,method='all')]
             #print(thrps)
 
         elif tp.appParam.test_type=="throughputWithOwd":
-            if thrpAnalyse:
+            if metric=="thrp":
                 thrpLogFilePath = '%s/%s_%s.txt'%(logPath,tp.name,"thrp")
-                thrps = loadThrp(thrpLogFilePath)
-            else:
-                thrps = loadOwd(thrpLogFilePath)
+                thrps,__,__ = loadThrp(thrpLogFilePath)
+            elif metric=="owd":
+                thrps = loadOwd(logFilePath)
+                #owd_total,retran_threshold = getOwdTotal(tp)
+                #thrps = screen_owd(thrps,False,owd_total,retran_threshold)
         else:
             pass
-        
+
         if isDetail or tp.appParam.test_type in ["throughputWithTraffic","owdThroughputBalance"]:
             result[tp] = thrps
             print(thrps)
@@ -534,7 +558,7 @@ def getCdfParam(tp):
     #color = midcc_dict[tp.appParam.midCC]
     return color,linestyle 
     
-def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
+def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False,metric="thrp"):
     '''
     x_min = -1
     x_max = -1
@@ -553,23 +577,24 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False):
                 x_max = max(cur_max,x_max)
     '''
     plt.figure(figsize=(8,5),dpi = 320)
-    if tpSet.tpTemplate.appParam.test_type=="owdTest":
+    if metric == "owd":
         x_min = 0
-        x_max = 600
+        x_max = 8000
         xlabel = 'one way delay(ms)'
         if not retranPacketOnly:
             title = "cdf_owd_all"
-            y_min = 0.8
+            y_min = 0
             y_max = 1.01
         else:
             title = "cdf_owd_retran"
             y_min = 0
             y_max = 1.01
-    else:
+
+    elif metric=="thrp":
         xlabel = 'throughput(Mbps)'
         title = "cdf_throughput"
-        x_min = 0
-        x_max = 10
+        x_min = -0.5
+        x_max = 8
         y_min = 0
         y_max = 1.01
 
@@ -667,7 +692,7 @@ def anlz(tpSet, logPath, resultPath):
             writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
         elif tpSet.tpTemplate.appParam.analyse_callback=="cdf":
             mapTpToResult = loadLog(logPath, tpSet, isDetail=True)
-            drawCDF(tpSet,mapTpToResult,resultPath)
+            drawCDF(tpSet,mapTpToResult,resultPath,metric="thrp")
 
     elif tpSet.tpTemplate.appParam.test_type=="owdTest":
         #print('entering rtt analyse')
@@ -681,7 +706,7 @@ def anlz(tpSet, logPath, resultPath):
         
         # retranPacketOnly cdf
         mapTpToResult = loadLog(logPath, tpSet,isDetail=True,retranPacketOnly=True)
-        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True)
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True,thrp="owd")
 
     elif tpSet.tpTemplate.appParam.test_type=="owdThroughputBalance":
         generateLog(logPath,tpSet)
@@ -691,8 +716,17 @@ def anlz(tpSet, logPath, resultPath):
     elif tpSet.tpTemplate.appParam.test_type=="throughputWithOwd":
         generateLog(logPath,tpSet)
         if tpSet.tpTemplate.appParam.analyse_callback=="cdf":
-            mapTpToResult = loadLog(logPath, tpSet, isDetail=True)
-            drawCDF(tpSet,mapTpToResult,resultPath)
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric="thrp")
+            drawCDF(tpSet,mapTpToResult,resultPath,metric="thrp")
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric="owd")
+            drawCDF(tpSet,mapTpToResult,resultPath,metric="owd",retranPacketOnly=False)
+        else:
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric="thrp")
+            summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
+            print(summaryString)
+            mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric="owd")
+            summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
+            print(summaryString)
     fixOwnership(resultPath,'r')
 
 """

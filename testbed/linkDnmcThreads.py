@@ -98,7 +98,7 @@ def DynamicLinkUpdate(mn,testParam,logPath):
     if not testParam.appParam.dynamic:
         return
     __,__,isls,links_params = testParam.topoParam
-    prev_topo = None
+    prev_topo = links_params[0]["topo"]
     while True:     
         for links_param in links_params:
             topo = links_param["topo"]

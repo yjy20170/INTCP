@@ -40,14 +40,19 @@ def get_trace(#base_output_dir,         #do not set bw and loss
                          city1,   #<100
                          city2,   #<100
                          #satgenpy_dir_with_ending_slash,
-                         start_ts_s,
-                         duration_s,    #<=600
-                         satellite_network_dir = isl_trace_dir,
+                         start_ts_s = 0,
+                         duration_s = 600,    #<=600
+                         route_algorithm = "with_isl",
                          dynamic_state_update_interval_ms = 1000,
                          simulation_end_time_s = 600):         #to find fstate                    
 
     # Local shell
     #local_shell = exputil.LocalShell()
+    if route_algorithm == "with_isl":
+        satellite_network_dir = isl_trace_dir
+    else:
+        satellite_network_dir = relay_only_trace_dir
+
     satellite_num = 1584
     src = city1 + satellite_num
     dst = city2 + satellite_num
@@ -286,11 +291,9 @@ def get_complete_relay_only_trace(    #set bw and loss
             origin_trace,   #only include rtt trace
             uplink_bw = 5,
             downlink_bw = 20,
-            isl_bw = 20,
             ground_link_bw = 20,
             uplink_loss = 0.1,
             downlink_loss = 0.1,
-            isl_loss = 0.1,
             ground_link_loss= 0,
             ground_link_rtt = 20,
             bw_fluctuation = False):
@@ -298,7 +301,6 @@ def get_complete_relay_only_trace(    #set bw and loss
     for links_param in links_params:
         midnodes = len(links_param["topo"])
         sats = int((midnodes+1)/2)
-        relays = int((midnodes-1)/2)
         links_param["loss"] = [ground_link_loss]+[downlink_loss,uplink_loss]*sats+[ground_link_loss]
         links_param["bw"] = [ground_link_bw]+[downlink_bw,uplink_bw]*sats+[ground_link_bw]
         links_param["rtt"][0] = ground_link_rtt
@@ -311,7 +313,7 @@ def get_complete_relay_only_trace(    #set bw and loss
 
 '''
 #max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
-origin_trace = get_trace(6,25,0,600,satellite_network_dir=relay_only_trace_dir)
+origin_trace = get_trace(6,25,0,600,route_algorithm="relay_only")
 max_midnode_num,total_midnode_num,isls,links_params = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True)
 print(" > max_midnode_num:",max_midnode_num)
 print(" > total_midnode_num:",total_midnode_num)
