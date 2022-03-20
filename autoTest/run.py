@@ -30,8 +30,9 @@ if __name__=='__main__':
         #os.system("../appLayer/intcpApp/makes.sh")
         #os.system("../pepsal_min/bash/makepep")
 
-
-    tpSetNames = ["distance_test_with_isl"]#,"dynamic_sim_test_2","dynamic_exp_4"
+    # controlled experiments:
+    #"retran_test","final_itm_test_1","final_varbw_test_1","dynamic_exp_4","loss_test_1","flow_test_2","owd_thrp_balance_itm_test","owd_thrp_balance_varbw_test"
+    tpSetNames = ["beijing_shanghai_cdf"]#"","dynamic_exp_4"
     try:
         for sno,tpSetName in enumerate(tpSetNames):
             if len(tpSetNames)!=1:

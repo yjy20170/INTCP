@@ -1393,16 +1393,16 @@ IINT16 IntcpTransCB::getDataSendRate(){
         // suppose rcvBuf and rcvQueue is always big enough
         rate = bytesToMbit(cwnd*INTCP_MSS)/hopSrtt*1000; //Mbps
         if(nodeRole != INTCP_ROLE_REQUESTER){ // MIDNODE
-            //float rateForQueue = (bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000+rmtSendRate;
+            float rateForQueue = (bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000+rmtSendRate;
             //float rateForQueue = max(float(0),bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000+rmtSendRate;
-            
+            /*
             float rateForQueue;
             float IncreaseRate = (bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000;
             if(IncreaseRate<0)
                 rateForQueue = IncreaseRate/4 + rmtSendRate;
             else
                 rateForQueue = IncreaseRate + rmtSendRate;
-            
+            */
             LOG(TRACE,"%.2f",rateForQueue);
             rate = min(rate,rateForQueue);
         }

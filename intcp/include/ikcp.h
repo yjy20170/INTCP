@@ -78,7 +78,7 @@ const IUINT32 INTCP_RTT0 = 30; // like hybla 10->5
 
 // RTT-based
 //const float QueueingThreshold = 10000; // unit: byte //20000
-const float QueueingThreshold = 5000; // unit: byte //20000
+const float QueueingThreshold = 3000; // unit: byte //5000
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
 //default config
@@ -95,8 +95,8 @@ const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 
 //for retransmission test
 #ifdef SHORT_SENDQ
-const IUINT32 INTCP_SNDQ_MAX = 50*INTCP_MSS; //NOTE
-const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
+//const IUINT32 INTCP_SNDQ_MAX = 50*INTCP_MSS; //NOTE
+//const IUINT32 INTCP_INTB_MAX = 1000*INTCP_MSS;
 #endif
 
 const IUINT32 INTCP_WND_RCV = 128; // for app recv buffer

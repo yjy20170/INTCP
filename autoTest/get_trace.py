@@ -320,10 +320,19 @@ def get_complete_relay_only_trace(    #set bw and loss
     return  max_midnode_num,total_midnode_num,isls,links_params
 # for test
 
+def find_test_city():
+    res = []
+    for i in range(100):
+        res.append((i,get_city_distance(6,i)))
+        res = sorted(res,key=lambda x:x[1])
+    for i in range(100):
+        print(res[i])
+
 '''
-#max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,24,0,600),bw_fluctuation=False)
-origin_trace = get_trace(6,25,0,600,route_algorithm="relay_only")
+#max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,2,0,600,route_algorithm),bw_fluctuation=False)
+origin_trace = get_trace(6,2,0,600,route_algorithm="relay_only")
 max_midnode_num,total_midnode_num,isls,links_params = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True)
+#max_midnode_num,total_midnode_num,isls,links_params = origin_trace
 print(" > max_midnode_num:",max_midnode_num)
 print(" > total_midnode_num:",total_midnode_num)
 print(" > isls:",len(isls),isls)

@@ -22,6 +22,12 @@ import MyParam
 
 
 plt.rc('font',family='Times New Roman')
+tick_size = 20
+label_size = 24
+legend_size = 24
+line_width = 2.5
+marker_size = 10
+
 # plt.rcParams['font.sans-serif'] = 'Times New Roman'
 
 
@@ -296,62 +302,28 @@ def loadLog(logPath, tpSet, isDetail=False,retranPacketOnly=False,metric="thrp")
             print('len=',len(thrps),'average =%.2f'%result[tp])
     return result
 
-def getPlotParam(group, test_type="throughputTest"):
-    if not test_type=="owdTest":
-        #for motivation exprs
-        '''
-        if group[0].appParam.e2eCC == 'hybla':
-            color = 'orangered'
-        elif group[0].appParam.e2eCC == 'cubic':
-            color = 'royalblue'
+def getPlotParam(tp):
+    test_type = tp.appParam.test_type
+    if test_type=="owdTest":    #cdf
+        if tp.appParam.protocol=='INTCP':
+            linestyle = "--"
         else:
-            color = 'g'
-
-        if group[0].appParam.midCC == 'nopep':
-            marker = 'x'
-            linestyle = '--'
-        else:
-            marker = 's'
-            linestyle = '-'
-        '''
-        if group[0].appParam.protocol == 'INTCP':
-            marker = 'x'
-            linestyle = '--'
-            color = 'red'
-            '''
-            if group[0].linksParam.defaultLP.bw==5:
-                color = 'red'
-            elif group[0].linksParam.defaultLP.bw==10:
-                color = 'green'
-            elif group[0].linksParam.defaultLP.bw==20:
-                color = 'purple'
-            else:
-                color = 'royalblue'
-            '''
-        else:
-            marker = 's'
-            linestyle = '-'
-            if group[0].appParam.e2eCC == 'hybla':
-                color = 'green'
-            elif group[0].appParam.e2eCC == 'cubic':
-                color = 'royalblue'
-            elif group[0].appParam.e2eCC == 'westwood':
-                color = 'purple'
-            elif group[0].appParam.e2eCC == 'bbr':
-                color = 'black'
-            elif group[0].appParam.e2eCC == 'pcc':
-                color = 'orange'
-        if group[0].appParam.midCC == 'nopep':
-            marker = 'x'
-        else:
-            marker = 's'
-    else:
-        if group[0].appParam.midCC == 'nopep':
-            color = 'purple'
-        else:
-            color = 'green'
+            linestyle = "-"
+        loss_to_color = {0.2:'orangered',1:'royalblue',2:'green'}
+        color = loss_to_color[tp.linksParam.defaultLP.loss]
         marker = 's'
+    else:
         linestyle = '-'
+        if tp.appParam.protocol=="INTCP":
+            color = 'orangered'
+            marker = 's'
+        else:
+            cc_to_param={'pcc':('royalblue','x'),
+                         'bbr':('green','o'),
+                         'westwood':('darkviolet','v'),
+                         'cubic':('orange','^'),
+                         'hybla':('purple','D')}
+            color,marker = cc_to_param[tp.appParam.e2eCC]
     return color,marker,linestyle
 
 def drawCondfidenceCurve(group,result,keyX,label,color,marker,alpha=0.3,mode=2):
@@ -400,11 +372,11 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="th
         if metric=="thrp":
             plt.ylim((0,5))
         else:
-            plt.ylim((0,5000))
+            plt.ylim((0,3000))
     else:
         pass
 
-    legend_font = {'size':12}#"family" : "Times New Roman",
+    #legend_font = {'size':12}#"family" : "Times New Roman",
     if len(groups)==1:
         group = groups[0]
         plt.plot([testParam.get(keyX) for testParam in group],
@@ -412,72 +384,136 @@ def plotOneFig(resultPath, result, keyX, groups, title, legends=[],test_type="th
     else:
         for i,group in enumerate(groups):
 
-            color,marker,linestyle = getPlotParam(group,test_type)
+            color,marker,linestyle = getPlotParam(group[0])
 
             if test_type in ["throughputTest","trafficTest"]:
                 plt.plot([testParam.get(keyX) for testParam in group],
-                            [result[testParam] for testParam in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
+                            [result[testParam] for testParam in group], label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=marker_size,linewidth=line_width)
                 #plt.legend()
             elif test_type=="throughputWithTraffic":
                 plt.plot([testParam.get(keyX) for testParam in group],
-                            [result[testParam][0] for testParam in group], label=legends[2*i],marker=marker,linestyle='-',color=color,markersize=4,linewidth=1.5)
+                            [result[testParam][0] for testParam in group], label=legends[2*i],marker=marker,linestyle='-',color=color,markersize=marker_size,linewidth=line_width)
                 plt.plot([testParam.get(keyX) for testParam in group],
-                            [result[testParam][1] for testParam in group], label=legends[2*i+1],marker=marker,linestyle='--',color=color,markersize=4,linewidth=1.5)
+                            [result[testParam][1] for testParam in group], label=legends[2*i+1],marker=marker,linestyle='--',color=color,markersize=marker_size,linewidth=line_width)
             elif test_type=="throughputWithOwd":    #distance->thrp/owd
                 vals = []
                 for tp in group:
                     distance = get_city_distance(tp.appParam.src,tp.appParam.dst)
                     vals.append((distance,result[tp]))
                 vals = sorted(vals,key=lambda x:x[0])
-                plt.plot([val[0] for val in vals],[val[1] for val in vals],label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=4,linewidth=1.5)
+                plt.plot([val[0] for val in vals],[val[1] for val in vals],label=legends[i],marker=marker,linestyle=linestyle,color=color,markersize=marker_size,linewidth=line_width)
             else:
                 drawCondfidenceCurve(group,result,keyX,legends[i],color,marker,mode=2)
                 #plt.legend()
-        plt.legend(frameon=True,prop=legend_font)
+        plt.legend(frameon=True,fontsize=legend_size)
 
+    # xlabel
     if test_type=="throughputWithOwd":
-        plt.xlabel("geodesic distance(km)",size=12)
+        plt.xlabel("geodesic distance(km)",size=label_size)
     else:
-        plt.xlabel(groups[0][0].keyToStr(keyX),size=12) #family="Times New Roman",
+        string = groups[0][0].keyToStr(keyX)
+        string = simplify_name(None,string)
+        plt.xlabel(string,size=label_size) #family="Times New Roman",
+
+    # ylabel
     if test_type=="owdTest" or (test_type=="throughputWithOwd" and metric=="owd"):
-        plt.ylabel('one way delay(ms)',size=12)#family="Times New Roman",
-        #plt.ylabel('error rate')
+        plt.ylabel('One-way-delay(ms)',size=label_size)#family="Times New Roman",
     elif test_type=="trafficTest":
-        plt.ylabel('traffic(Mbyte)',size=12)
+        plt.ylabel('Traffic(Mbyte)',size=label_size)
     else:       #throughput test
-        plt.ylabel('throughput(Mbps)',size=12)#family="Times New Roman",
-    plt.title(title,size=15)#family="Times New Roman",
-    plt.yticks(size=12)#fontproperties = 'Times New Roman',
-    plt.xticks(size=12)#fontproperties = 'Times New Roman',
-    #plt.tight_layout()
-    plt.savefig('%s/%s.png' % (resultPath, title))
-    return
+        plt.ylabel('Throughput(Mbps)',size=label_size)#family="Times New Roman",
     
-def simplify_curve_name(string):
-    if "protocol=INTCP" in string:
-        string = string.replace("e2eCC=cubic","")
-        string = string.replace("protocol=INTCP","")
-        if "midCC=pep" in string:
-            string = string.replace("midCC=pep","")
-            string = "hop INTCP"+ string
-        elif "midCC=nopep" in string:
-            string = string.replace("midCC=nopep","")
-            string = "e2e INTCP"+ string
+
+    plt.grid(True)
+    plt.tick_params(labelsize=tick_size)
+    plt.tight_layout()
+    plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.savefig('%s/%s.pdf' % (resultPath, title))
+    return
+
+def drawBarChart(resultPath, result, keyX, groups, title, legends=[],test_type="throughputTest",metric="thrp"):
+    plt.figure(figsize=(8,5),dpi = 320)
+    if metric=="thrp":
+        plt.ylim((0,5.5))
+    else:
+        plt.ylim((0,1000))
+    x = np.arange(len(groups[0]))
+    total_width,n = 0.8,3
+    width = total_width/n
+    #print(len(groups))
+    for i,group in enumerate(groups):
+        color,__,__ = getPlotParam(group[0])
+        label = legends[i]
+        y = [result[testParam] for testParam in group]
+        if i==(len(groups)-1)/2:
+            tick_label = [simplify_name(None,tp.segToStr(keyX)) for tp in group]
+            plt.bar(x+i*width,y,width=width,label=label,tick_label=tick_label,color=color)
         else:
-            string = "e2e INTCP"+ string
-    if "protocol=TCP" in string:
-        string = string.replace("protocol=TCP","")
-    for tcpCC in ["cubic","reno","hybla","westwood","bbr","pcc"]:
-        if "e2eCC=%s"%tcpCC in string and "midCC=%s"%tcpCC in string:
-            string = string.replace("e2eCC=%s"%tcpCC,"")
-            string = string.replace("midCC=%s"%tcpCC,"")
-            string = tcpCC+ " split " + string
-        elif "e2eCC=%s"%tcpCC in string and "midCC=nopep" in string:
-            string = string.replace("e2eCC=%s"%tcpCC,"")
-            string = string.replace("midCC=nopep","")
-            string = tcpCC + string
-    if "dynamic_isl_loss=0.05" in string:
-        string = string.replace("dynamic_isl_loss=0.05","")
+            plt.bar(x+i*width,y,width=width,label=label,color=color)
+    ylabel = "Throughput(Mbps)" if metric=="thrp" else "One-way-delay(ms)"
+    #plt.xticks(rotation=5)
+    plt.ylabel(ylabel,size=label_size)
+    plt.legend(fontsize=legend_size)
+    plt.grid(True)
+    plt.tick_params(labelsize=tick_size)
+    plt.tight_layout()
+    title = "city_pairs - %s"%(metric)
+    plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.savefig('%s/%s.pdf' % (resultPath, title))
+    return
+
+def simplify_name(tp,string):
+    # labels
+    if tp is None:
+        if 'gs1_m1.itmDown' in string:
+            string = "Intermit time(s)"
+        if 'gs1_m1.varBw' in string:
+            string = "Bandwidth variance(Mbps)"
+        if 'defaultLP.loss' in string:
+            string = "PER(%)"
+        if 'dynamic_intv' in string:
+            string = "Link change interval(s)"
+        if 'dst=45' in string:
+            string = "Beijing-HongKong"
+        if 'dst=63' in string:
+            string = "Beijing-Singapore"
+        if 'dst=24' in string:
+            string = "Beijing-Paris"
+        if 'dst=9' in string:
+            string = 'Bejing-NewYork'
+    # legend
+    else:
+        if "protocol=INTCP" in string:
+            string = string.replace("e2eCC=cubic","")
+            string = string.replace("protocol=INTCP","")
+            if "midCC=pep" in string:
+                string = string.replace("midCC=pep","")
+                string = "InCTP"+ string
+            elif "midCC=nopep" in string:
+                string = string.replace("midCC=nopep","")
+                string = "e2e INTCP"+ string
+            else:
+                string = "e2e INTCP"+ string
+        if "protocol=TCP" in string:
+            string = string.replace("protocol=TCP","")
+        for tcpCC in ["cubic","reno","hybla","westwood","bbr","pcc"]:
+            if "e2eCC=%s"%tcpCC in string and "midCC=%s"%tcpCC in string:
+                string = string.replace("e2eCC=%s"%tcpCC,"")
+                string = string.replace("midCC=%s"%tcpCC,"")
+                string = tcpCC+ " split " + string
+            elif "e2eCC=%s"%tcpCC in string and "midCC=nopep" in string:
+                string = string.replace("e2eCC=%s"%tcpCC,"")
+                string = string.replace("midCC=nopep","")
+                string = tcpCC + string
+        if "dynamic_isl_loss=0.05" in string:
+            string = string.replace("dynamic_isl_loss=0.05","")
+        if "dynamic_isl_loss=1" in string:
+            string = string.replace("dynamic_isl_loss=1","")
+        if "defaultLP.loss" in string:
+            if "InCTP" in string:
+                string = string.replace("defaultLP.loss","PER")
+            else:
+                string = string.replace("defaultLP.loss","     PER")
     return string
 
 def plotByGroup(tpSet, mapNeToResult, resultPath,metric="thrp"):
@@ -495,10 +531,12 @@ def plotByGroup(tpSet, mapNeToResult, resultPath,metric="thrp"):
             pointGroups.append([tp])
 
     curves = []
+    
     for group in pointGroups:
         if len(group)>=2:
             # sort
-            group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.get(tpSet.keyX) - a2.get(tpSet.keyX)))
+            if not tpSet.tpTemplate.appParam.analyse_callback=="bar":
+                group = sorted(group, key=functools.cmp_to_key(lambda a1,a2: a1.get(tpSet.keyX) - a2.get(tpSet.keyX)))
             curves.append(group)
     print('curves num:',len(curves))
 
@@ -534,17 +572,16 @@ def plotByGroup(tpSet, mapNeToResult, resultPath,metric="thrp"):
             else:
                 stringCC = ''
             string = stringCC + ' ' + ' '.join([curve[0].segToStr(key) for key in keys])
-            string = simplify_curve_name(string)
+            string = simplify_name(curve[0],string)
             if not tpSet.tpTemplate.appParam.test_type=="throughputWithTraffic":
                 legends.append(string)
             else:
                 legends.append(string)
                 legends.append(string+" intf")
         keyX = tpSet.keyX
-        #isRttTest = tpSet.tpTemplate.appParam.isRttTest
-        #isFlowTest = tpSet.tpTemplate.appParam.isFlowTest
+        
         test_type = tpSet.tpTemplate.appParam.test_type
-        #print("isFlowTest",isFlowTest)
+        
         if test_type=="owdTest":
             title = '%s - OneWayDelay' % (keyX)
         elif test_type=="trafficTest":
@@ -563,47 +600,18 @@ def plotByGroup(tpSet, mapNeToResult, resultPath,metric="thrp"):
             pass
         if tpSet.keysPlotDiff != []:
             title += '(%s)' % (' '.join([curve[0].segToStr(seg) for seg in tpSet.keysPlotDiff]))
-        plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,test_type=test_type,metric=metric)
+        if tpSet.tpTemplate.appParam.analyse_callback=="bar":
+            drawBarChart(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,test_type=test_type,metric=metric)
+        else:
+            plotOneFig(resultPath, mapNeToResult, keyX, curveGroup, title=title, legends=legends,test_type=test_type,metric=metric)
 
-#TODO appParam.total_loss is removed now
-def getCdfParam(tp):
-    if tp.appParam.protocol=="INTCP":
-        linestyle = '--'
-    else:
-        linestyle = '-'
-    
-    loss_dict = {0.1:"purple",0.2:"blue",0.5:"green",1:"orangered"}
-    nodes_dict = {1:"blue",2:"orangered",3:"green"}
-    midcc_dict = {'pep':"green",'nopep':'orangered'}
-    
-    color = loss_dict[tp.linksParam.defaultLP.loss]
-    #color = nodes_dict[tp.topoParam.numMidNode]
-    #color = midcc_dict[tp.appParam.midCC]
-    return color,linestyle 
-    
+
 def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False,metric="thrp"):
-    '''
-    x_min = -1
-    x_max = -1
-    for tp in tpSet.testParams:
-        if len(mapNeToResult[tp])>0:
-            cur_min = min(mapNeToResult[tp])
-            cur_max = max(mapNeToResult[tp])
-            #print("min",cur_min,"max",cur_max)
-            if x_min == -1:
-                x_min = cur_min
-            else:
-                x_min = min(cur_min,x_min)
-            if x_max == -1:
-                x_max = cur_max
-            else:
-                x_max = max(cur_max,x_max)
-    '''
     plt.figure(figsize=(8,5),dpi = 320)
     if metric == "owd":
         x_min = 0
-        x_max = 8000
-        xlabel = 'one way delay(ms)'
+        x_max = 5000
+        xlabel = 'One-way-delay(ms)'
         if not retranPacketOnly:
             title = "cdf_owd_all"
             y_min = 0
@@ -614,7 +622,7 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False,metric="thrp
             y_max = 1.01
 
     elif metric=="thrp":
-        xlabel = 'throughput(Mbps)'
+        xlabel = 'Throughput(Mbps)'
         title = "cdf_throughput"
         x_min = -0.5
         x_max = 8
@@ -630,20 +638,25 @@ def drawCDF(tpSet, mapNeToResult, resultPath,retranPacketOnly=False,metric="thrp
     for tp in tpSet.testParams:
         print(tp.name,min(mapNeToResult[tp]))
         if len(mapNeToResult[tp]) >0:
-            #color,linestyle = getCdfParam(tp)
+            color,__,linestyle = getPlotParam(tp)
             ecdf = sm.distributions.ECDF(mapNeToResult[tp])
             y = ecdf(x)
-            plt.step(x,y)
-            #plt.step(x,y,linestyle=linestyle,color=color)
+            #plt.step(x,y)
+            plt.step(x,y,linestyle=linestyle,color=color,linewidth=line_width)
             #plt.legend(' '.join([tp.segToStr(key) for key in keys]))
             string = ' '.join([tp.segToStr(key) for key in keys])
-            string = simplify_curve_name(string)
+            string = simplify_name(tp,string)
             legends.append(string)
     
-    plt.legend(legends)
-    plt.title(title)
-    plt.xlabel(xlabel,size=12)
+    plt.legend(legends,fontsize=legend_size)
+    #plt.title(title)
+    plt.xlabel(xlabel,size=label_size)
+    plt.ylabel("CDF",size=label_size)
+    plt.tick_params(labelsize=tick_size)
+    plt.tight_layout()
+    plt.grid()
     plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.savefig('%s/%s.pdf' % (resultPath, title))
     #plt.show()
 
 def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
@@ -669,6 +682,7 @@ def drawSeqGraph(tpSet, mapNeToResult, resultPath,snStart=1000,snEnd=3000):
 # for owd-thrp balance test
 def drawScatterGraph(tpSet, mapNeToResult, resultPath):
     plt.figure(figsize=(8,5),dpi = 320)
+    point_size = 100
     owd = []
     thrp = []
     # draw INTCP
@@ -676,23 +690,39 @@ def drawScatterGraph(tpSet, mapNeToResult, resultPath):
         if tp.appParam.protocol=="INTCP" and not tp.appParam.sendq_length==0:
             owd.append(mapNeToResult[tp][0])
             thrp.append(mapNeToResult[tp][1])
-    plt.scatter(x=owd,y=thrp,marker='o',label="INTCP")
-    # draw TCP
+    plt.scatter(x=owd,y=thrp,color='orangered',marker='o',label="InCTP",s=point_size)
+
+    #draw bbr
     owd = []
     thrp = []
     for tp in tpSet.testParams:
-        if tp.appParam.protocol=="TCP" and tp.appParam.sendq_length==0:
+        if tp.appParam.protocol=="TCP" and tp.appParam.e2eCC=="bbr" and tp.appParam.sendq_length==0:
             owd.append(mapNeToResult[tp][0])
             thrp.append(mapNeToResult[tp][1])
             #break
-    plt.scatter(x=owd,y=thrp,marker='^',label="TCP")
-    plt.legend(loc='best')
-    title = "owd-thrp balance"
-    plt.title(title)
-    plt.xlabel("one-way-delay(ms)")
-    plt.ylabel("throughput(Mbits/s)")
-    plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.scatter(x=owd,y=thrp,color="green",marker='^',label="bbr",s=point_size)
 
+    # draw pcc
+    owd = []
+    thrp = []
+    for tp in tpSet.testParams:
+        if tp.appParam.protocol=="TCP" and tp.appParam.e2eCC=="pcc" and tp.appParam.sendq_length==0:
+            owd.append(mapNeToResult[tp][0])
+            thrp.append(mapNeToResult[tp][1])
+            #break
+    plt.scatter(x=owd,y=thrp,color="royalblue",marker='^',label="pcc",s=point_size)
+
+    plt.legend(loc='best',fontsize=legend_size)
+    title = "owd-thrp balance"
+    #plt.title(title)
+    plt.xlabel("One-way-delay(ms)",size=label_size)
+    plt.ylabel("Throughput(Mbits/s)",size=label_size)
+
+    plt.tick_params(labelsize=tick_size)
+    plt.tight_layout()
+    plt.grid()
+    plt.savefig('%s/%s.png' % (resultPath, title))
+    plt.savefig('%s/%s.pdf' % (resultPath, title))
 def anlz(tpSet, logPath, resultPath):
     os.chdir(sys.path[0])
     
@@ -729,7 +759,7 @@ def anlz(tpSet, logPath, resultPath):
         
         # retranPacketOnly cdf
         mapTpToResult = loadLog(logPath, tpSet,isDetail=True,retranPacketOnly=True)
-        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True,thrp="owd")
+        drawCDF(tpSet,mapTpToResult,resultPath,retranPacketOnly = True,metric="owd")
 
     elif tpSet.tpTemplate.appParam.test_type=="owdThroughputBalance":
         generateLog(logPath,tpSet)
@@ -737,19 +767,23 @@ def anlz(tpSet, logPath, resultPath):
         drawScatterGraph(tpSet, mapTpToResult, resultPath)
         #pass
     elif tpSet.tpTemplate.appParam.test_type=="throughputWithOwd":
-        #generateLog(logPath,tpSet)
+        generateLog(logPath,tpSet)
         if tpSet.tpTemplate.appParam.analyse_callback=="cdf":
             for metric in ["thrp","owd"]:
                 mapTpToResult = loadLog(logPath, tpSet, isDetail=True,metric=metric)
                 drawCDF(tpSet,mapTpToResult,resultPath,metric=metric,retranPacketOnly=False)
-        else:
-            for metric in ["owd"]:
+        elif tpSet.tpTemplate.appParam.analyse_callback=="lineChart":
+            for metric in ["thrp","owd"]:
                 mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric=metric)
                 plotByGroup(tpSet, mapTpToResult,resultPath,metric=metric)
                 summaryString = '\n'.join(['%s   \t%.3f'%(tp.name,mapTpToResult[tp]) for tp in mapTpToResult])
                 print(summaryString)
                 writeText('%s/summary_%s.txt'%(resultPath,metric), summaryString)
                 writeText('%s/template.txt'%(resultPath), tpSet.tpTemplate.serialize())
+        elif tpSet.tpTemplate.appParam.analyse_callback=="bar":
+            for metric in ["thrp","owd"]:
+                mapTpToResult = loadLog(logPath, tpSet, isDetail=False,metric=metric)
+                plotByGroup(tpSet, mapTpToResult,resultPath,metric=metric)
     fixOwnership(resultPath,'r')
 
 """

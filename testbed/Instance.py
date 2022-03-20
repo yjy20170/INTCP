@@ -27,7 +27,6 @@ def run(testParam, logPath, isManual):
                 origin_trace = testParam.topoParam
             else:
                 origin_trace = get_trace.get_trace(testParam.appParam.src,testParam.appParam.dst,route_algorithm=testParam.appParam.route_algorithm)
-                testParam.topoParam = origin_trace
             if testParam.appParam.route_algorithm=="with_isl":
                 dynamic_trace = get_trace.get_complete_trace(origin_trace=origin_trace,
                                                     isl_loss=testParam.appParam.dynamic_isl_loss,
@@ -51,7 +50,7 @@ def run(testParam, logPath, isManual):
                                                                         ground_link_rtt = testParam.appParam.dynamic_ground_link_rtt,
                                                                         bw_fluctuation = testParam.appParam.dynamic_bw_fluct)
         mn = RealNetwork.create_dynamic_net(dynamic_trace)
-
+        testParam.topoParam = dynamic_trace
     time.sleep(0.5)
 
     threads = [t for t in TbThread.Threads
