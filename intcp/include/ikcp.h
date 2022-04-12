@@ -47,10 +47,10 @@ using namespace std;
 const IUINT32 INTCP_OVERHEAD = 23;            //intcp, header include rangestart & rangeend
 const IUINT32 INTCP_MTU = 1472;
 const IUINT32 INTCP_MSS = INTCP_MTU - INTCP_OVERHEAD;
-const IUINT32 INTCP_INT_RANGE_LIMIT = 20*INTCP_MSS;
+const IUINT32 INTCP_INT_RANGE_LIMIT = INTCP_MSS;  //   5*INTCP_MSS
 
-const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms//DEBUG
-//const IUINT32 INTCP_UPDATE_INTERVAL = 1; //Unit: ms//DEBUG for retransmission test
+//const IUINT32 INTCP_UPDATE_INTERVAL = 5; //Unit: ms//DEBUG
+const IUINT32 INTCP_UPDATE_INTERVAL = 1; //Unit: ms//DEBUG for retransmission test
 const IUINT32 INTCP_DEADLINK = 8;
 
 const IUINT32 INTCP_CMD_INT = 80;         // cmd: interest 
@@ -72,13 +72,13 @@ const IUINT32 INTCP_SNHOLE_THRESHOLD = 5; // if three segs
 const int CCscheme = INTCP_CC_SCHM_RTTB;
 
 const IUINT32 INTCP_SSTHRESH_INIT = 100; // 300 -> 600 -> 100
-const IUINT32 INTCP_CWND_MIN = 2;       //2 MSS//TODO calculated by SENDRATE_MIN
+const float INTCP_CWND_MIN = 0.2;       //2 MSS//TODO calculated by SENDRATE_MIN
 //const IUINT32 INTCP_RTT0 = 10; // like hybla 10->5
 const IUINT32 INTCP_RTT0 = 30; // like hybla 10->5
 
 // RTT-based
 //const float QueueingThreshold = 10000; // unit: byte //20000
-const float QueueingThreshold = 3000; // unit: byte //5000
+const float QueueingThreshold = 3000; // unit: byte //5000,3000->1000
 const IUINT32 HrttMinWnd = 10000; // unit: ms
 
 //default config
@@ -89,7 +89,7 @@ const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 
 //for itm and varbw test
 #ifdef LARGE_SENDQ
-const IUINT32 INTCP_SNDQ_MAX = 50*INTCP_MSS; //NOTE
+const IUINT32 INTCP_SNDQ_MAX = 7*INTCP_MSS; //NOTE
 const IUINT32 INTCP_INTB_MAX = 20000*INTCP_MSS;
 #endif 
 
@@ -229,7 +229,7 @@ private:
 
     int ccState;
     int ccDataLen;
-    IUINT32 cwnd;
+    float cwnd;
     
     int intHopOwd, hopSrtt, hopRttvar;
     // if there is no interest to send in short-term future, 
@@ -239,7 +239,7 @@ private:
     // throughput calculation for rtt-based CC and app-limited detection
     IUINT32 lastThrpUpdateTs;
     int recvedBytesLastHRTT, recvedBytesThisHRTT;
-    float thrpLastHRTT; // Mbps
+    float thrpLastPeriod; // Mbps
 
     // congestion signal
     // loss-based
@@ -350,7 +350,7 @@ public:
 // rarely use
 //---------------------------------------------------------------------
     // get how many packet is waiting to be sent
-    IUINT32 getCwnd();
+    float getCwnd();
     int getWaitSnd();
     int getRwnd();
     // check the size of next message in the recv queue

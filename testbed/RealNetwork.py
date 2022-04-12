@@ -12,38 +12,49 @@ def splitLoss(loss,n):
     return 100*(1-(1-loss/100)**(1/n))
 
 #n is midnode number
+'''
 def gen_linear_topo(n):
 	name = "%d_mid"%(n)
 	numMidNode = n
 	nodes = ['h1']+['m%d'%(i+1) for i in range(n)]+['h2']
 	links = [[nodes[i],nodes[i+1]] for i in range(n+1)]
 	return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
-    
+'''
+
 #TODO automatic; provide IP to application
 def createNet(testParam):
     topo=Topo()
 
     #NOTE only suitable for chain topo
     nodes = testParam.topoParam.nodes
-    topo.addHost(nodes[0], cls=TbNode)
-    for i in range(1,len(nodes)):
-        topo.addHost(nodes[i], cls=TbNode)
-        linkName = nodes[i-1]+Param.LinkNameSep+nodes[i]
-        linkNameRvs = nodes[i]+Param.LinkNameSep+nodes[i-1]
+    links = testParam.topoParam.links
+    pathes = testParam.topoParam.pathes
+
+    # create nodes
+    for node in nodes:
+        topo.addHost(node, cls=TbNode)
+
+    # create links, set bw and rtt
+    # links of client-gs in the front, links of gs-server in the back
+    for i,link in enumerate(links):
+        nameA,nameB = link
+        linkName = nameA+Param.LinkNameSep+nameB
+        linkNameRvs = nameB+Param.LinkNameSep+nameA
         topo.addSwitch(linkName)
 
         lp = testParam.linksParam.getLP(linkName)
         delay = lp.rtt/4
         # loss = splitLoss(lp.loss,2)
         bw = lp.bw
-        if i == len(nodes)-1:
+        if i == len(links)-1:
             seg = 100
         else:
-            seg = i
-        topo.addLink(nodes[i-1],linkName, intfName1 = linkName, cls = TCLink, 
+            seg = i+1
+        #print(seg)
+        topo.addLink(nameA,linkName, intfName1 = linkName, cls = TCLink, 
                 params1 = {'ip':'10.0.%d.1/24'%seg},
                 bw = bw, delay = '%dms'%delay,loss=0)
-        topo.addLink(nodes[i],linkName, intfName1 = linkNameRvs, cls = TCLink, 
+        topo.addLink(nameB,linkName, intfName1 = linkNameRvs, cls = TCLink, 
                 params1 = {'ip':'10.0.%d.2/24'%seg},
                 bw = bw, delay = '%dms'%delay,loss=0)
 
@@ -51,10 +62,11 @@ def createNet(testParam):
     mn.start()
 
     # set one-way loss
-    for i in range(1,len(nodes)):
-        linkName = nodes[i-1]+Param.LinkNameSep+nodes[i]
+    for i,link in enumerate(links):
+        nameA,nameB = link
+        linkName = nameA+Param.LinkNameSep+nameB
         lp = testParam.linksParam.getLP(linkName)
-        nodeB = mn.getNodeByName(nodes[i])
+        nodeB = mn.getNodeByName(nameB)
         switch = mn.getNodeByName(linkName)
         intf = nodeB.connectionsTo(switch)[0][0]
         dlcmds, __ = intf.delayCmds(is_change=True,loss=lp.loss)
@@ -62,6 +74,9 @@ def createNet(testParam):
             intf.tc(cmd)
 
     # add route rules
+    for path in pathes:
+        setStaticRoute(mn,links,path)
+    '''
     for i in range(len(nodes)-1):
         if i == len(nodes)-2:
             seg = 100
@@ -69,55 +84,44 @@ def createNet(testParam):
             seg = i+1
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.2'%seg)
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.1'%100)
+    
     for i in range(2,len(nodes)-1):
         for seg in range(1,i):
             mn.getNodeByName(nodes[i]).cmd(
                     'route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.1'%(seg,i))
     mn.getNodeByName(nodes[-1]).cmd('ethtool -K %s_%s tso off'%(nodes[-1],nodes[-2]))
+    '''
     #BUG bug in Mininet
     # there must be some traffic between the endpoints before running intcp, 
     # otherwise the first dozens of interests will be out of order,
     # leading to severe fake interest hole
     # so we use ping here
-    mn.ping([mn['h1'],mn['h2']],outputer=info)
+    #mn.ping([mn['h1'],mn['h2']],outputer=info)
 
     return mn
-def gen_test_trace(): # only for test, the first second 
-    max_midnodes = 16
-    total_midnodes = 16
-    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),
-            (8,9),(9,10),(10,11),(11,12),(12,13),(13,14),(14,15),(15,16),(16,-1)]
-    #links_params = None
-    link_param_1 = {"topo":[(i+1) for i in range(16)],
-                    "rtt":[50,6.43,13.08,13.08,8.96,4.15,8.96,4.15,8.96,4.15,
-                            8.96,4.15,8.96,4.15,8.96,13.08,13.08,4.33,50],
-                    #"rtt":[50]+[10]*18+[50],
-                    "loss":[0]+[0]*17+[0],
-                    "bw":[20]*17+[5,20]}
-    links_params = [link_param_1]
-    return max_midnodes,total_midnodes,isls,links_params
 
-def gen_extreme_trace(): #extreme topo ,when link change per 1s can beat bbr
-    max_midnodes = 6
-    total_midnodes = 12
-    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,-1),
-            (0,7),(7,8),(8,9),(9,10),(10,11),(11,12),(12,-1)]
-    #links_params = None
-    link_param_1 = {"topo":[1,2,3,4,5,6],"rtt":[20,10,10,10,10,10,10,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
-    link_param_2 = {"topo":[7,8,9,10,11,12],"rtt":[20,10,20,20,20,20,20,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
-    links_params = [link_param_2]+[link_param_1]
-    return max_midnodes,total_midnodes,isls,links_params
+# for fairness test in static topo
+def setStaticRoute(mn,links,path):
+    segs = []
+    for i in range(len(path)-1):
+        nameA = path[i]
+        nameB = path[i+1]
+        if nameB=="h2":
+            seg = 100
+        else:
+            seg = links.index([nameA,nameB])+1
+        segs.append((seg,1))
+    #set default gw
+    for i in range(len(path)-1):
+        mn.getNodeByName(path[i]).cmd('route add default gw 10.0.%d.%d'%(segs[i][0],3-segs[i][1]))
+    mn.getNodeByName(path[-1]).cmd('route add default gw 10.0.%d.%d'%(segs[-1][0],segs[-1][1]))
 
-def gen_link_change_trace():
-    max_midnodes = 2
-    total_midnodes = 4
-    isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
-    #links_params = None
-    link_param_1 = {"topo":[1,2],"rtt":[20,10,20,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
-    link_param_2 = {"topo":[3,4],"rtt":[20,10,10,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
-    links_params = [link_param_1,link_param_2]
-    return max_midnodes,total_midnodes,isls,links_params
-
+    #set other gw
+    for i in range(2,len(path)-1):
+        for j in range(i-1):
+            mn.getNodeByName(path[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.%d'%(segs[j][0],segs[i-1][0],segs[i-1][1]))
+    mn.getNodeByName(path[-1]).cmd('ethtool -K %s_%s tso off'%(path[-1],path[-2]))
+    mn.ping([mn[path[0]],mn[path[-1]]],outputer=info)
 
 def setRoute(mn,isls,topo):
     if topo is None:
@@ -135,12 +139,12 @@ def setRoute(mn,isls,topo):
     nodes = ['h1','gs1']+['m%d'%(topo[i]) for i in range(len(topo))]+['gs2','h2']
     #print(nodes)
 
-    #delete default gw
+    #set default gw
     for i in range(len(nodes)-1):
         mn.getNodeByName(nodes[i]).cmd('route add default gw 10.0.%d.%d'%(segs[i][0],3-segs[i][1]))
     mn.getNodeByName(nodes[-1]).cmd('route add default gw 10.0.%d.%d'%(segs[-1][0],segs[-1][1]))
 
-    #delete other gw
+    #set other gw
     for i in range(2,len(nodes)-1):
         for j in range(i-1):
             mn.getNodeByName(nodes[i]).cmd('route add -net 10.0.%d.0 netmask 255.255.255.0 gw 10.0.%d.%d'%(segs[j][0],segs[i-1][0],segs[i-1][1]))
@@ -234,3 +238,39 @@ def create_all_links(topo,isls,bw=10,delay=10,loss=0):
 
     #initialize all links
 
+
+def gen_test_trace(): # only for test, the first second 
+    max_midnodes = 16
+    total_midnodes = 16
+    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),
+            (8,9),(9,10),(10,11),(11,12),(12,13),(13,14),(14,15),(15,16),(16,-1)]
+    #links_params = None
+    link_param_1 = {"topo":[(i+1) for i in range(16)],
+                    "rtt":[50,6.43,13.08,13.08,8.96,4.15,8.96,4.15,8.96,4.15,
+                            8.96,4.15,8.96,4.15,8.96,13.08,13.08,4.33,50],
+                    #"rtt":[50]+[10]*18+[50],
+                    "loss":[0]+[0]*17+[0],
+                    "bw":[20]*17+[5,20]}
+    links_params = [link_param_1]
+    return max_midnodes,total_midnodes,isls,links_params
+
+def gen_extreme_trace(): #extreme topo ,when link change per 1s can beat bbr
+    max_midnodes = 6
+    total_midnodes = 12
+    isls = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,-1),
+            (0,7),(7,8),(8,9),(9,10),(10,11),(11,12),(12,-1)]
+    #links_params = None
+    link_param_1 = {"topo":[1,2,3,4,5,6],"rtt":[20,10,10,10,10,10,10,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
+    link_param_2 = {"topo":[7,8,9,10,11,12],"rtt":[20,10,20,20,20,20,20,10,20],"loss":[0,1,1,1,1,1,1,1,0],"bw":[20,20,20,20,20,20,20,20,20]}
+    links_params = [link_param_2]+[link_param_1]
+    return max_midnodes,total_midnodes,isls,links_params
+
+def gen_link_change_trace():
+    max_midnodes = 2
+    total_midnodes = 4
+    isls = [(0,1),(1,2),(2,-1),(0,3),(3,4),(4,-1),(3,2)]
+    #links_params = None
+    link_param_1 = {"topo":[1,2],"rtt":[20,10,20,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
+    link_param_2 = {"topo":[3,4],"rtt":[20,10,10,10,20],"loss":[0,0.1,0.1,0.1,0],"bw":[20,20,20,20,20]}
+    links_params = [link_param_1,link_param_2]
+    return max_midnodes,total_midnodes,isls,links_params

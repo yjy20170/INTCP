@@ -16,9 +16,10 @@ lastSniffTime =0
 
 def getArgsFromCli():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--t',action='store_const', const=True, default=False, help='sniffer for tcp packets')
+    parser.add_argument('-t',type=int, default=0, help='sniffer for tcp packets')
     parser.add_argument('-f',type=int, default=0)
     parser.add_argument('-l',type=int, default=0,help="number limit for packet")
+    parser.add_argument('-i',type=str, default=None)
 
     args = parser.parse_args()
     return args
@@ -65,14 +66,14 @@ def Callback_udp(packet):
             cmd,wnd,ts,sn,length,rangeStart,rangeEnd = unpack(bytePayload,pos)
             pos += (23+length)
 
-            #cur = int(time.time()*1000)%2**32
+            cur = int(time.time()*1000)%2**32
             if cmd==81: #data only
                 print("sn",sn,"length",length,"rangeStart",rangeStart,"rangeEnd",rangeEnd,"time",Utils.getStrTime(),flush=True)
                 packet_cnt += 1
             #if cmd==81:
-                # print('cur',int(time.time()*1000)%2**32,'ts',ts)
+                #print('cur',int(time.time()*1000)%2**32,'ts',ts)
                 #if cur - ts > timeFilter:
-                   # print(f"{cur} ({sn}) time - ts {cur - ts}")
+                #print(f"{cur} ({sn}) time - ts {cur - ts}")
             # if cmd==80:
             #     # print('cur',int(time.time()*1000)%2**32,'ts',ts)
             #     if int(time.time()*1000)%2**32 - ts > timeFilter:
@@ -99,20 +100,23 @@ if __name__=="__main__":
     args = getArgsFromCli()
     timeFilter = args.f
     packet_limit = args.l
+    iface = args.i
     packet_cnt = 0
+    
     if packet_limit>0:
         if args.t:
             #sniff(filter='src host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
-            sniff(count=packet_limit,filter='dst host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
+            sniff(count=packet_limit,filter='dst host 10.0.1.1',iface=iface, prn=Callback_tcp) #tcp packet from client to server
         else:#DEBUG dst
-            sniff(count=packet_limit,filter='dst host 10.0.1.1', prn=Callback_udp) #udp packet from server to client
+            sniff(count=packet_limit,filter='dst host 10.0.1.1',iface=iface,prn=Callback_udp) #udp packet from server to client
     else:
         max_cnt = 20000
         if args.t:
             while True:
-                sniff(count=max_cnt,filter='dst host 10.0.1.1', prn=Callback_tcp) #tcp packet from client to server
+                sniff(count=max_cnt,filter='dst host 10.0.1.1',iface=iface, prn=Callback_tcp) #tcp packet from client to server
                 time.sleep(2)
         else:#DEBUG dst
             while True:
-                sniff(count=max_cnt,filter='dst host 10.0.1.1', prn=Callback_udp) #udp packet from server to client
+                sniff(count=max_cnt,filter='dst host 10.0.1.1',iface=iface,prn=Callback_udp) #udp packet from server to client
                 time.sleep(2)
+    

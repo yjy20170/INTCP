@@ -96,9 +96,15 @@ def ThroughputTest(mn,testParam,logPath):
     for i in range(testParam.appParam.sendRound): #TODO log is overwritten now
         #NOTE open pep; cleaript
         start_midnode_processes(mn,testParam,useTCP)
-        if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
-            atomic(mn.getNodeByName('h2').cmd)('echo -e "\nbytes before test:\c" > %s'%(logFilePath))
-            atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+        if testParam.appParam.test_type=="throughputWithTraffic":
+            if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
+                atomic(mn.getNodeByName('h2').cmd)('echo -e "\nsend bytes before test:\c" > %s'%(logFilePath))
+                atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+            else:
+                atomic(mn.getNodeByName('h1').cmd)('echo -e "\nreceive bytes before test:\c" > %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('cat /sys/class/net/h1_gs1/statistics/rx_bytes >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('echo -e "\nreceive packets before test:\c" >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('cat /sys/class/net/h1_gs1/statistics/rx_packets >> %s'%(logFilePath))
         if useTCP:      #only support e2e TCP1
             #print("2")
             atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%logFilePath)
@@ -108,10 +114,17 @@ def ThroughputTest(mn,testParam,logPath):
             atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
             time.sleep(1)
             atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%logFilePath)
-        time.sleep(testParam.appParam.sendTime + 5)
-        if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
-            atomic(mn.getNodeByName('h2').cmd)('echo -e "\nbytes after test: \c" >> %s'%(logFilePath))
-            atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+        #time.sleep(testParam.appParam.sendTime + 5)
+        time.sleep(testParam.appParam.sendTime + 10)
+        if testParam.appParam.test_type=="throughputWithTraffic":
+            if not testParam.appParam.dynamic and 'dummy' in testParam.topoParam.nodes:
+                atomic(mn.getNodeByName('h2').cmd)('echo -e "\nsend bytes after test:\c" >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+            else:
+                atomic(mn.getNodeByName('h1').cmd)('echo -e "\nreceive bytes after test:\c" >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('cat /sys/class/net/h1_gs1/statistics/rx_bytes >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('echo -e "\nreceive packets after test:\c" >> %s'%(logFilePath))
+                atomic(mn.getNodeByName('h1').cmd)('cat /sys/class/net/h1_gs1/statistics/rx_packets >> %s'%(logFilePath))
         if testParam.appParam.sendRound>1:
             if useTCP:
                 kill_pep_processes(mn,testParam)
@@ -170,23 +183,19 @@ def TrafficTest(mn, testParam, logPath):
     useTCP = testParam.appParam.get('protocol')=="TCP"
     start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
     data_size = testParam.appParam.data_size
+    atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
     if useTCP:
-        a = 1   #do nothing
-        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
         atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/client.py -f %f >/dev/null 2>&1 &'%(data_size))
-        time.sleep(testParam.appParam.sendTime)
-        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
     else:
-        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &') 
-        time.sleep(testParam.appParam.sendTime)
-        atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
+    time.sleep(testParam.appParam.sendTime)
+    atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
     return
 
 @threadFunc(True)
-def owdThrpBalanceTest(mn, testParam, logPath):
+def ThrpWithOwdTest(mn, testParam, logPath):
     if not testParam.appParam.test_type in ["owdThroughputBalance","throughputWithOwd"]:
         return
     logFilePath = '%s/%s.txt'%(logPath, testParam.name)
@@ -202,73 +211,78 @@ def owdThrpBalanceTest(mn, testParam, logPath):
     useTCP = testParam.appParam.get('protocol')=="TCP"
     start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
     
+    # discard: owdThrpBalance -l 100000
+    
+    atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py -t %d -i %s > %s &'%(useTCP,"h2_gs2",senderLogFilePath))
+    atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py -t %d -i %s > %s &'%(useTCP,"h1_gs1",receiverLogFilePath))
+    #atomic(mn.getNodeByName('gs2').cmd)('python3 ./sniff.py -t %d -i %s > %s &'%(useTCP,"gs2_h2",senderLogFilePath))
+    #atomic(mn.getNodeByName('gs2').cmd)('python3 ./sniff.py -t %d -i %s > %s &'%(useTCP,"gs2_m1",receiverLogFilePath))
+
+    time.sleep(1)
+
     if useTCP:
-        if testParam.appParam.test_type=="owdThroughputBalance":
-            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
-            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
-        else:
-            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t  > %s &'%(senderLogFilePath))
-            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t  > %s &'%(receiverLogFilePath))
-        time.sleep(1)
         atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%(thrpLogFilePath))
         time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
     else:
-        if testParam.appParam.test_type=="owdThroughputBalance":
-            a = 1
-            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 100000 > %s &'%(senderLogFilePath))
-            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 100000 > %s &'%(receiverLogFilePath))
-        else:
-            atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  > %s &'%(senderLogFilePath))
-            atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  > %s &'%(receiverLogFilePath))
-        time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
         time.sleep(1)
         atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(thrpLogFilePath))
+
     time.sleep(testParam.appParam.sendTime+5)
     return
+
+@threadFunc(True)
+def FairnessTest(mn,testParam,logPath):
+    if not testParam.appParam.test_type=="fairnessTest":
+        return
+    flowNum = testParam.appParam.flowNum
+    flowIntv = testParam.appParam.flowIntv
+    singlePath = testParam.appParam.singlePath
+    logFilePathes = []
+    for i in range(flowNum):
+        logFilePath = '%s/%s_%d.txt'%(logPath, testParam.name,i+1)
+        logFilePathes.append(logFilePath)
+        delFile(logFilePath)
+        
+    useTCP = testParam.appParam.get('protocol')=="TCP"
+    start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
+    if singlePath:  # h1
+        if useTCP:
+            for i in range(flowNum):
+                atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 -p %d --logfile %s &'%(5201+i,logFilePathes[i]))
+            time.sleep(1)
+            for i in range(flowNum):
+                atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d -p %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime,5201+i) )
+                time.sleep(flowIntv-1)
+        else:
+            atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
+            time.sleep(1)
+            for i in range(flowNum):
+                atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc > %s &'%(logFilePathes[i]))
+                time.sleep(flowIntv-1)
+        time.sleep(testParam.appParam.sendTime-flowIntv+5)
+    else:
+        pass
 
 '''
 @threadFunc(True)
-def throughputWithOwdTest(mn, testParam, logPath):
-    if not testParam.appParam.test_type=="owdThroughputBalance":
+def DynamicTrafficTest(mn, testParam, logPath):
+    if not testParam.appParam.test_type=="dynamicTrafficTest":
         return
-    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
-    thrpLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"thrp")
-    senderLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"send")
-    receiverLogFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"recv")
-
+    logFilePath = '%s/%s_%s.txt'%(logPath, testParam.name,"traffic")
     delFile(logFilePath)
-    delFile(thrpLogFilePath)
-    delFile(senderLogFilePath)
-    delFile(receiverLogFilePath)
-
     useTCP = testParam.appParam.get('protocol')=="TCP"
     start_midnode_processes(mn,testParam,useTCP,pep_nodelay=1)
-    
+    data_size = testParam.appParam.data_size
+    atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes > %s'%(logFilePath))
     if useTCP:
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py --t -l 100000 > %s &'%(receiverLogFilePath))
-        time.sleep(1)
-        atomic(mn.getNodeByName('h1').cmd)('iperf3 -s -f k -i 1 --logfile %s &'%(thrpLogFilePath))
-        time.sleep(1)
-        atomic(mn.getNodeByName('h2').cmd)('iperf3 -c 10.0.1.1 -f k -C %s -t %d &'%(testParam.appParam.e2eCC,testParam.appParam.sendTime) )
+        atomic(mn.getNodeByName('h1').cmd)('python3 ../appLayer/tcpApp/server.py >/dev/null 2>&1 &')
+        atomic(mn.getNodeByName('h2').cmd)('python3 ../appLayer/tcpApp/client.py -f %f >/dev/null 2>&1 &'%(data_size))
     else:
-        atomic(mn.getNodeByName('h2').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(senderLogFilePath))
-        atomic(mn.getNodeByName('h1').cmd)('python3 ./sniff.py  -l 50000 > %s &'%(receiverLogFilePath))
-        time.sleep(1)
         atomic(mn.getNodeByName('h2').cmd)('../appLayer/intcpApp/intcps >/dev/null 2>&1 &')
-        time.sleep(1)
-        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >> %s &'%(thrpLogFilePath))
-    time.sleep(testParam.appParam.sendTime+5)
+        atomic(mn.getNodeByName('h1').cmd)('../appLayer/intcpApp/intcpc >/dev/null 2>&1 &') 
+    time.sleep(testParam.appParam.sendTime)
+    atomic(mn.getNodeByName('h2').cmd)('cat /sys/class/net/h2_dummy/statistics/tx_bytes >> %s'%(logFilePath))
     return
-'''
-# for intcp only
-# @threadFunc(True)
-'''
-def PerformTest(mn, testParam, logPath):
-    if not testParam.appParam.get('protocol')=="INTCP":
-        return
-    print("performance test begin")
-    logFilePath = '%s/%s.txt'%(logPath, testParam.name)
 '''

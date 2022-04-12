@@ -22,8 +22,8 @@ class MyAppParam(AppParam):
             'analyse_callback',  #lineChart,cdf
             'sendq_length',
             'src','dst',
-            'route_algorithm'   #relay_only , with_isl
-            #'isRttTest','isFlowTest'
+            'route_algorithm',   #relay_only , with_isl
+            'flowNum','flowIntv','singlePath'
     ]
 
 # n is satllite number
@@ -35,13 +35,21 @@ def gen_linear_topo(n,has_dummy_node=False):
     else:
         nodes = ['h1','gs1']+['m%d'%(i+1) for i in range(n)]+['gs2','h2']
     links = [[nodes[i],nodes[i+1]] for i in range(len(nodes)-1)]
-    return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links)
-	
+    pathes = [nodes]
+    return TopoParam(name=name,numMidNode=numMidNode,nodes=nodes,links=links,pathes=pathes)
+
+def gen_fairness_topo():
+    nodes = ['h%d'%(i+1) for i in range(3)] + ['gs%d'%(i+1) for i in range(3)] + ['m%d'%(i+1) for i in range(3)]
+    links = [['h1','gs1'],['h3','gs3'],['gs1','m1'],['m1','gs2'],
+             ['gs3','m2'],['m2','m3'],['m3','m1'],['gs2','h2']]
+    pathes = [['h1','gs1','m1','gs2','h2'],['h3','gs3','m2','m3','m1','gs2','h2']]
+    return TopoParam(name="fairness",numMidNode=3,nodes=nodes,links=links,pathes=pathes)
+
 # don't change these
 #
-Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
-Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
-Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
+#Topo1 = TopoParam(name='1_mid',numMidNode=1,nodes=['h1','pep1','h2'],links=[['h1','pep1'],['pep1','h2']])
+#Topo2 = TopoParam(name='2_mid',numMidNode=2,nodes=['h1','pep1','pep2','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','h2']])
+#Topo3 = TopoParam(name='3_mid',numMidNode=3,nodes=['h1','pep1','pep2','pep3','h2'],links=[['h1','pep1'],['pep1','pep2'],['pep2','pep3'],['pep3','h2']])
 
 #dynamic_test_topo = gen_test_trace()
 dynamic_extreme_topo = gen_extreme_trace()   #for test
@@ -64,7 +72,10 @@ DefaultAP = MyAppParam(
         analyse_callback="lineChart",test_type="throughputTest",
         sendq_length = 10000,
         src=-1,dst=-1,
-        route_algorithm = "with_isl"
+        route_algorithm = "with_isl",
+        flowNum = 3,
+        flowIntv = 20,
+        singlePath = True
         #isRttTest=0,isFlowTest=0
         )
 
@@ -73,22 +84,25 @@ def getTestParamSet(tpsetName):
     tpSet = None
     if tpsetName == "static_test":    #retran test
         tpSet = TestParamSet(tpsetName,
-                gen_linear_topo(2),
-                LinksParam(DefaultLP.set(bw=5,loss=0,rtt=50), 
-                    {'gs1_m1':{'rtt':50},
-                    'm2_gs2':{'rtt':50}}),
-                DefaultAP.set(sendTime=60),
-                keyX = 'defaultLP.loss',
+                gen_linear_topo(1),
+                LinksParam(DefaultLP.set(bw=20,loss=0,rtt=20), 
+                    {
+                    'gs1_m1':{'rtt':10},#'varBw':6,'varIntv':5
+                    'm1_gs2':{'rtt':10},
+                    }),
+                DefaultAP.set(sendTime=60,test_type="fairnessTest"),
+                keyX = 'gs1_m1.varBw',
                 keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
-                {'defaultLP.loss':[0]#0,4,8,12,16
+                {
                 },
                 {
                 'in_pep':{'midCC':'pep','protocol':'INTCP'},
-                #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
-                
-                }
-        )
+                'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+                #'cubic':{'midCC':'nopep','e2eCC':'cubic','protocol':'TCP'},
+                #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'}
+                #'westwood':{'midCC':'nopep','e2eCC':'westwood','protocol':'TCP'}
+                })
 
     if tpsetName == "dynamic_test":
         tpSet = TestParamSet(tpsetName,
@@ -171,10 +185,11 @@ def getTestParamSet(tpsetName):
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
-    if tpsetName == "dynamic_sim_test_3":   #sendq =50
+    if tpsetName == "dynamic_sim_test_3":   #sendq = 20 ,threshold = 3000
+        dynamic_real_topo = get_trace(6,9,0,600)
         tpSet = TestParamSet(tpsetName,
             dynamic_real_topo,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="bar"),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),#,analyse_callback="cdf"
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
         tpSet.add(
@@ -187,9 +202,10 @@ def getTestParamSet(tpsetName):
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
     if tpsetName == "dynamic_sim_test_3_backup":   #sendq =1000
+        dynamic_real_topo = get_trace(6,9,0,600)
         tpSet = TestParamSet(tpsetName,
             dynamic_real_topo,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd"),   #,analyse_callback="cdf"
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC','dynamic_isl_loss'])
         tpSet.add(
@@ -198,14 +214,14 @@ def getTestParamSet(tpsetName):
             },
             {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
-             'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
-             'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+             #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
 
     if tpsetName == "distance_test_with_isl":   #sendq=50 , queue=5000, rtt0=30
         tpSet = TestParamSet(tpsetName,
             None,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="bar"),
+            DefaultAP.set(dynamic=1,dynamic_complete=False,dynamic_bw_fluct=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="bar"),   #,analyse_callback="bar"
             keyX = 'dst',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
@@ -214,9 +230,10 @@ def getTestParamSet(tpsetName):
             },
             {
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             'in_pep':{'midCC':'pep','protocol':'INTCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
-             'in_pep':{'midCC':'pep','protocol':'INTCP'}
+             
             },
             {
                 'beijing_hangkong':{'src':6,'dst':45},
@@ -237,10 +254,10 @@ def getTestParamSet(tpsetName):
             {
                 'dynamic_isl_loss':[1]#0.2,0.5,1
             },
-            {#'in_pep':{'midCC':'pep','protocol':'INTCP'},
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
-             'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             },
             {
                 #'beijing_hangkong':{'src':6,'dst':45},
@@ -291,7 +308,7 @@ def getTestParamSet(tpsetName):
         dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True,uplink_loss=1,downlink_loss=1) 
         tpSet = TestParamSet(tpsetName,
             dynamic_topo,None,
-            DefaultAP.set(dynamic=1,dynamic_complete=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),
+            DefaultAP.set(dynamic=1,dynamic_complete=True,sendTime=600,test_type="throughputWithOwd",analyse_callback="cdf"),   #,analyse_callback="cdf"
             keyX = 'dynamic_isl_loss',
             keysCurveDiff=['protocol','midCC','e2eCC'])
         tpSet.add(
@@ -302,6 +319,23 @@ def getTestParamSet(tpsetName):
              #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
              'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
              'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
+            })
+    if tpsetName == "beijing_shanghai_cdf_backup":   #sendq =1000
+        origin_trace = get_trace(6,2,0,600,route_algorithm="relay_only")
+        dynamic_topo = get_complete_relay_only_trace(origin_trace,bw_fluctuation=True,uplink_loss=1,downlink_loss=1) 
+        tpSet = TestParamSet(tpsetName,
+            dynamic_topo,None,
+            DefaultAP.set(dynamic=1,dynamic_complete=True,sendTime=600,test_type="throughputWithOwd"),
+            keyX = 'dynamic_isl_loss',
+            keysCurveDiff=['protocol','midCC','e2eCC'])
+        tpSet.add(
+            {
+                #'dynamic_isl_loss':[0.2,0.5,1]#0.2,0.5,1
+            },
+            {'in_pep':{'midCC':'pep','protocol':'INTCP'},
+             #'in_nopep':{'midCC':'nopep','protocol':'INTCP'},
+             #'bbr':{'midCC':'nopep','e2eCC':'bbr','protocol':'TCP'},
+             #'pcc':{'midCC':'nopep','e2eCC':'pcc','protocol':'TCP'},
             })
     if tpsetName == "dynamic_exp_2": #relative normal environment, need reduce loss?
         tpSet = TestParamSet(tpsetName,

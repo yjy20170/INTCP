@@ -28,6 +28,7 @@ from hypatia_tools.read_ground_stations import *
 from hypatia_tools.read_tles import *
 import exputil
 import tempfile
+import numpy as np
 
 isl_trace_dir = "./hypatia_trace/starlink_550_isls_plus_grid_ground_stations_top_100_algorithm_free_one_only_over_isls"
 relay_only_trace_dir = "./hypatia_trace/starlink_550_isls_none_ground_stations_top_100_algorithm_free_one_only_gs_relays"
@@ -328,6 +329,11 @@ def find_test_city():
     for i in range(100):
         print(res[i])
 
+def calc_average_hop(city1,city2):
+    max_midnode_num,total_midnode_num,isls,links_params = get_trace(city1,city2,0,600)
+    average_hop = np.mean([len(lp["topo"]) for lp in links_params])
+    print(average_hop+3)
+    return average_hop+3
 '''
 #max_midnode_num,total_midnode_num,isls,links_params = get_complete_trace(get_trace(6,2,0,600,route_algorithm),bw_fluctuation=False)
 origin_trace = get_trace(6,2,0,600,route_algorithm="relay_only")

@@ -32,7 +32,8 @@ if __name__=='__main__':
 
     # controlled experiments:
     #"retran_test","final_itm_test_1","final_varbw_test_1","dynamic_exp_4","loss_test_1","flow_test_2","owd_thrp_balance_itm_test","owd_thrp_balance_varbw_test"
-    tpSetNames = ["beijing_shanghai_cdf"]#"","dynamic_exp_4"
+    #"beijing_shanghai_cdf","distance_test_with_isl","dynamic_sim_test_3"
+    tpSetNames = ["static_test"]#"dynamic_sim_test_3_backup","beijing_shanghai_cdf_backup","distance_test_with_isl_backup"
     try:
         for sno,tpSetName in enumerate(tpSetNames):
             if len(tpSetNames)!=1:
@@ -57,7 +58,7 @@ if __name__=='__main__':
 
             if not isManual:
                 time.sleep(1)
-                autoAnlz.anlz(tpSet, logPath, resultPath)
+        autoAnlz.anlz(tpSet, logPath, resultPath)
     except KeyboardInterrupt:
         print('\nStopped')
 

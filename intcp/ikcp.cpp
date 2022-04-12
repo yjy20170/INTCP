@@ -53,11 +53,11 @@ lastThrpUpdateTs(0),
 recvedBytesThisHRTT(0),
 recvedBytesLastHRTT(0),
 hasLossEvent(false),
-thrpLastHRTT(0),
+thrpLastPeriod(0),
 conseqTimeout(0),
 lastSendIntTs(0),
 lastFlushTs(0),
-intOutputLimit(INTCP_SNDQ_MAX)
+intOutputLimit(INTCP_SNDQ_MAX)    //INTCP_SNDQ_MAX
 {
     stat.init();
 
@@ -944,10 +944,10 @@ int IntcpTransCB::input(char *data, int size)
                 stat.recvedUDP += len;
                 if(lastThrpUpdateTs==0)
                     lastThrpUpdateTs = current;
-                if(_itimediff(current,lastThrpUpdateTs)>hopSrtt){
+                if(_itimediff(current,lastThrpUpdateTs)>hopSrtt){ //hopSrtt
                     recvedBytesLastHRTT = recvedBytesThisHRTT;
-                    thrpLastHRTT = bytesToMbit(recvedBytesThisHRTT)/(current-lastThrpUpdateTs)*1000;
-                    LOG(TRACE,"receive rate = %.2fMbps", thrpLastHRTT);
+                    thrpLastPeriod = bytesToMbit(recvedBytesThisHRTT)/(current-lastThrpUpdateTs)*1000;
+                    LOG(TRACE,"receive rate = %.2fMbps", thrpLastPeriod);
                     recvedBytesThisHRTT = 0;
                     lastThrpUpdateTs = current;
                 }
@@ -1056,8 +1056,8 @@ void IntcpTransCB::flushIntBuf(){
     // }
     int newOutput;
     if(srtt!=0){
-        //TODO thrpLastHRTT -> thrp at producer
-        newOutput = float(rmt_sndq_rest)*flushIntv/srtt + mbitToBytes(thrpLastHRTT)*flushIntv/1000;
+        //TODO thrpLastPeriod -> thrp at producer
+        newOutput = float(rmt_sndq_rest)*flushIntv/srtt + mbitToBytes(thrpLastPeriod)*flushIntv/1000;
         newOutput = max(newOutput, mbitToBytes(INTCP_SENDRATE_MIN)*int(flushIntv)/1000);
         intOutputLimit += newOutput;
     }
@@ -1101,7 +1101,7 @@ void IntcpTransCB::flushIntBuf(){
         if (needsend) {
             if(nodeRole==INTCP_ROLE_REQUESTER){
                 // rmt_sndq_rest -= segPtr->rangeEnd - segPtr->rangeStart;
-                if(intOutputLimit<segPtr->rangeEnd - segPtr->rangeStart){
+                if(intOutputLimit<segPtr->rangeEnd - segPtr->rangeStart){//intOutputLimit<segPtr->rangeEnd - segPtr->rangeStart
                     LOG(TRACE,"intOutputLimit %d bytes seglen %d qsize %ld",
                             intOutputLimit,segPtr->rangeEnd - segPtr->rangeStart,sndQueue.size());
                     reach_limit = true;
@@ -1294,7 +1294,7 @@ void IntcpTransCB::update()
          //}
         
         if(nodeRole==INTCP_ROLE_REQUESTER){
-            LOG(DEBUG,"%u. %4d %d C %4u ↑%.1f ↓%.1f+%.2f iQ %ld iB %d rB %ld T %d D %d",
+            LOG(DEBUG,"%u. %4d %d C %.1f ↑%.1f ↓%.1f+%.2f iQ %ld iB %d rB %ld T %d D %d Hthrp %.2f",
                     current,srtt,hopSrtt,
                     cwnd,
                     float(getDataSendRate())/100,
@@ -1303,7 +1303,8 @@ void IntcpTransCB::update()
                     intQueue.size(),
                     intBufBytes/INTCP_MSS,
                     rcvBuf.size(),
-                    stat.cntTimeout,stat.cntDataHole);
+                    stat.cntTimeout,stat.cntDataHole,
+                    thrpLastPeriod);
             //NOTE
             printf("  %4ds %.2f Mbits/sec receiver\n",
                     (current-stat.startTs)/1000,
@@ -1311,12 +1312,13 @@ void IntcpTransCB::update()
             );
         }
         if(nodeRole==INTCP_ROLE_MIDNODE){
-            LOG(DEBUG,"CC| %d C %u ↑%.1f ↓%.1f I %d D %d",
+            LOG(DEBUG,"CC| %d C %.1f ↑%.1f ↓%.1f I %d D %d Hthrp %.2f",
                     hopSrtt,
                     cwnd,
                     float(getDataSendRate())/100,
                     bytesToMbit(stat.recvedUDP)*1000/(current-stat.lastPrintTs),
-                    stat.cntIntHole,stat.cntDataHole);
+                    stat.cntIntHole,stat.cntDataHole,
+                    thrpLastPeriod);
         }
         if(nodeRole!=INTCP_ROLE_REQUESTER){
             LOG(DEBUG,"%4d r↑%.1f sent %.1f sQ %d I %d",
@@ -1391,7 +1393,12 @@ IINT16 IntcpTransCB::getDataSendRate(){
         rate = INTCP_SENDRATE_MIN;
     }else{
         // suppose rcvBuf and rcvQueue is always big enough
-        rate = bytesToMbit(cwnd*INTCP_MSS)/hopSrtt*1000; //Mbps
+        //NOTE hopSrtt -> minHrtt
+        int minHrtt = 999999;
+        for(auto pr: hrttQueue){
+            minHrtt = min(minHrtt, pr.second);
+        }
+        rate = bytesToMbit(cwnd*INTCP_MSS)/minHrtt*1000; //Mbps
         if(nodeRole != INTCP_ROLE_REQUESTER){ // MIDNODE
             float rateForQueue = (bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000+rmtSendRate;
             //float rateForQueue = max(float(0),bytesToMbit(INTCP_SNDQ_MAX)-bytesToMbit(sndQueueBytes))/hopSrtt*1000+rmtSendRate;
@@ -1440,13 +1447,13 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
         for(auto pr: hrttQueue){
             minHrtt = min(minHrtt, pr.second);
         }
-        if(thrpLastHRTT == -1){
+        if(thrpLastPeriod == -1){
             congSignal = false;
         }else{
-            congSignal = mbitToBytes(thrpLastHRTT)*(hopSrtt - minHrtt)/1000 > QueueingThreshold;
+            congSignal = mbitToBytes(thrpLastPeriod)*(hopSrtt - minHrtt)/1000 > QueueingThreshold;
         }
     }
-    IUINT32 cwndOld = cwnd;// for debug
+    float cwndOld = cwnd;// for debug
     //LOG(SILENT,"cwnd %d mtu\n",cwnd);
 
     ccDataLen += dataLen;
@@ -1464,38 +1471,44 @@ void IntcpTransCB::updateCwnd(IUINT32 dataLen){
         if(congSignal){
             //NOTE cwnd decrease function
             if(CCscheme == INTCP_CC_SCHM_LOSSB){
-                cwnd = max(IUINT32(cwnd/2),INTCP_CWND_MIN);
+                cwnd = max(cwnd/2,INTCP_CWND_MIN);
             }else if(CCscheme == INTCP_CC_SCHM_RTTB){
-                LOG(TRACE,"--- %u %d C %u ↓%.1f ---",current,hopSrtt,cwnd,thrpLastHRTT);
-                IUINT32 cwndNew = mbitToBytes(thrpLastHRTT)/1000*minHrtt/INTCP_MSS;
-                // IUINT32 cwndNew = mbitToBytes(thrpLastHRTT)*0.8/1000*hopSrtt/INTCP_MSS;
+                float cwndNew = (float(mbitToBytes(thrpLastPeriod))/1000*minHrtt/INTCP_MSS) * 0.9;
+                LOG(TRACE,"--- %d C %.1f->%.1f ↓%.1f delta %u ---",hopSrtt,cwnd,cwndNew,thrpLastPeriod,hopSrtt - minHrtt);
                 cwnd = max(cwndNew,INTCP_CWND_MIN);
             }
             lastCwndDecrTs = current;
             ccDataLen = 0;
             congSignal = false;
         }else{
-            //printf("ccDataLen=%u bytes,cwnd = %u\n",ccDataLen,cwnd);
-            float cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
             bool allowInc = allow_cwnd_increase();
-            if(ccDataLen*cwndGain > cwnd*INTCP_MSS && allowInc){
-                cwnd += 1;
+            //printf("ccDataLen=%u bytes,cwnd = %u\n",ccDataLen,cwnd);
+            // float cwndGain = pow(float(hopSrtt)/INTCP_RTT0,2);
+            // if(ccDataLen*cwndGain > cwnd*INTCP_MSS && allowInc){
+            //     cwnd += 1;
+            //     ccDataLen = 0;
+            // }else if (ccDataLen*cwndGain > 5*cwnd*INTCP_MSS && (!allowInc)){
+            //     cwnd = max(INTCP_CWND_MIN,cwnd-1);
+            //     ccDataLen = 0;
+            // }
+            if(ccDataLen > cwnd*INTCP_MSS/10 && allowInc){
+                cwnd += 0.1;   //0.1
                 ccDataLen = 0;
-            }else if (ccDataLen*cwndGain > 5*cwnd*INTCP_MSS && (!allowInc)){
-                cwnd = max(INTCP_CWND_MIN,cwnd-1);
+            }else if (ccDataLen > 5*cwnd*INTCP_MSS/10 && (!allowInc)){
+                cwnd = max(INTCP_CWND_MIN,cwnd-0.1f);
                 ccDataLen = 0;
             }
         }
     }
     if(cwndOld != cwnd){
-        LOG(TRACE,"%u cwnd %u",current,cwnd);
+        LOG(TRACE,"%u cwnd %.1f",current,cwnd);
     }
 }
 
 bool IntcpTransCB::allow_cwnd_increase(){
-    if(thrpLastHRTT==0||cwnd==0)
+    if(thrpLastPeriod==0||cwnd==0)
         return true;
-    if(thrpLastHRTT < (bytesToMbit(cwnd*INTCP_MSS)/hopSrtt*1000)/2 )
+    if(thrpLastPeriod < (bytesToMbit(cwnd*INTCP_MSS)/hopSrtt*1000)/2 )
         return false;
     return true;
 }
@@ -1546,7 +1559,7 @@ int IntcpTransCB::getWaitSnd()
     return sndQueue.size();
 }
 
-IUINT32 IntcpTransCB::getCwnd(){
+float IntcpTransCB::getCwnd(){
     return cwnd;
 }
 

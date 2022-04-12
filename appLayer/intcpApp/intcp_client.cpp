@@ -3,11 +3,15 @@
 #include "config.h"
 #include <thread>
 #include <sys/time.h>
+//#include <getopt.h>
 #undef LOG_LEVEL
 #define LOG_LEVEL DEBUG
 //#define FLOW_TEST
 
 using namespace std;
+
+//extern char* optarg;
+char clientAddr[20] = "10.0.1.1";
 
 IUINT32 _round_up(IUINT32 x,IUINT32 y){
     return ((x+y-1)/y)*y;
@@ -93,12 +97,26 @@ void *onNewSess(void* _sessPtr){
     return nullptr;
 }
 
-int main(){
+int main(int argc,char** argv){
+    int ch;
+    
+    while((ch=getopt(argc,argv,"c:"))!=-1){
+        switch(ch){
+            case 'c':
+                strncpy(clientAddr,optarg,19);
+                break;
+            default:
+                printf("unkown option\n");
+                break;
+        }
+    }
+    
     flushBeforeExit();
     Cache cache(QUAD_STR_LEN);
     ByteMap<shared_ptr<IntcpSess>> sessMap;
     LOG(INFO,"entering intcpc\n");
+    LOG(INFO,"client ip:%s\n",clientAddr);
     startRequester(&cache,&sessMap,onNewSess,
-        "10.0.1.1","10.0.100.2",DEFAULT_SERVER_PORT);
+        (const char*)clientAddr,"10.0.100.2",DEFAULT_SERVER_PORT);
     return 0;
 }

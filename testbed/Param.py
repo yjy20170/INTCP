@@ -97,7 +97,7 @@ class Param:
 LinkNameSep = '_'
 class TopoParam(Param):
     BasicKeys = ['name',
-            'numMidNode','nodes','links']
+            'numMidNode','nodes','links','pathes']
     def serialize(self,indent=0):
         IndentSpace = '    '
         string = f'{IndentSpace*(indent)}{self.name}\n'
